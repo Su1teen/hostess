@@ -40,7 +40,7 @@ export function CatalogScreen({ onOpenRestaurant }: { onOpenRestaurant: (r: Rest
   const catVenues = venues.filter((v) => cat === "food" || v.category === cat);
 
   return (
-    <div className="h-full overflow-y-auto bg-white pb-32">
+    <div className="h-full overflow-y-auto bg-white pb-[140px]">
       <div className="sticky top-0 z-10 bg-white/85 px-5 pb-3 pt-14 backdrop-blur-xl">
         <p className="text-[11px] uppercase tracking-widest text-neutral-500">Городской хаб</p>
         <h1 className="text-3xl font-semibold tracking-tight text-neutral-900">
@@ -337,7 +337,7 @@ function StoryViewer({ story, onClose }: { story: Story; onClose: () => void }) 
       initial={{ opacity: 0, scale: 1.04 }}
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[80] bg-black"
+      className="fixed inset-0 z-[100] bg-black"
       onClick={onClose}
     >
       <img src={story.cover} alt="" className="h-full w-full object-cover opacity-90" />
@@ -382,7 +382,7 @@ function VenueModal({ venue, onClose }: { venue: Venue; onClose: () => void }) {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="absolute inset-0 z-[70] flex items-end bg-black/45 backdrop-blur-[2px]"
+      className="absolute inset-0 z-[100] flex items-end bg-black/45 backdrop-blur-[2px]"
       onClick={onClose}
     >
       <motion.div
@@ -498,7 +498,7 @@ function EventModal({ event, onClose }: { event: CityEvent; onClose: () => void 
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="absolute inset-0 z-[70] flex items-end bg-black/45 backdrop-blur-[2px]"
+      className="absolute inset-0 z-[100] flex items-end bg-black/45 backdrop-blur-[2px]"
       onClick={onClose}
     >
       <motion.div

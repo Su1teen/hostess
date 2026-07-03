@@ -12,7 +12,7 @@ const items: { key: Screen; label: string; Icon: typeof Map }[] = [
 
 export function BottomNav({ active, onChange }: { active: Screen; onChange: (s: Screen) => void }) {
   return (
-    <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[9999] flex justify-center pb-5">
+    <div className="pointer-events-none absolute inset-x-0 bottom-0 z-50 flex justify-center pb-5">
       <motion.nav
         initial={{ y: 60, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}

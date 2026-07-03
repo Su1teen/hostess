@@ -1,5 +1,5 @@
 export const MAPBOX_TOKEN =
-  "pk.eyJ1Ijoic3VsdGVlbiIsImEiOiJjbXI0bm52M3IwMGhrMnhyMG9vOTNydHl6In0.h2kO90ZY7BJ7lSQUKwsURA";
+  "pk.eyJ1Ijoic3VsdGVlbiIsImEiOiJjbHVqbWJtYWkwNXhiMmxvMWwxOW9kZG9sIn0.8aHVOkgsFBDYnN9FBVNcPw";
 
 export const ASTANA = { lng: 71.4491, lat: 51.1694 };
 
@@ -623,3 +623,187 @@ export const calendarEvents: Record<number, { title: string; color: string }[]> 
 };
 
 export const money = (n: number) => `${n.toLocaleString("ru-RU")} ₸`;
+
+/* ── Плотные данные для карты (Zenly-style) ───────────────────────── */
+
+export type MapPoint = {
+  id: string;
+  name: string;
+  category: "food" | "beauty" | "medicine" | "auto" | "concerts";
+  rating: number;
+  coords: { lng: number; lat: number };
+};
+
+/**
+ * Объединённый массив всех точек на карте — рестораны + заведения + дополнительные
+ * моковые точки, чтобы карта выглядела «забитой» (20+ точек).
+ */
+export const mapPoints: MapPoint[] = [
+  // Рестораны (из основного массива)
+  ...restaurants.map((r) => ({
+    id: r.id,
+    name: r.name,
+    category: "food" as const,
+    rating: r.rating,
+    coords: r.coords,
+  })),
+  // Заведения (из основного массива)
+  ...venues.map((v) => ({
+    id: v.id,
+    name: v.name,
+    category: v.category as MapPoint["category"],
+    rating: v.rating,
+    coords: v.coords,
+  })),
+  // Дополнительные моковые точки — рестораны
+  {
+    id: "mp1",
+    name: "Sandyq",
+    category: "food",
+    rating: 4.8,
+    coords: { lng: 71.43, lat: 51.1608 },
+  },
+  {
+    id: "mp2",
+    name: "Ashana",
+    category: "food",
+    rating: 4.5,
+    coords: { lng: 71.415, lat: 51.1505 },
+  },
+  {
+    id: "mp3",
+    name: "Marina Bay",
+    category: "food",
+    rating: 4.6,
+    coords: { lng: 71.455, lat: 51.132 },
+  },
+  {
+    id: "mp4",
+    name: "Beirut",
+    category: "food",
+    rating: 4.7,
+    coords: { lng: 71.426, lat: 51.1395 },
+  },
+  {
+    id: "mp5",
+    name: "Fusion Coffee",
+    category: "food",
+    rating: 4.9,
+    coords: { lng: 71.438, lat: 51.127 },
+  },
+  // Дополнительные — барбершопы / салоны
+  {
+    id: "mp6",
+    name: "Gentlemen's Club",
+    category: "beauty",
+    rating: 4.8,
+    coords: { lng: 71.421, lat: 51.1362 },
+  },
+  {
+    id: "mp7",
+    name: "Lash Bar",
+    category: "beauty",
+    rating: 4.9,
+    coords: { lng: 71.448, lat: 51.1418 },
+  },
+  // Дополнительные — стоматологии / медицина
+  {
+    id: "mp8",
+    name: "Dent Studio",
+    category: "medicine",
+    rating: 4.7,
+    coords: { lng: 71.433, lat: 51.1512 },
+  },
+  {
+    id: "mp9",
+    name: "Medilux",
+    category: "medicine",
+    rating: 4.6,
+    coords: { lng: 71.419, lat: 51.1438 },
+  },
+  // Дополнительные — автомойки / авто
+  {
+    id: "mp10",
+    name: "Shine Car Wash",
+    category: "auto",
+    rating: 4.5,
+    coords: { lng: 71.465, lat: 51.158 },
+  },
+  {
+    id: "mp11",
+    name: "Auto Spa Astana",
+    category: "auto",
+    rating: 4.8,
+    coords: { lng: 71.472, lat: 51.162 },
+  },
+];
+
+export type FriendMapLocation = {
+  id: string;
+  name: string;
+  avatar: string;
+  coords: { lng: number; lat: number };
+  minutesAgo: number;
+};
+
+/**
+ * 8 плавающих аватарок друзей в стиле Zenly — распределены по всей Астане.
+ */
+export const friendMapLocations: FriendMapLocation[] = [
+  {
+    id: "fm1",
+    name: "Айгерим",
+    avatar: img("photo-1494790108377-be9c29b29330", 200),
+    coords: { lng: 71.4225, lat: 51.129 },
+    minutesAgo: 5,
+  },
+  {
+    id: "fm2",
+    name: "Данияр",
+    avatar: img("photo-1500648767791-00dcc994a43e", 200),
+    coords: { lng: 71.428, lat: 51.1285 },
+    minutesAgo: 12,
+  },
+  {
+    id: "fm3",
+    name: "Мадина",
+    avatar: img("photo-1438761681033-6461ffad8d80", 200),
+    coords: { lng: 71.408, lat: 51.1325 },
+    minutesAgo: 3,
+  },
+  {
+    id: "fm4",
+    name: "Ерлан",
+    avatar: img("photo-1472099645785-5658abf4ff4e", 200),
+    coords: { lng: 71.44, lat: 51.1555 },
+    minutesAgo: 28,
+  },
+  {
+    id: "fm5",
+    name: "Асель",
+    avatar: img("photo-1534528741775-53994a69daeb", 200),
+    coords: { lng: 71.435, lat: 51.162 },
+    minutesAgo: 45,
+  },
+  {
+    id: "fm6",
+    name: "Тимур",
+    avatar: img("photo-1507003211169-0a1dd7228f2d", 200),
+    coords: { lng: 71.415, lat: 51.138 },
+    minutesAgo: 8,
+  },
+  {
+    id: "fm7",
+    name: "Дана",
+    avatar: img("photo-1487412720507-e7ab37603c6f", 200),
+    coords: { lng: 71.452, lat: 51.149 },
+    minutesAgo: 15,
+  },
+  {
+    id: "fm8",
+    name: "Нурлан",
+    avatar: img("photo-1506794778202-cad84cf4531c", 200),
+    coords: { lng: 71.425, lat: 51.145 },
+    minutesAgo: 60,
+  },
+];

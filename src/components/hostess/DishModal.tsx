@@ -30,7 +30,7 @@ export function DishModal({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="absolute inset-0 z-[70] flex items-end bg-black/45 backdrop-blur-[2px]"
+      className="absolute inset-0 z-[100] flex items-end bg-black/45 backdrop-blur-[2px]"
       onClick={onClose}
     >
       <motion.div

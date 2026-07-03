@@ -116,7 +116,7 @@ export function AIScreen() {
         </div>
       </div>
 
-      <div className="px-5 pb-32">
+      <div className="px-5 pb-[140px]">
         <div className="flex items-center gap-2 rounded-full bg-white p-1.5 pl-4 hairline shadow-sm">
           <input
             placeholder="Спросите что угодно…"

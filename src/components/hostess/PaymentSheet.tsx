@@ -61,7 +61,7 @@ export function PaymentSheet({
       animate={{ x: 0 }}
       exit={{ x: "100%" }}
       transition={{ type: "spring", stiffness: 300, damping: 32 }}
-      className="absolute inset-0 z-[60] flex flex-col bg-white"
+      className="absolute inset-0 z-[100] flex flex-col bg-white"
     >
       <div className="flex-1 overflow-y-auto pb-[190px]">
         {/* Header */}
@@ -207,7 +207,7 @@ export function PaymentSheet({
       </div>
 
       {/* Плавающая кнопка оплаты — выше навбара */}
-      <div className="pointer-events-none absolute inset-x-0 bottom-[100px] z-[8888] px-5">
+      <div className="pointer-events-none absolute inset-x-0 bottom-[100px] z-40 px-5">
         <motion.button
           onClick={pay}
           whileTap={{ scale: 0.97 }}
@@ -225,7 +225,7 @@ export function PaymentSheet({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 z-[9000] flex items-end justify-center bg-black/55 backdrop-blur-sm"
+            className="absolute inset-0 z-[100] flex items-end justify-center bg-black/55 backdrop-blur-sm"
           >
             <motion.div
               initial={{ y: "100%" }}

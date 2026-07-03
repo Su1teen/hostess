@@ -5,7 +5,6 @@ import { PhoneFrame } from "@/components/hostess/PhoneFrame";
 import { BottomNav } from "@/components/hostess/BottomNav";
 import { Splash } from "@/components/hostess/Splash";
 import { MapScreen } from "@/components/hostess/screens/MapScreen";
-import { CatalogScreen } from "@/components/hostess/screens/CatalogScreen";
 import { AIScreen } from "@/components/hostess/screens/AIScreen";
 import { CalendarScreen } from "@/components/hostess/screens/CalendarScreen";
 import { ProfileScreen } from "@/components/hostess/screens/ProfileScreen";
@@ -28,13 +27,18 @@ export const Route = createFileRoute("/")({
   component: Index,
 });
 
+// "catalog" — это не отдельный экран, а раскрытая шторка на карте.
+// Но вкладка в навбаре остаётся, поэтому держим её в порядке слайдов.
 const screenOrder: Screen[] = ["map", "catalog", "ai", "calendar", "profile"];
+
+type SheetState = "collapsed" | "half" | "full";
 
 function Index() {
   const [screen, setScreen] = useState<Screen>("map");
   const [splash, setSplash] = useState(true);
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
   const [payment, setPayment] = useState<BookingPayload | null>(null);
+  const [sheetState, setSheetState] = useState<SheetState>("collapsed");
   const prevScreen = useRef<Screen>("map");
 
   // Направление слайда: вправо/влево по порядку вкладок (как в iOS).
@@ -52,6 +56,22 @@ function Index() {
     setPayment(null);
     setRestaurant(null);
   };
+
+  // Обработчик переключения вкладок навбара.
+  const handleNavChange = (s: Screen) => {
+    if (s === "catalog") {
+      // "Места" — не отдельный экран, а раскрытая шторка на карте.
+      setScreen("map");
+      setSheetState("full");
+    } else {
+      setScreen(s);
+      // При уходе с карты — сворачиваем шторку.
+      if (s !== "map") setSheetState("collapsed");
+    }
+  };
+
+  // Когда шторка полностью раскрыта — подсвечиваем вкладку "Места".
+  const activeTab: Screen = sheetState === "full" && screen === "map" ? "catalog" : screen;
 
   return (
     <PhoneFrame>
@@ -77,10 +97,10 @@ function Index() {
             {screen === "map" && (
               <MapScreen
                 onOpenRestaurant={setRestaurant}
-                onExpandToCatalog={() => setScreen("catalog")}
+                sheetState={sheetState}
+                onSheetStateChange={setSheetState}
               />
             )}
-            {screen === "catalog" && <CatalogScreen onOpenRestaurant={setRestaurant} />}
             {screen === "ai" && <AIScreen />}
             {screen === "calendar" && <CalendarScreen />}
             {screen === "profile" && (
@@ -106,7 +126,7 @@ function Index() {
               key="rest"
               r={restaurant}
               onClose={() => setRestaurant(null)}
-              onProceed={setPayment}
+              onProceed={(b) => setPayment(b)}
             />
           )}
           {payment && (
@@ -119,7 +139,7 @@ function Index() {
           )}
         </AnimatePresence>
 
-        <BottomNav active={screen} onChange={setScreen} />
+        <BottomNav active={activeTab} onChange={handleNavChange} />
       </div>
     </PhoneFrame>
   );

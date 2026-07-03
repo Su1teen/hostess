@@ -16,7 +16,7 @@ export function CalendarScreen() {
   for (let d = 1; d <= daysInMonth; d++) cells.push(d);
 
   return (
-    <div className="relative h-full overflow-y-auto bg-white pb-32">
+    <div className="relative h-full overflow-y-auto bg-white pb-[140px]">
       <div className="flex items-center justify-between px-5 pt-14">
         <button className="grid h-10 w-10 place-items-center rounded-full bg-neutral-100">
           <Search className="h-4 w-4" />

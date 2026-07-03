@@ -50,7 +50,7 @@ export function RestaurantSheet({
       animate={{ y: 0 }}
       exit={{ y: "100%" }}
       transition={{ type: "spring", stiffness: 260, damping: 30 }}
-      className="absolute inset-0 z-50 flex flex-col bg-white"
+      className="absolute inset-0 z-[100] flex flex-col bg-white"
     >
       <div className="flex-1 overflow-y-auto pb-[170px]">
         {/* Hero */}
@@ -266,7 +266,7 @@ export function RestaurantSheet({
       </div>
 
       {/* Floating CTA — pinned above the global navbar */}
-      <div className="pointer-events-none absolute inset-x-0 bottom-[100px] z-[8888] px-5">
+      <div className="pointer-events-none absolute inset-x-0 bottom-[100px] z-40 px-5">
         <motion.button
           whileTap={{ scale: 0.97 }}
           onClick={() =>

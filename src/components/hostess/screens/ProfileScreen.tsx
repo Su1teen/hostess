@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 
 export function ProfileScreen({ onSplitBill }: { onSplitBill: () => void }) {
   return (
-    <div className="h-full overflow-y-auto bg-white pb-32">
+    <div className="h-full overflow-y-auto bg-white pb-[140px]">
       <div className="flex items-center justify-between px-5 pt-14">
         <p className="text-[11px] uppercase tracking-widest text-neutral-500">Профиль</p>
         <button className="grid h-10 w-10 place-items-center rounded-full bg-neutral-100">
