@@ -47,17 +47,26 @@ export function CalendarScreen() {
       </div>
 
       <div className="mt-6 flex items-end justify-between px-5">
-        <h1 className="text-5xl font-semibold tracking-tight" style={{ fontFamily: "var(--font-display)", fontStyle: "italic" }}>
+        <h1
+          className="text-5xl font-semibold tracking-tight"
+          style={{ fontFamily: "var(--font-display)", fontStyle: "italic" }}
+        >
           Май
         </h1>
         <div className="flex items-center gap-2">
-          <button className="grid h-9 w-9 place-items-center rounded-full bg-neutral-100"><ChevronLeft className="h-4 w-4" /></button>
-          <button className="grid h-9 w-9 place-items-center rounded-full bg-neutral-100"><ChevronRight className="h-4 w-4" /></button>
+          <button className="grid h-9 w-9 place-items-center rounded-full bg-neutral-100">
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <button className="grid h-9 w-9 place-items-center rounded-full bg-neutral-100">
+            <ChevronRight className="h-4 w-4" />
+          </button>
         </div>
       </div>
 
       <div className="mt-4 grid grid-cols-7 gap-y-3 px-3 text-center text-[11px] font-medium uppercase text-neutral-400">
-        {["Пн","Вт","Ср","Чт","Пт","Сб","Вс"].map((d) => <div key={d}>{d}</div>)}
+        {["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"].map((d) => (
+          <div key={d}>{d}</div>
+        ))}
       </div>
 
       <div className="grid grid-cols-7 gap-y-2 px-3 pt-2">
@@ -104,11 +113,19 @@ export function CalendarScreen() {
                   <p className="text-sm font-semibold">{a.title}</p>
                   <p className="mt-0.5 text-xs text-neutral-500">{a.when}</p>
                 </div>
-                <span className="rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-primary">Подтверждено</span>
+                <span className="rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-primary">
+                  Подтверждено
+                </span>
               </div>
               <div className="mt-3 flex items-center gap-3 text-xs text-neutral-600">
-                <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{a.place}</span>
-                <span className="flex items-center gap-1"><Users className="h-3 w-3" />{a.guests} гостей</span>
+                <span className="flex items-center gap-1">
+                  <MapPin className="h-3 w-3" />
+                  {a.place}
+                </span>
+                <span className="flex items-center gap-1">
+                  <Users className="h-3 w-3" />
+                  {a.guests} гостей
+                </span>
               </div>
             </div>
           ))}
@@ -129,12 +146,19 @@ export function CalendarScreen() {
             <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-neutral-300" />
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs uppercase tracking-wider text-neutral-500">{selected} мая · четверг</p>
+                <p className="text-xs uppercase tracking-wider text-neutral-500">
+                  {selected} мая · четверг
+                </p>
                 <h3 className="text-xl font-semibold">
-                  {(calendarEvents[selected]?.length ?? 0)} событий
+                  {calendarEvents[selected]?.length ?? 0} событий
                 </h3>
               </div>
-              <button onClick={() => setSelected(null)} className="rounded-full bg-neutral-100 px-3 py-1.5 text-xs">Закрыть</button>
+              <button
+                onClick={() => setSelected(null)}
+                className="rounded-full bg-neutral-100 px-3 py-1.5 text-xs"
+              >
+                Закрыть
+              </button>
             </div>
             <div className="mt-4 space-y-2">
               {(calendarEvents[selected] ?? []).map((e, i) => (
@@ -144,7 +168,9 @@ export function CalendarScreen() {
                     <p className="text-sm font-semibold">{e.title}</p>
                     <p className="text-xs text-neutral-500">19:30 · Ауыл · 4 гостя</p>
                   </div>
-                  <button className="rounded-full bg-neutral-900 px-3 py-1.5 text-xs font-semibold text-white">Открыть</button>
+                  <button className="rounded-full bg-neutral-900 px-3 py-1.5 text-xs font-semibold text-white">
+                    Открыть
+                  </button>
                 </div>
               ))}
               {(!calendarEvents[selected] || calendarEvents[selected]!.length === 0) && (

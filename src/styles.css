@@ -52,7 +52,7 @@
   --card-foreground: oklch(0.18 0.005 260);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.18 0.005 260);
-  --primary: oklch(0.68 0.19 45);            /* refined orange */
+  --primary: oklch(0.68 0.19 45); /* refined orange */
   --primary-foreground: oklch(1 0 0);
   --secondary: oklch(0.965 0.004 260);
   --secondary-foreground: oklch(0.18 0.005 260);
@@ -68,8 +68,13 @@
 }
 
 @layer base {
-  * { border-color: var(--color-border); }
-  html, body { height: 100%; }
+  * {
+    border-color: var(--color-border);
+  }
+  html,
+  body {
+    height: 100%;
+  }
   body {
     background-color: var(--color-surface-2);
     color: var(--color-foreground);
@@ -94,7 +99,9 @@
 }
 
 @utility no-scrollbar {
-  &::-webkit-scrollbar { display: none; }
+  &::-webkit-scrollbar {
+    display: none;
+  }
   scrollbar-width: none;
 }
 
@@ -103,4 +110,25 @@
 }
 
 /* Hide mapbox attribution nicely in demo */
-.mapboxgl-ctrl-attrib, .mapboxgl-ctrl-logo { opacity: 0.4; transform: scale(0.85); transform-origin: bottom right; }
+.mapboxgl-ctrl-attrib,
+.mapboxgl-ctrl-logo {
+  opacity: 0.4;
+  transform: scale(0.85);
+  transform-origin: bottom right;
+}
+
+/* Friend avatar pulse on map */
+@keyframes pulse-ring {
+  0% {
+    transform: scale(1);
+    opacity: 0.7;
+  }
+  70% {
+    transform: scale(1.4);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1.4);
+    opacity: 0;
+  }
+}
