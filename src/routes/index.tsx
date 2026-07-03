@@ -38,7 +38,7 @@ function Index() {
   const [splash, setSplash] = useState(true);
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
   const [payment, setPayment] = useState<BookingPayload | null>(null);
-  const [sheetState, setSheetState] = useState<SheetState>("collapsed");
+  const [sheetState, setSheetState] = useState<SheetState>("half");
   const prevScreen = useRef<Screen>("map");
 
   // Направление слайда: вправо/влево по порядку вкладок (как в iOS).
