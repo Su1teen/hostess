@@ -231,16 +231,53 @@ export const restaurants: Restaurant[] = [
 ];
 
 export const friends = [
-  { id: "f1", name: "Айгерим", avatar: img("photo-1494790108377-be9c29b29330", 200), lastSeen: "Ауыл · 2ч назад" },
-  { id: "f2", name: "Данияр", avatar: img("photo-1500648767791-00dcc994a43e", 200), lastSeen: "Line Brew · вчера" },
-  { id: "f3", name: "Мадина", avatar: img("photo-1438761681033-6461ffad8d80", 200), lastSeen: "Sadu · сейчас" },
-  { id: "f4", name: "Ерлан", avatar: img("photo-1472099645785-5658abf4ff4e", 200), lastSeen: "Неделька · 3ч назад" },
-  { id: "f5", name: "Асель", avatar: img("photo-1534528741775-53994a69daeb", 200), lastSeen: "дома" },
+  {
+    id: "f1",
+    name: "Айгерим",
+    avatar: img("photo-1494790108377-be9c29b29330", 200),
+    lastSeen: "Ауыл · 2ч назад",
+  },
+  {
+    id: "f2",
+    name: "Данияр",
+    avatar: img("photo-1500648767791-00dcc994a43e", 200),
+    lastSeen: "Line Brew · вчера",
+  },
+  {
+    id: "f3",
+    name: "Мадина",
+    avatar: img("photo-1438761681033-6461ffad8d80", 200),
+    lastSeen: "Sadu · сейчас",
+  },
+  {
+    id: "f4",
+    name: "Ерлан",
+    avatar: img("photo-1472099645785-5658abf4ff4e", 200),
+    lastSeen: "Неделька · 3ч назад",
+  },
+  {
+    id: "f5",
+    name: "Асель",
+    avatar: img("photo-1534528741775-53994a69daeb", 200),
+    lastSeen: "дома",
+  },
 ];
 
 export const loyaltyCards = [
-  { id: "c1", name: "Ауыл", tier: "Gold", points: 12480, gradient: "from-neutral-900 to-neutral-700" },
-  { id: "c2", name: "Line Brew", tier: "Silver", points: 4210, gradient: "from-[#F97316] to-[#EA580C]" },
+  {
+    id: "c1",
+    name: "Ауыл",
+    tier: "Gold",
+    points: 12480,
+    gradient: "from-neutral-900 to-neutral-700",
+  },
+  {
+    id: "c2",
+    name: "Line Brew",
+    tier: "Silver",
+    points: 4210,
+    gradient: "from-[#F97316] to-[#EA580C]",
+  },
   { id: "c3", name: "Sadu", tier: "Black", points: 890, gradient: "from-zinc-800 to-black" },
 ];
 

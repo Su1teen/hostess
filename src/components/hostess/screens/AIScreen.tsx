@@ -1,4 +1,4 @@
-import { Sparkles, Send, Mic } from "lucide-react";
+import { Sparkles, Send, Mic, Star, MapPin, Clock } from "lucide-react";
 import { motion } from "framer-motion";
 
 const suggestions = [
@@ -8,10 +8,20 @@ const suggestions = [
   "Нужен ресторан рядом с Байтереком до 20 000 ₸",
 ];
 
-const messages = [
-  { role: "ai", text: "Привет 👋 Я ваш AI-ассистент Hostess. Подберу ресторан, забронирую столик и напомню о брони." },
-  { role: "user", text: "Найди что-то стильное на пятницу, 4 гостя, ужин" },
-  { role: "ai", text: "Нашла 3 идеальных варианта. Line Brew — свободный кабинет на 20:00, средний чек ~25 000 ₸. Забронировать?" },
+const messages: { role: "ai" | "user"; text: string; card?: boolean }[] = [
+  {
+    role: "ai",
+    text: "Привет! Я ваш AI-консьерж Hostess. Подберу идеальное место, забронирую столик и напомню о брони. Что ищете?",
+  },
+  {
+    role: "user",
+    text: "Найди тихое место для встречи с инвесторами через час, где подают стейки.",
+  },
+  {
+    role: "ai",
+    text: "Отличный выбор. Нашёл идеальный вариант — Line Brew: приватная зона, dry-aged стейки, тихая атмосфера. Есть свободный кабинет на 19:00.",
+    card: true,
+  },
 ];
 
 export function AIScreen() {
@@ -35,11 +45,11 @@ export function AIScreen() {
             key={i}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.1 }}
+            transition={{ delay: i * 0.15 }}
             className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
           >
             <div
-              className={`max-w-[80%] rounded-3xl px-4 py-3 text-sm leading-relaxed ${
+              className={`max-w-[85%] rounded-3xl px-4 py-3 text-sm leading-relaxed ${
                 m.role === "user"
                   ? "rounded-br-md bg-neutral-900 text-white"
                   : "rounded-bl-md bg-white text-neutral-900 hairline"
@@ -50,23 +60,56 @@ export function AIScreen() {
           </motion.div>
         ))}
 
-        <div className="rounded-3xl bg-white p-3 hairline">
-          <p className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-wider text-neutral-500">Line Brew · пт 20:00</p>
-          <img
-            src="https://images.unsplash.com/photo-1552566626-52f8b828add9?auto=format&fit=crop&w=800&q=80"
-            className="h-32 w-full rounded-2xl object-cover"
-          />
-          <div className="mt-3 flex gap-2">
-            <button className="flex-1 rounded-full bg-primary py-2.5 text-sm font-semibold text-white">Забронировать</button>
-            <button className="rounded-full bg-neutral-100 px-4 py-2.5 text-sm font-medium">Другой вариант</button>
+        {/* Restaurant card from AI */}
+        <motion.div
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5 }}
+          className="rounded-3xl bg-white p-3 hairline"
+        >
+          <div className="relative h-36 w-full overflow-hidden rounded-2xl">
+            <img
+              src="https://images.unsplash.com/photo-1552566626-52f8b828add9?auto=format&fit=crop&w=800&q=80"
+              className="h-full w-full object-cover"
+              alt=""
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+            <div className="absolute inset-x-3 bottom-3 text-white">
+              <p className="text-lg font-semibold">Line Brew</p>
+              <div className="mt-0.5 flex items-center gap-2 text-[11px]">
+                <span className="flex items-center gap-0.5">
+                  <Star className="h-3 w-3 fill-white" /> 4.8
+                </span>
+                <span>· Стейк-хаус</span>
+              </div>
+            </div>
           </div>
-        </div>
+          <div className="mt-3 flex items-center gap-3 px-1 text-[11px] text-neutral-500">
+            <span className="flex items-center gap-1">
+              <Clock className="h-3 w-3" /> Кабинет свободен в 19:00
+            </span>
+            <span className="flex items-center gap-1">
+              <MapPin className="h-3 w-3" /> 2.4 км
+            </span>
+          </div>
+          <div className="mt-3 flex gap-2">
+            <button className="flex-1 rounded-full bg-primary py-2.5 text-sm font-semibold text-white shadow-md shadow-primary/20">
+              Забронировать стол в 19:00
+            </button>
+            <button className="rounded-full bg-neutral-100 px-4 py-2.5 text-sm font-medium text-neutral-700">
+              Ещё
+            </button>
+          </div>
+        </motion.div>
       </div>
 
       <div className="px-5 pb-2">
         <div className="no-scrollbar flex gap-2 overflow-x-auto pb-2">
           {suggestions.map((s) => (
-            <button key={s} className="shrink-0 rounded-full bg-neutral-100 px-3.5 py-2 text-xs text-neutral-700">
+            <button
+              key={s}
+              className="shrink-0 rounded-full bg-neutral-100 px-3.5 py-2 text-xs text-neutral-700"
+            >
               {s}
             </button>
           ))}

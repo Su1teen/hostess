@@ -19,7 +19,12 @@ function NotFoundComponent() {
         <h1 className="text-7xl font-bold text-foreground">404</h1>
         <p className="mt-2 text-sm text-muted-foreground">Страница не найдена</p>
         <div className="mt-6">
-          <Link to="/" className="inline-flex items-center rounded-full bg-primary px-5 py-2 text-sm font-medium text-primary-foreground">На главную</Link>
+          <Link
+            to="/"
+            className="inline-flex items-center rounded-full bg-primary px-5 py-2 text-sm font-medium text-primary-foreground"
+          >
+            На главную
+          </Link>
         </div>
       </div>
     </div>
@@ -29,12 +34,22 @@ function NotFoundComponent() {
 function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   console.error(error);
   const router = useRouter();
-  useEffect(() => { reportLovableError(error, { boundary: "tanstack_root_error_component" }); }, [error]);
+  useEffect(() => {
+    reportLovableError(error, { boundary: "tanstack_root_error_component" });
+  }, [error]);
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
         <h1 className="text-xl font-semibold">Что-то пошло не так</h1>
-        <button onClick={() => { router.invalidate(); reset(); }} className="mt-6 rounded-full bg-primary px-5 py-2 text-sm text-primary-foreground">Обновить</button>
+        <button
+          onClick={() => {
+            router.invalidate();
+            reset();
+          }}
+          className="mt-6 rounded-full bg-primary px-5 py-2 text-sm text-primary-foreground"
+        >
+          Обновить
+        </button>
       </div>
     </div>
   );
@@ -46,7 +61,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
       { title: "Hostess — Бронирование ресторанов в Астане" },
-      { name: "description", content: "Премиум приложение для бронирования столиков, меню и социального опыта в лучших ресторанах Астаны." },
+      {
+        name: "description",
+        content:
+          "Премиум приложение для бронирования столиков, меню и социального опыта в лучших ресторанах Астаны.",
+      },
       { name: "theme-color", content: "#ffffff" },
       { property: "og:title", content: "Hostess — Премиум бронирование ресторанов" },
       { property: "og:description", content: "Столики, меню, друзья и оплата в одном приложении." },
@@ -58,7 +77,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "" },
-      { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@300;400;500;600;700;800&display=swap" },
+      {
+        rel: "stylesheet",
+        href: "https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@300;400;500;600;700;800&display=swap",
+      },
     ],
   }),
   shellComponent: RootShell,
@@ -70,8 +92,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 function RootShell({ children }: { children: ReactNode }) {
   return (
     <html lang="ru">
-      <head><HeadContent /></head>
-      <body>{children}<Scripts /></body>
+      <head>
+        <HeadContent />
+      </head>
+      <body>
+        {children}
+        <Scripts />
+      </body>
     </html>
   );
 }

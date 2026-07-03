@@ -2,11 +2,18 @@ import { useEffect, useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
 import { motion, useAnimation, useMotionValue } from "framer-motion";
 import { Search, SlidersHorizontal, Star, Clock } from "lucide-react";
-import { ASTANA, MAPBOX_TOKEN, restaurants, type Restaurant } from "@/data/hostess";
+import { ASTANA, MAPBOX_TOKEN, restaurants, friends, type Restaurant } from "@/data/hostess";
 
 mapboxgl.accessToken = MAPBOX_TOKEN;
 
 const filters = ["Рядом", "Ужин", "Завтрак", "Терраса", "Wine bar", "Азия", "Стейк"];
+
+const friendLocations = [
+  { friend: friends[0], coords: { lng: 71.4225, lat: 51.129 } },
+  { friend: friends[1], coords: { lng: 71.428, lat: 51.1285 } },
+  { friend: friends[2], coords: { lng: 71.408, lat: 51.1325 } },
+  { friend: friends[3], coords: { lng: 71.44, lat: 51.1555 } },
+];
 
 export function MapScreen({ onOpenRestaurant }: { onOpenRestaurant: (r: Restaurant) => void }) {
   const mapNode = useRef<HTMLDivElement>(null);
@@ -38,14 +45,35 @@ export function MapScreen({ onOpenRestaurant }: { onOpenRestaurant: (r: Restaura
           .setLngLat([r.coords.lng, r.coords.lat])
           .addTo(map);
       });
+
+      friendLocations.forEach(({ friend, coords }) => {
+        const el = document.createElement("div");
+        el.className = "friend-marker";
+        el.innerHTML = `
+          <div style="position:relative;width:40px;height:40px;">
+            <div style="position:absolute;inset:-2px;border-radius:50%;background:linear-gradient(135deg,#F97316,#EC4899);animation:pulse-ring 2s ease-out infinite;"></div>
+            <img src="${friend.avatar}" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid white;position:relative;box-shadow:0 4px 12px rgba(0,0,0,0.2);" />
+            <div style="position:absolute;bottom:-4px;left:50%;transform:translateX(-50%);background:#1a1a1a;color:white;font-size:9px;font-weight:600;padding:1px 6px;border-radius:8px;white-space:nowrap;">${friend.name}</div>
+          </div>
+        `;
+        new mapboxgl.Marker({ element: el, anchor: "center" })
+          .setLngLat([coords.lng, coords.lat])
+          .addTo(map);
+      });
     });
 
-    return () => { map.remove(); mapRef.current = null; };
+    return () => {
+      map.remove();
+      mapRef.current = null;
+    };
   }, [onOpenRestaurant]);
 
   const toggle = (next: boolean) => {
     setExpanded(next);
-    controls.start({ y: next ? -380 : 0, transition: { type: "spring", stiffness: 260, damping: 30 } });
+    controls.start({
+      y: next ? -380 : 0,
+      transition: { type: "spring", stiffness: 260, damping: 30 },
+    });
   };
 
   return (
@@ -99,9 +127,7 @@ export function MapScreen({ onOpenRestaurant }: { onOpenRestaurant: (r: Restaura
               <button
                 key={f}
                 className={`shrink-0 rounded-full px-4 py-2 text-xs font-medium ${
-                  i === 0
-                    ? "bg-neutral-900 text-white"
-                    : "bg-neutral-100 text-neutral-700"
+                  i === 0 ? "bg-neutral-900 text-white" : "bg-neutral-100 text-neutral-700"
                 }`}
               >
                 {f}
@@ -123,7 +149,11 @@ export function MapScreen({ onOpenRestaurant }: { onOpenRestaurant: (r: Restaura
                 className="group w-[260px] shrink-0 overflow-hidden rounded-3xl bg-white text-left hairline"
               >
                 <div className="relative h-36 w-full overflow-hidden">
-                  <img src={r.cover} alt={r.name} className="h-full w-full object-cover transition group-hover:scale-105" />
+                  <img
+                    src={r.cover}
+                    alt={r.name}
+                    className="h-full w-full object-cover transition group-hover:scale-105"
+                  />
                   <div className="absolute left-3 top-3 flex items-center gap-1 rounded-full bg-black/70 px-2 py-1 text-[11px] font-semibold text-white backdrop-blur">
                     <Star className="h-3 w-3 fill-white" /> {r.rating}
                   </div>
@@ -133,11 +163,15 @@ export function MapScreen({ onOpenRestaurant }: { onOpenRestaurant: (r: Restaura
                 </div>
                 <div className="p-3">
                   <p className="text-[15px] font-semibold text-neutral-900">{r.name}</p>
-                  <p className="text-xs text-neutral-500">{r.cuisine} · {r.district}</p>
+                  <p className="text-xs text-neutral-500">
+                    {r.cuisine} · {r.district}
+                  </p>
                   <div className="mt-2 flex items-center gap-2 text-[11px] text-neutral-600">
                     <Clock className="h-3 w-3" />
                     Свободно сегодня
-                    <span className="ml-auto font-semibold text-primary">от {(r.avgCheck/1000).toFixed(0)}k ₸</span>
+                    <span className="ml-auto font-semibold text-primary">
+                      от {(r.avgCheck / 1000).toFixed(0)}k ₸
+                    </span>
                   </div>
                 </div>
               </button>
@@ -163,7 +197,9 @@ export function MapScreen({ onOpenRestaurant }: { onOpenRestaurant: (r: Restaura
                   </div>
                   <div className="text-right text-[11px] text-neutral-500">
                     <p>{r.distanceKm} км</p>
-                    <p className="font-semibold text-neutral-900">~{(r.avgCheck/1000).toFixed(0)}k</p>
+                    <p className="font-semibold text-neutral-900">
+                      ~{(r.avgCheck / 1000).toFixed(0)}k
+                    </p>
                   </div>
                 </button>
               ))}
