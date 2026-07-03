@@ -13,6 +13,10 @@ export type Dish = {
   tags: string[];
   image: string;
   special?: string;
+  ingredients?: string[];
+  protein?: number;
+  fat?: number;
+  carbs?: number;
 };
 
 export type Restaurant = {
@@ -69,6 +73,17 @@ export const restaurants: Restaurant[] = [
             kcal: 310,
             tags: ["говядина", "сырое", "острое"],
             image: img("photo-1544025162-d76694265947"),
+            ingredients: [
+              "мраморная говядина",
+              "перепелиный желток",
+              "дижонская горчица",
+              "копчёное масло",
+              "каперсы",
+              "лук-шалот",
+            ],
+            protein: 28,
+            fat: 19,
+            carbs: 4,
           },
           {
             id: "d2",
@@ -79,6 +94,16 @@ export const restaurants: Restaurant[] = [
             kcal: 420,
             tags: ["выпечка", "вег"],
             image: img("photo-1509440159596-0249088772ff"),
+            ingredients: [
+              "мука высшего сорта",
+              "крем-сыр",
+              "трюфельный мёд",
+              "сливочное масло",
+              "морская соль",
+            ],
+            protein: 9,
+            fat: 22,
+            carbs: 48,
           },
         ],
       },
@@ -94,6 +119,16 @@ export const restaurants: Restaurant[] = [
             kcal: 780,
             tags: ["ягнёнок", "традиция"],
             image: img("photo-1546069901-ba9599a7e63c"),
+            ingredients: [
+              "ягнёнок томлёный 12ч",
+              "тесто ручной раскатки",
+              "лук",
+              "сорпа",
+              "зелень",
+            ],
+            protein: 42,
+            fat: 31,
+            carbs: 55,
           },
           {
             id: "d4",
@@ -104,6 +139,16 @@ export const restaurants: Restaurant[] = [
             kcal: 410,
             tags: ["рыба", "гриль"],
             image: img("photo-1519708227418-c8fd9a32b7a2"),
+            ingredients: [
+              "дикий судак",
+              "ферментированный перец",
+              "зелёное масло",
+              "лимон",
+              "тимьян",
+            ],
+            protein: 34,
+            fat: 14,
+            carbs: 6,
           },
         ],
       },
@@ -160,6 +205,16 @@ export const restaurants: Restaurant[] = [
             kcal: 920,
             tags: ["говядина", "dry-aged"],
             image: img("photo-1558030006-450675393462"),
+            ingredients: [
+              "рибай ангус 45 дней выдержки",
+              "соль Малдон",
+              "костный мозг",
+              "розмарин",
+              "чеснок конфи",
+            ],
+            protein: 62,
+            fat: 58,
+            carbs: 0,
           },
         ],
       },
@@ -205,6 +260,16 @@ export const restaurants: Restaurant[] = [
             kcal: 540,
             tags: ["яйца", "рыба"],
             image: img("photo-1608039755401-742074f0548d"),
+            ingredients: [
+              "бриошь",
+              "яйцо пашот",
+              "лосось слабой соли",
+              "голландский соус",
+              "укроп",
+            ],
+            protein: 26,
+            fat: 32,
+            carbs: 28,
           },
         ],
       },
@@ -225,8 +290,256 @@ export const restaurants: Restaurant[] = [
     coords: { lng: 71.408, lat: 51.132 },
     description: "Дим-самы, роботы-повара и коктейли на робате.",
     tags: ["Азия", "Коктейли"],
-    menu: [],
+    menu: [
+      {
+        section: "Дим-самы",
+        items: [
+          {
+            id: "sd1",
+            name: "Дим-самы с креветкой",
+            desc: "Тигровая креветка, бамбук, соус понзу",
+            price: 4200,
+            weight: 160,
+            kcal: 290,
+            tags: ["морепродукты", "пар"],
+            image: img("photo-1496116218417-1a781b1c416c"),
+            ingredients: ["тигровая креветка", "рисовое тесто", "бамбук", "понзу", "имбирь"],
+            protein: 18,
+            fat: 8,
+            carbs: 34,
+          },
+          {
+            id: "sd2",
+            name: "Утка по-пекински роллы",
+            desc: "Утка конфи, блинчики, соус хойсин, огурец",
+            price: 6800,
+            weight: 240,
+            kcal: 520,
+            tags: ["утка", "хит"],
+            image: img("photo-1525755662778-989d0524087e"),
+            ingredients: ["утка конфи", "рисовые блинчики", "хойсин", "огурец", "зелёный лук"],
+            protein: 31,
+            fat: 28,
+            carbs: 38,
+          },
+        ],
+      },
+    ],
     specials: [],
+  },
+];
+
+/* ── Lifestyle-хаб: категории, заведения, афиша, сторис ───────────── */
+
+export type Category = {
+  key: string;
+  label: string;
+  emoji: string;
+};
+
+export const categories: Category[] = [
+  { key: "food", label: "Рестораны", emoji: "🍽" },
+  { key: "concerts", label: "Концерты", emoji: "🎤" },
+  { key: "beauty", label: "Красота", emoji: "💈" },
+  { key: "medicine", label: "Медицина", emoji: "🦷" },
+  { key: "auto", label: "Авто", emoji: "🚗" },
+];
+
+export type Venue = {
+  id: string;
+  category: string;
+  name: string;
+  kind: string;
+  rating: number;
+  reviews: number;
+  cover: string;
+  priceFrom: number;
+  distanceKm: number;
+  badge?: string;
+  services: { name: string; price: number; duration: string }[];
+  coords: { lng: number; lat: number };
+};
+
+export const venues: Venue[] = [
+  {
+    id: "v1",
+    category: "beauty",
+    name: "Barbershop TOMB",
+    kind: "Барбершоп · Есиль",
+    rating: 4.9,
+    reviews: 480,
+    cover: img("photo-1585747860715-2ba37e788b70"),
+    priceFrom: 7000,
+    distanceKm: 1.4,
+    badge: "Топ мастера",
+    services: [
+      { name: "Стрижка + укладка", price: 9000, duration: "60 мин" },
+      { name: "Королевское бритьё", price: 7000, duration: "45 мин" },
+      { name: "Комплекс отец + сын", price: 14000, duration: "90 мин" },
+    ],
+    coords: { lng: 71.418, lat: 51.13 },
+  },
+  {
+    id: "v2",
+    category: "medicine",
+    name: "Dr. Aidyn Clinic",
+    kind: "Стоматология · Байтерек",
+    rating: 4.8,
+    reviews: 320,
+    cover: img("photo-1629909613654-28e377c37b09"),
+    priceFrom: 10000,
+    distanceKm: 2.1,
+    badge: "Приём сегодня",
+    services: [
+      { name: "Профгигиена + AirFlow", price: 25000, duration: "60 мин" },
+      { name: "Консультация + снимок", price: 10000, duration: "30 мин" },
+      { name: "Отбеливание ZOOM 4", price: 120000, duration: "90 мин" },
+    ],
+    coords: { lng: 71.435, lat: 51.14 },
+  },
+  {
+    id: "v3",
+    category: "auto",
+    name: "Details Detailing",
+    kind: "Автомойка · Left Bank",
+    rating: 4.7,
+    reviews: 210,
+    cover: img("photo-1607860108855-64acf2078ed9"),
+    priceFrom: 5000,
+    distanceKm: 3.4,
+    services: [
+      { name: "Комплекс мойка", price: 5000, duration: "40 мин" },
+      { name: "Химчистка салона", price: 35000, duration: "4 часа" },
+      { name: "Керамика кузова", price: 180000, duration: "2 дня" },
+    ],
+    coords: { lng: 71.46, lat: 51.15 },
+  },
+  {
+    id: "v4",
+    category: "beauty",
+    name: "MILA Beauty Lab",
+    kind: "Салон красоты · Хайвил",
+    rating: 4.9,
+    reviews: 615,
+    cover: img("photo-1560066984-138dadb4c035"),
+    priceFrom: 8000,
+    distanceKm: 1.9,
+    badge: "−20% новым",
+    services: [
+      { name: "Маникюр + гель", price: 12000, duration: "90 мин" },
+      { name: "Укладка premium", price: 8000, duration: "45 мин" },
+      { name: "Комплекс подружки", price: 28000, duration: "2 часа" },
+    ],
+    coords: { lng: 71.412, lat: 51.145 },
+  },
+];
+
+export type CityEvent = {
+  id: string;
+  title: string;
+  place: string;
+  date: string;
+  time: string;
+  cover: string;
+  price: number;
+  tag: string;
+  hot?: boolean;
+};
+
+export const cityEvents: CityEvent[] = [
+  {
+    id: "e1",
+    title: "Jazz Night: Astana Quartet",
+    place: "The Bus Bar",
+    date: "Сб, 4 июля",
+    time: "21:00",
+    cover: img("photo-1511192336575-5a79af67a629"),
+    price: 8000,
+    tag: "Концерт",
+    hot: true,
+  },
+  {
+    id: "e2",
+    title: "Стендап-вечер: Открытый микрофон",
+    place: "Loft Comedy",
+    date: "Пт, 3 июля",
+    time: "20:00",
+    cover: img("photo-1585699324551-f6c309eedeca"),
+    price: 4000,
+    tag: "Стендап",
+  },
+  {
+    id: "e3",
+    title: "Фестиваль уличной еды",
+    place: "Триатлон-парк",
+    date: "Вс, 5 июля",
+    time: "12:00",
+    cover: img("photo-1555939594-58d7cb561ad1"),
+    price: 0,
+    tag: "Фестиваль",
+    hot: true,
+  },
+  {
+    id: "e4",
+    title: "Симфония под открытым небом",
+    place: "Ботанический сад",
+    date: "Сб, 4 июля",
+    time: "19:30",
+    cover: img("photo-1465847899084-d164df4dedc6"),
+    price: 12000,
+    tag: "Классика",
+  },
+];
+
+export type Story = {
+  id: string;
+  name: string;
+  avatar: string;
+  cover: string;
+  caption: string;
+  viewed: boolean;
+};
+
+export const stories: Story[] = [
+  {
+    id: "st1",
+    name: "Айгерим",
+    avatar: img("photo-1494790108377-be9c29b29330", 200),
+    cover: img("photo-1414235077428-338989a2e8c0", 600),
+    caption: "Дегустационный сет в Ауыл 😍",
+    viewed: false,
+  },
+  {
+    id: "st2",
+    name: "Данияр",
+    avatar: img("photo-1500648767791-00dcc994a43e", 200),
+    cover: img("photo-1558030006-450675393462", 600),
+    caption: "Рибай 45 дней. Ничего лишнего.",
+    viewed: false,
+  },
+  {
+    id: "st3",
+    name: "Мадина",
+    avatar: img("photo-1438761681033-6461ffad8d80", 200),
+    cover: img("photo-1512058564366-18510be2db19", 600),
+    caption: "Sadu вечером — отдельная эстетика",
+    viewed: false,
+  },
+  {
+    id: "st4",
+    name: "Ерлан",
+    avatar: img("photo-1472099645785-5658abf4ff4e", 200),
+    cover: img("photo-1511192336575-5a79af67a629", 600),
+    caption: "Кто на джаз в субботу?",
+    viewed: true,
+  },
+  {
+    id: "st5",
+    name: "Асель",
+    avatar: img("photo-1534528741775-53994a69daeb", 200),
+    cover: img("photo-1555939594-58d7cb561ad1", 600),
+    caption: "Фуд-фест на выходных 🌮",
+    viewed: true,
   },
 ];
 

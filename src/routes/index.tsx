@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { PhoneFrame } from "@/components/hostess/PhoneFrame";
 import { BottomNav } from "@/components/hostess/BottomNav";
@@ -9,64 +9,114 @@ import { CatalogScreen } from "@/components/hostess/screens/CatalogScreen";
 import { AIScreen } from "@/components/hostess/screens/AIScreen";
 import { CalendarScreen } from "@/components/hostess/screens/CalendarScreen";
 import { ProfileScreen } from "@/components/hostess/screens/ProfileScreen";
-import { RestaurantSheet, SplitBillSheet } from "@/components/hostess/RestaurantSheet";
-import type { Screen } from "@/components/hostess/types";
-import type { Restaurant } from "@/data/hostess";
+import { RestaurantSheet } from "@/components/hostess/RestaurantSheet";
+import { PaymentSheet } from "@/components/hostess/PaymentSheet";
+import type { Screen, BookingPayload } from "@/components/hostess/types";
+import { restaurants, type Restaurant } from "@/data/hostess";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Hostess — Премиум бронирование ресторанов Астаны" },
+      { title: "Hostess — Городской lifestyle-хаб Астаны" },
       {
         name: "description",
         content:
-          "Мобильное приложение для бронирования столиков, меню, календаря и социальных функций в лучших ресторанах Астаны.",
+          "Рестораны, концерты, красота, медицина и городские события Астаны — бронирование, предзаказ и сплит чека в одном приложении.",
       },
     ],
   }),
   component: Index,
 });
 
-const transition = { type: "spring" as const, stiffness: 260, damping: 30 };
+const screenOrder: Screen[] = ["map", "catalog", "ai", "calendar", "profile"];
 
 function Index() {
   const [screen, setScreen] = useState<Screen>("map");
   const [splash, setSplash] = useState(true);
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
-  const [split, setSplit] = useState(false);
+  const [payment, setPayment] = useState<BookingPayload | null>(null);
+  const prevScreen = useRef<Screen>("map");
+
+  // Направление слайда: вправо/влево по порядку вкладок (как в iOS).
+  const dir = screenOrder.indexOf(screen) >= screenOrder.indexOf(prevScreen.current) ? 1 : -1;
+  useEffect(() => {
+    prevScreen.current = screen;
+  }, [screen]);
 
   useEffect(() => {
-    const t = setTimeout(() => setSplash(false), 1500);
+    const t = setTimeout(() => setSplash(false), 1100);
     return () => clearTimeout(t);
   }, []);
+
+  const closeAll = () => {
+    setPayment(null);
+    setRestaurant(null);
+  };
 
   return (
     <PhoneFrame>
       <AnimatePresence>{splash && <Splash key="splash" />}</AnimatePresence>
 
-      <div className="relative h-full w-full">
-        <AnimatePresence mode="wait">
+      <div className="relative h-full w-full overflow-hidden">
+        {/* popLayout: старый экран уезжает, новый въезжает — без белой вспышки */}
+        <AnimatePresence mode="popLayout" custom={dir} initial={false}>
           <motion.div
             key={screen}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={transition}
+            custom={dir}
+            variants={{
+              enter: (d: number) => ({ x: d * 64, opacity: 0 }),
+              center: { x: 0, opacity: 1 },
+              exit: (d: number) => ({ x: d * -64, opacity: 0 }),
+            }}
+            initial="enter"
+            animate="center"
+            exit="exit"
+            transition={{ type: "spring", stiffness: 380, damping: 36 }}
             className="absolute inset-0"
           >
-            {screen === "map" && <MapScreen onOpenRestaurant={setRestaurant} />}
+            {screen === "map" && (
+              <MapScreen
+                onOpenRestaurant={setRestaurant}
+                onExpandToCatalog={() => setScreen("catalog")}
+              />
+            )}
             {screen === "catalog" && <CatalogScreen onOpenRestaurant={setRestaurant} />}
             {screen === "ai" && <AIScreen />}
             {screen === "calendar" && <CalendarScreen />}
-            {screen === "profile" && <ProfileScreen onSplitBill={() => setSplit(true)} />}
+            {screen === "profile" && (
+              <ProfileScreen
+                onSplitBill={() =>
+                  setPayment({
+                    restaurant: restaurants[0],
+                    table: 4,
+                    day: "Сегодня",
+                    time: "20:00",
+                    guests: 4,
+                    preorder: [],
+                  })
+                }
+              />
+            )}
           </motion.div>
         </AnimatePresence>
 
         <AnimatePresence>
           {restaurant && (
-            <RestaurantSheet key="rest" r={restaurant} onClose={() => setRestaurant(null)} />
+            <RestaurantSheet
+              key="rest"
+              r={restaurant}
+              onClose={() => setRestaurant(null)}
+              onProceed={setPayment}
+            />
           )}
-          {split && <SplitBillSheet key="split" onClose={() => setSplit(false)} />}
+          {payment && (
+            <PaymentSheet
+              key="payment"
+              booking={payment}
+              onClose={() => setPayment(null)}
+              onDone={closeAll}
+            />
+          )}
         </AnimatePresence>
 
         <BottomNav active={screen} onChange={setScreen} />
