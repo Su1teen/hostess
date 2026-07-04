@@ -143,17 +143,57 @@ export function MapScreen({
 
       // Все точки карты (19+) — цветные пины по категории.
       mapPoints.forEach((p) => {
-        const color = catColor[p.category] ?? "#64748B";
+        const idHash = [...p.id].reduce((acc, char) => acc + char.charCodeAt(0), 0);
+        const busyness = (idHash % 100) / 100;
+        
+        let ringColor = "#22C55E";
+        if (busyness > 0.7) ringColor = "#EF4444";
+        else if (busyness > 0.4) ringColor = "#F59E0B";
+
+        const dashLength = busyness * 100.5;
+
+        let iconSvg = "";
+        let categoryLabel = "";
+        if (p.category === "food") {
+          categoryLabel = "Ресторан";
+          iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2v0a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/></svg>`;
+        } else if (p.category === "beauty") {
+          categoryLabel = p.name.toLowerCase().includes("барбер") ? "Барбершоп" : "Спа";
+          if (categoryLabel === "Барбершоп") {
+             iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>`;
+          } else {
+             iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/><path d="M20 3v4"/><path d="M22 5h-4"/><path d="M4 17v2"/><path d="M5 18H3"/></svg>`;
+          }
+        } else if (p.category === "medicine") {
+          categoryLabel = p.name.toLowerCase().includes("стом") ? "Стоматология" : "Мед. центр";
+          iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.8 2.3A.3.3 0 1 0 5 2H4a2 2 0 0 0-2 2v5a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6V4a2 2 0 0 0-2-2h-1a.2.2 0 1 0 .3.3"/><path d="M8 15v8"/><path d="M16 6H8"/><path d="m11.5 23-4-2"/><path d="m20.2 13.3 2.1-2.1a2 2 0 1 0-2.8-2.8l-2.1 2.1"/><path d="M22 22 17 17"/></svg>`;
+        } else {
+          categoryLabel = p.name;
+          iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>`;
+        }
+
         const el = document.createElement("button");
-        el.className =
-          "flex items-center gap-1 rounded-full bg-white px-2 py-1 text-[10px] font-semibold text-neutral-900 shadow-[0_6px_16px_-4px_rgba(0,0,0,0.22)] ring-1 ring-black/5 hover:scale-105 transition";
-        el.innerHTML = `<span class="h-2 w-2 rounded-full" style="background:${color}"></span>${p.name}`;
+        el.className = "group relative flex flex-col items-center transition-transform hover:z-50 hover:scale-105";
+        el.innerHTML = `
+          <div class="relative flex h-[42px] w-[42px] items-center justify-center rounded-full bg-[#111111] shadow-[0_4px_12px_rgba(0,0,0,0.5)]">
+            <svg class="absolute inset-0 h-full w-full -rotate-90" viewBox="0 0 36 36">
+              <circle cx="18" cy="18" r="16" fill="none" stroke="${ringColor}33" stroke-width="2.5"></circle>
+              <circle cx="18" cy="18" r="16" fill="none" stroke="${ringColor}" stroke-width="2.5" stroke-dasharray="${dashLength}, 100.5" stroke-linecap="round"></circle>
+            </svg>
+            <div style="color: ${ringColor}; display: flex; align-items: center; justify-content: center;">
+              ${iconSvg}
+            </div>
+          </div>
+          <div class="absolute top-11 whitespace-nowrap rounded bg-[#1A1A1A]/90 px-1.5 py-0.5 text-[9.5px] font-medium text-white/90 backdrop-blur-md opacity-80 transition-opacity group-hover:opacity-100">
+            ${categoryLabel}
+          </div>
+        `;
         // Рестораны открывают карточку.
         if (p.category === "food") {
           const rest = restaurants.find((r) => r.id === p.id);
           if (rest) el.onclick = () => onOpenRestaurant(rest);
         }
-        const m = new mapboxgl.Marker({ element: el, anchor: "bottom" })
+        const m = new mapboxgl.Marker({ element: el, anchor: "center" })
           .setLngLat([p.coords.lng, p.coords.lat])
           .addTo(map);
         markersRef.current.push(m);
