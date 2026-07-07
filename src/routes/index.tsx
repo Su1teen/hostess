@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { PhoneFrame } from "@/components/hostess/PhoneFrame";
 import { BottomNav } from "@/components/hostess/BottomNav";
 import { Splash } from "@/components/hostess/Splash";
+import { ThemeProvider } from "@/components/hostess/ThemeProvider";
 import { MapScreen } from "@/components/hostess/screens/MapScreen";
 import { AIScreen } from "@/components/hostess/screens/AIScreen";
 import { CalendarScreen } from "@/components/hostess/screens/CalendarScreen";
@@ -12,6 +13,7 @@ import { RestaurantSheet } from "@/components/hostess/RestaurantSheet";
 import { PaymentSheet } from "@/components/hostess/PaymentSheet";
 import type { Screen, BookingPayload } from "@/components/hostess/types";
 import { restaurants, type Restaurant } from "@/data/hostess";
+
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -38,7 +40,7 @@ function Index() {
   const [splash, setSplash] = useState(true);
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
   const [payment, setPayment] = useState<BookingPayload | null>(null);
-  const [sheetState, setSheetState] = useState<SheetState>("half");
+  const [sheetState, setSheetState] = useState<SheetState>("collapsed");
   const prevScreen = useRef<Screen>("map");
 
   // Направление слайда: вправо/влево по порядку вкладок (как в iOS).
@@ -65,8 +67,8 @@ function Index() {
       setSheetState("full");
     } else {
       setScreen(s);
-      // При уходе с карты — сворачиваем шторку.
-      if (s !== "map") setSheetState("collapsed");
+      // Сворачиваем шторку при переключении на другие табы или клике на саму "Карту"
+      setSheetState("collapsed");
     }
   };
 
@@ -74,6 +76,7 @@ function Index() {
   const activeTab: Screen = sheetState === "full" && screen === "map" ? "catalog" : screen;
 
   return (
+    <ThemeProvider>
     <PhoneFrame>
       <AnimatePresence>{splash && <Splash key="splash" />}</AnimatePresence>
 
@@ -142,5 +145,7 @@ function Index() {
         <BottomNav active={activeTab} onChange={handleNavChange} />
       </div>
     </PhoneFrame>
+    </ThemeProvider>
   );
 }
+

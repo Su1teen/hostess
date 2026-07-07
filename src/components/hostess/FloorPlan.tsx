@@ -53,7 +53,11 @@ function TableFootprint({
   selected: boolean;
   onSelect: (id: number) => void;
 }) {
-  const chairColor = t.taken ? "bg-neutral-300" : selected ? "bg-primary/60" : "bg-neutral-300";
+  const chairColor = t.taken
+    ? "bg-neutral-300"
+    : selected
+      ? "bg-primary/60"
+      : "bg-neutral-300";
 
   const chairs: { left: number; top: number; rotate: number }[] = [];
   const gap = 8; // distance from table edge to chair centre
@@ -208,7 +212,12 @@ export function FloorPlan({
 
             {/* Tables */}
             {tables.map((t) => (
-              <TableFootprint key={t.id} t={t} selected={selected === t.id} onSelect={onSelect} />
+              <TableFootprint
+                key={t.id}
+                t={t}
+                selected={selected === t.id}
+                onSelect={onSelect}
+              />
             ))}
           </div>
         </div>
@@ -240,7 +249,8 @@ export function FloorPlan({
           <div>
             <p className="text-[11px] text-neutral-500">Выбранный стол</p>
             <p className="text-sm font-semibold text-neutral-900">
-              Стол T{selected} · {tables.find((t) => t.id === selected)?.seats} места
+              Стол T{selected} ·{" "}
+              {tables.find((t) => t.id === selected)?.seats} места
             </p>
           </div>
           <span className="rounded-full bg-primary px-3 py-1 text-[11px] font-semibold text-white">
