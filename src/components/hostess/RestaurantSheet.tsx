@@ -6,6 +6,7 @@ import { FloorPlan } from "./FloorPlan";
 import { WheelPicker } from "./WheelPicker";
 import { DishModal } from "./DishModal";
 import { WaitlistButton } from "./waitlist/WaitlistButton";
+import { VenueStats } from "./VenueStats";
 import type { BookingPayload, PreorderItem } from "./types";
 
 const times = ["18:00", "18:30", "19:00", "19:30", "20:00", "20:30", "21:00", "21:30"];
@@ -88,6 +89,17 @@ export function RestaurantSheet({
               {r.cuisine} · {r.district}
             </p>
           </div>
+        </div>
+
+        {/* ── Статистика заведения ─────────────────────────────────── */}
+        <div className="px-5 -mt-4">
+          <VenueStats
+            occupancy={r.occupancy}
+            avgCheck={r.avgCheck}
+            peakHours={r.peakHours}
+            rating={r.rating}
+            reviews={r.reviews}
+          />
         </div>
 
         <div className="px-5">

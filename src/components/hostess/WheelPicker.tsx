@@ -29,6 +29,14 @@ export function WheelPicker({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Cleanup: отменяем все pending анимации и таймеры при размонтировании.
+  useEffect(() => {
+    return () => {
+      cancelAnimationFrame(raf.current);
+      clearTimeout(settle.current);
+    };
+  }, []);
+
   const paint = () => {
     const el = ref.current;
     if (!el) return;

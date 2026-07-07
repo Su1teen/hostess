@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { PhoneFrame } from "@/components/hostess/PhoneFrame";
 import { BottomNav } from "@/components/hostess/BottomNav";
 import { Splash } from "@/components/hostess/Splash";
+import { ThemeProvider } from "@/components/hostess/ThemeProvider";
 import { MapScreen } from "@/components/hostess/screens/MapScreen";
 import { AIScreen } from "@/components/hostess/screens/AIScreen";
 import { CalendarScreen } from "@/components/hostess/screens/CalendarScreen";
@@ -41,7 +42,7 @@ function Index() {
   const [splash, setSplash] = useState(true);
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
   const [payment, setPayment] = useState<BookingPayload | null>(null);
-  const [sheetState, setSheetState] = useState<SheetState>("half");
+  const [sheetState, setSheetState] = useState<SheetState>("collapsed");
   const prevScreen = useRef<Screen>("map");
 
   // Направление слайда: вправо/влево по порядку вкладок (как в iOS).
@@ -68,8 +69,8 @@ function Index() {
       setSheetState("full");
     } else {
       setScreen(s);
-      // При уходе с карты — сворачиваем шторку.
-      if (s !== "map") setSheetState("collapsed");
+      // Сворачиваем шторку при переключении на другие табы или клике на саму "Карту"
+      setSheetState("collapsed");
     }
   };
 
@@ -77,80 +78,82 @@ function Index() {
   const activeTab: Screen = sheetState === "full" && screen === "map" ? "catalog" : screen;
 
   return (
-    <WaitlistProvider>
-      <PhoneFrame>
-        <AnimatePresence>{splash && <Splash key="splash" />}</AnimatePresence>
+    <ThemeProvider>
+      <WaitlistProvider>
+        <PhoneFrame>
+          <AnimatePresence>{splash && <Splash key="splash" />}</AnimatePresence>
 
-        <div className="relative h-full w-full overflow-hidden">
-          {/* popLayout: старый экран уезжает, новый въезжает — без белой вспышки */}
-          <AnimatePresence mode="popLayout" custom={dir} initial={false}>
-            <motion.div
-              key={screen}
-              custom={dir}
-              variants={{
-                enter: (d: number) => ({ x: d * 64, opacity: 0 }),
-                center: { x: 0, opacity: 1 },
-                exit: (d: number) => ({ x: d * -64, opacity: 0 }),
-              }}
-              initial="enter"
-              animate="center"
-              exit="exit"
-              transition={{ type: "spring", stiffness: 380, damping: 36 }}
-              className="absolute inset-0"
-            >
-              {screen === "map" && (
-                <MapScreen
-                  onOpenRestaurant={setRestaurant}
-                  sheetState={sheetState}
-                  onSheetStateChange={setSheetState}
+          <div className="relative h-full w-full overflow-hidden">
+            {/* popLayout: старый экран уезжает, новый въезжает — без белой вспышки */}
+            <AnimatePresence mode="popLayout" custom={dir} initial={false}>
+              <motion.div
+                key={screen}
+                custom={dir}
+                variants={{
+                  enter: (d: number) => ({ x: d * 64, opacity: 0 }),
+                  center: { x: 0, opacity: 1 },
+                  exit: (d: number) => ({ x: d * -64, opacity: 0 }),
+                }}
+                initial="enter"
+                animate="center"
+                exit="exit"
+                transition={{ type: "spring", stiffness: 380, damping: 36 }}
+                className="absolute inset-0"
+              >
+                {screen === "map" && (
+                  <MapScreen
+                    onOpenRestaurant={setRestaurant}
+                    sheetState={sheetState}
+                    onSheetStateChange={setSheetState}
+                  />
+                )}
+                {screen === "ai" && <AIScreen />}
+                {screen === "calendar" && <CalendarScreen />}
+                {screen === "profile" && (
+                  <ProfileScreen
+                    onSplitBill={() =>
+                      setPayment({
+                        restaurant: restaurants[0],
+                        table: 4,
+                        day: "Сегодня",
+                        time: "20:00",
+                        guests: 4,
+                        preorder: [],
+                      })
+                    }
+                  />
+                )}
+              </motion.div>
+            </AnimatePresence>
+
+            <AnimatePresence>
+              {restaurant && (
+                <RestaurantSheet
+                  key="rest"
+                  r={restaurant}
+                  onClose={() => setRestaurant(null)}
+                  onProceed={(b) => setPayment(b)}
                 />
               )}
-              {screen === "ai" && <AIScreen />}
-              {screen === "calendar" && <CalendarScreen />}
-              {screen === "profile" && (
-                <ProfileScreen
-                  onSplitBill={() =>
-                    setPayment({
-                      restaurant: restaurants[0],
-                      table: 4,
-                      day: "Сегодня",
-                      time: "20:00",
-                      guests: 4,
-                      preorder: [],
-                    })
-                  }
+              {payment && (
+                <PaymentSheet
+                  key="payment"
+                  booking={payment}
+                  onClose={() => setPayment(null)}
+                  onDone={closeAll}
                 />
               )}
-            </motion.div>
-          </AnimatePresence>
+            </AnimatePresence>
 
-          <AnimatePresence>
-            {restaurant && (
-              <RestaurantSheet
-                key="rest"
-                r={restaurant}
-                onClose={() => setRestaurant(null)}
-                onProceed={(b) => setPayment(b)}
-              />
-            )}
-            {payment && (
-              <PaymentSheet
-                key="payment"
-                booking={payment}
-                onClose={() => setPayment(null)}
-                onDone={closeAll}
-              />
-            )}
-          </AnimatePresence>
+            {/* Плавающий виджет активной очереди + оверлей освободившегося слота */}
+            <ActiveWaitlistWidget onOpen={() => setScreen("profile")} />
+            <WaitlistOverlayHost />
 
-          {/* Плавающий виджет активной очереди + оверлей освободившегося слота */}
-          <ActiveWaitlistWidget onOpen={() => setScreen("profile")} />
-          <WaitlistOverlayHost />
-
-          <BottomNav active={activeTab} onChange={handleNavChange} />
-        </div>
-      </PhoneFrame>
-    </WaitlistProvider>
+            <BottomNav active={activeTab} onChange={handleNavChange} />
+          </div>
+        </PhoneFrame>
+      </WaitlistProvider>
+    </ThemeProvider>
   );
 }
 
