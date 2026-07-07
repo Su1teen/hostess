@@ -624,6 +624,136 @@ export const calendarEvents: Record<number, { title: string; color: string }[]> 
 
 export const money = (n: number) => `${n.toLocaleString("ru-RU")} ₸`;
 
+/* ── Загруженность (occupancy) ────────────────────────────────────── */
+// Универсальная модель заполненности для пинов на карте, столиков и боксов.
+export type Occupancy = "available" | "moderate" | "busy";
+
+export const occupancyColor: Record<Occupancy, string> = {
+  available: "#22C55E", // зелёный — свободно
+  moderate: "#F59E0B", // оранжевый — скоро освободится
+  busy: "#EF4444", // красный — занято надолго
+};
+
+export const occupancyLabel: Record<Occupancy, string> = {
+  available: "Свободно",
+  moderate: "Скоро освободится",
+  busy: "Занято",
+};
+
+/** Детерминированная «загруженность» по id — стабильна между рендерами. */
+export function occupancyForId(id: string): Occupancy {
+  const hash = [...id].reduce((acc, c) => acc + c.charCodeAt(0), 0);
+  const v = (hash % 100) / 100;
+  if (v > 0.7) return "busy";
+  if (v > 0.4) return "moderate";
+  return "available";
+}
+
+/* ── Автомойка (Task 5) ───────────────────────────────────────────── */
+
+export type WashService = {
+  id: string;
+  name: string;
+  price: number;
+  duration: string;
+};
+
+export type WashBox = {
+  id: string;
+  label: string;
+  status: Occupancy;
+  /** Время освобождения, напр. "14:30" — только для занятых боксов. */
+  freeAt?: string;
+  /** Прогресс текущей мойки 0..1 — сколько времени прошло. */
+  progress?: number;
+};
+
+export type CarWash = {
+  id: string;
+  name: string;
+  address: string;
+  rating: number;
+  reviews: number;
+  cover: string;
+  priceFrom: number;
+  distanceKm: number;
+  coords: { lng: number; lat: number };
+  services: WashService[];
+  boxes: WashBox[];
+};
+
+const washServices: WashService[] = [
+  { id: "ws1", name: "Комплексная мойка кузова", price: 5000, duration: "40 мин" },
+  { id: "ws2", name: "Химчистка салона", price: 35000, duration: "4 часа" },
+  { id: "ws3", name: "Чернение шин", price: 2000, duration: "15 мин" },
+  { id: "ws4", name: "Полировка кузова", price: 25000, duration: "3 часа" },
+  { id: "ws5", name: "Озонирование", price: 8000, duration: "30 мин" },
+  { id: "ws6", name: "Нанокерамика", price: 180000, duration: "2 дня" },
+];
+
+const makeBoxes = (seed: string): WashBox[] =>
+  Array.from({ length: 6 }, (_, i) => {
+    const id = `${seed}-box${i + 1}`;
+    const status = occupancyForId(id);
+    const busy = status !== "available";
+    const progress = status === "busy" ? 0.25 + (i % 3) * 0.15 : status === "moderate" ? 0.7 : 0;
+    const freeMin = status === "busy" ? 25 + i * 6 : status === "moderate" ? 8 + i * 2 : 0;
+    const free = new Date(Date.now() + freeMin * 60000);
+    return {
+      id,
+      label: `Бокс ${i + 1}`,
+      status,
+      progress: busy ? progress : undefined,
+      freeAt: busy
+        ? `${String(free.getHours()).padStart(2, "0")}:${String(free.getMinutes()).padStart(2, "0")}`
+        : undefined,
+    };
+  });
+
+export const carWashes: CarWash[] = [
+  {
+    id: "v3",
+    name: "Details Detailing",
+    address: "Автомойка · Left Bank",
+    rating: 4.7,
+    reviews: 210,
+    cover: img("photo-1607860108855-64acf2078ed9"),
+    priceFrom: 5000,
+    distanceKm: 3.4,
+    coords: { lng: 71.46, lat: 51.15 },
+    services: washServices,
+    boxes: makeBoxes("details"),
+  },
+  {
+    id: "mp10",
+    name: "Shine Car Wash",
+    address: "Автомойка · Есиль",
+    rating: 4.5,
+    reviews: 120,
+    cover: img("photo-1520340356584-f9917d1eea6f"),
+    priceFrom: 4000,
+    distanceKm: 2.9,
+    coords: { lng: 71.465, lat: 51.158 },
+    services: washServices,
+    boxes: makeBoxes("shine"),
+  },
+  {
+    id: "mp11",
+    name: "Auto Spa Astana",
+    address: "Детейлинг · Есиль",
+    rating: 4.8,
+    reviews: 190,
+    cover: img("photo-1552930294-6b595f4c2974"),
+    priceFrom: 6000,
+    distanceKm: 4.1,
+    coords: { lng: 71.472, lat: 51.162 },
+    services: washServices,
+    boxes: makeBoxes("autospa"),
+  },
+];
+
+export const carWashById = (id: string) => carWashes.find((c) => c.id === id);
+
 /* ── Плотные данные для карты (Zenly-style) ───────────────────────── */
 
 export type MapPoint = {

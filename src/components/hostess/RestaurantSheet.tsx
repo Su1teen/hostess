@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { X, Star, Clock, MapPin, Minus, Plus, Flame, Utensils, Wine } from "lucide-react";
-import { money, type Restaurant, type Dish } from "@/data/hostess";
+import { money, occupancyForId, type Restaurant, type Dish } from "@/data/hostess";
 import { FloorPlan } from "./FloorPlan";
 import { WheelPicker } from "./WheelPicker";
 import { DishModal } from "./DishModal";
+import { WaitlistButton } from "./waitlist/WaitlistButton";
 import type { BookingPayload, PreorderItem } from "./types";
 
 const times = ["18:00", "18:30", "19:00", "19:30", "20:00", "20:30", "21:00", "21:30"];
@@ -32,6 +33,8 @@ export function RestaurantSheet({
   const [dish, setDish] = useState<Dish | null>(null);
   const [preorder, setPreorder] = useState<PreorderItem[]>([]);
   const time = times[timeIdx];
+  // Демо-логика «всё занято»: часть комбинаций день+заведение полностью заняты.
+  const fullyBooked = occupancyForId(`${r.id}-${days[dayIdx]}`) === "busy";
 
   const addToPreorder = (d: Dish, qty: number) =>
     setPreorder((prev) => {
@@ -265,33 +268,50 @@ export function RestaurantSheet({
         </div>
       </div>
 
-      {/* Floating CTA — pinned above the global navbar */}
+      {/* Floating CTA — pinned above the global navbar.
+          Если на выбранный день всё занято — вместо брони «Встать в очередь». */}
       <div className="pointer-events-none absolute inset-x-0 bottom-[100px] z-40 px-5">
-        <motion.button
-          whileTap={{ scale: 0.97 }}
-          onClick={() =>
-            onProceed({
-              restaurant: r,
-              table,
-              day: days[dayIdx],
-              time,
-              guests,
-              preorder,
-            })
-          }
-          className="pointer-events-auto flex w-full items-center justify-between rounded-full bg-neutral-900 py-4 pl-6 pr-3 text-white shadow-float"
-        >
-          <span className="text-left">
-            <span className="block text-[11px] opacity-70">
-              {days[dayIdx]} · {time} · {guests} гостей
-              {preorderCount > 0 && ` · предзаказ ${preorderCount}`}
+        {fullyBooked ? (
+          <div className="pointer-events-auto">
+            <WaitlistButton
+              input={{
+                entityId: r.id,
+                entityName: r.name,
+                entityKind: "Ресторан",
+                cover: r.cover,
+                resource: `Столик на ${guests}`,
+                peopleAhead: 4,
+                etaMin: 25,
+              }}
+            />
+          </div>
+        ) : (
+          <motion.button
+            whileTap={{ scale: 0.97 }}
+            onClick={() =>
+              onProceed({
+                restaurant: r,
+                table,
+                day: days[dayIdx],
+                time,
+                guests,
+                preorder,
+              })
+            }
+            className="pointer-events-auto flex w-full items-center justify-between rounded-full bg-neutral-900 py-4 pl-6 pr-3 text-white shadow-float"
+          >
+            <span className="text-left">
+              <span className="block text-[11px] opacity-70">
+                {days[dayIdx]} · {time} · {guests} гостей
+                {preorderCount > 0 && ` · предзаказ ${preorderCount}`}
+              </span>
+              <span className="text-sm font-semibold">
+                {table ? `Забронировать T${table}` : "Выберите столик"}
+              </span>
             </span>
-            <span className="text-sm font-semibold">
-              {table ? `Забронировать T${table}` : "Выберите столик"}
-            </span>
-          </span>
-          <span className="rounded-full bg-primary px-5 py-2.5 text-sm font-semibold">Далее</span>
-        </motion.button>
+            <span className="rounded-full bg-primary px-5 py-2.5 text-sm font-semibold">Далее</span>
+          </motion.button>
+        )}
       </div>
 
       {/* Drill-down: детальная карточка блюда */}

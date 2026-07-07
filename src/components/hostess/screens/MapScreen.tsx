@@ -29,12 +29,19 @@ import {
   cityEvents,
   stories,
   money,
+  occupancyForId,
+  occupancyColor,
+  carWashById,
   type Restaurant,
   type Venue,
   type CityEvent,
   type Story,
+  type CarWash,
+  type MapPoint,
 } from "@/data/hostess";
 import { geocode, type GeoResult } from "@/lib/geo";
+import { CoverFlowCarousel, type CoverFlowItem } from "../CoverFlowCarousel";
+import { CarWashSheet } from "../CarWashSheet";
 
 mapboxgl.accessToken = MAPBOX_TOKEN;
 
@@ -48,6 +55,35 @@ const catColor: Record<string, string> = {
   auto: "#22C55E",
   concerts: "#A855F7",
 };
+
+// SVG-иконка по категории (для белых пинов на карте).
+function iconSvgFor(p: MapPoint): { svg: string; label: string } {
+  if (p.category === "food") {
+    return {
+      label: "Ресторан",
+      svg: `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2v0a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/></svg>`,
+    };
+  }
+  if (p.category === "beauty") {
+    const barber = p.name.toLowerCase().includes("барбер");
+    return {
+      label: barber ? "Барбершоп" : "Красота",
+      svg: barber
+        ? `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>`
+        : `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/></svg>`,
+    };
+  }
+  if (p.category === "medicine") {
+    return {
+      label: "Медицина",
+      svg: `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 2v2"/><path d="M5 2v2"/><path d="M5 3H4a2 2 0 0 0-2 2v4a6 6 0 0 0 12 0V5a2 2 0 0 0-2-2h-1"/><path d="M8 15a6 6 0 0 0 12 0v-3"/><circle cx="20" cy="10" r="2"/></svg>`,
+    };
+  }
+  return {
+    label: "Авто",
+    svg: `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><path d="M9 17h6"/><circle cx="17" cy="17" r="2"/></svg>`,
+  };
+}
 
 // ── Состояния шторки ──────────────────────────────────────────────
 // collapsed: торчит только поиск + грань (~90px)
@@ -66,7 +102,9 @@ export function MapScreen({
 }) {
   const mapNode = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
-  const markersRef = useRef<mapboxgl.Marker[]>([]);
+  const pointMarkersRef = useRef<mapboxgl.Marker[]>([]);
+  const friendMarkersRef = useRef<mapboxgl.Marker[]>([]);
+  const openPointRef = useRef<(p: MapPoint) => void>(() => {});
   const sheetRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerH, setContainerH] = useState(800);
@@ -89,6 +127,26 @@ export function MapScreen({
   const [story, setStory] = useState<Story | null>(null);
   const [venue, setVenue] = useState<Venue | null>(null);
   const [event, setEvent] = useState<CityEvent | null>(null);
+  const [carWash, setCarWash] = useState<CarWash | null>(null);
+
+  // Открытие точки: ресторан → карточка, авто → экран автомойки.
+  const openVenue = (v: Venue) => {
+    const wash = carWashById(v.id);
+    if (v.category === "auto" && wash) setCarWash(wash);
+    else setVenue(v);
+  };
+
+  // Клик по пину на карте.
+  const openPoint = (p: MapPoint) => {
+    if (p.category === "food") {
+      const rest = restaurants.find((r) => r.id === p.id);
+      if (rest) onOpenRestaurant(rest);
+    } else if (p.category === "auto") {
+      const wash = carWashById(p.id);
+      if (wash) setCarWash(wash);
+    }
+  };
+  openPointRef.current = openPoint;
 
   // Высота контейнера (для расчёта позиций шторки).
   useEffect(() => {
@@ -124,7 +182,7 @@ export function MapScreen({
     };
   }, [query]);
 
-  // Инициализация карты.
+  // Инициализация карты + динамическая кластеризация.
   useEffect(() => {
     if (!mapNode.current || mapRef.current) return;
     const map = new mapboxgl.Map({
@@ -137,69 +195,81 @@ export function MapScreen({
     });
     mapRef.current = map;
 
+    // ── Клиентская кластеризация по пиксельной сетке ──────────────
+    // При отдалении близкие пины группируются в кластер со счётчиком;
+    // при приближении сетка «разъезжается» и открываются одиночные пины.
+    const CELL = 68; // размер ячейки сетки, px
+    const renderClusters = () => {
+      // Убираем прежние пины точек (аватарки друзей не трогаем).
+      pointMarkersRef.current.forEach((m) => m.remove());
+      pointMarkersRef.current = [];
+
+      type Cell = { points: MapPoint[]; sx: number; sy: number };
+      const cells = new Map<string, Cell>();
+      mapPoints.forEach((p) => {
+        const px = map.project([p.coords.lng, p.coords.lat]);
+        const key = `${Math.floor(px.x / CELL)}:${Math.floor(px.y / CELL)}`;
+        const cell = cells.get(key) ?? { points: [], sx: 0, sy: 0 };
+        cell.points.push(p);
+        cell.sx += p.coords.lng;
+        cell.sy += p.coords.lat;
+        cells.set(key, cell);
+      });
+
+      cells.forEach((cell) => {
+        if (cell.points.length > 1) {
+          // ── Кластер ──
+          const lng = cell.sx / cell.points.length;
+          const lat = cell.sy / cell.points.length;
+          const el = document.createElement("button");
+          el.className = "cluster-marker";
+          el.innerHTML = `
+            <div style="position:relative;display:grid;place-items:center;width:46px;height:46px;border-radius:9999px;background:white;box-shadow:0 6px 18px rgba(0,0,0,0.18);border:1px solid rgba(0,0,0,0.04);">
+              <span style="font-size:15px;font-weight:700;color:#111;">${cell.points.length}</span>
+              <span style="position:absolute;inset:0;border-radius:9999px;border:2px solid rgba(249,115,22,0.35);"></span>
+            </div>`;
+          el.onclick = () =>
+            map.easeTo({
+              center: [lng, lat],
+              zoom: Math.min(map.getZoom() + 2, 16),
+              duration: 500,
+            });
+          const m = new mapboxgl.Marker({ element: el, anchor: "center" })
+            .setLngLat([lng, lat])
+            .addTo(map);
+          pointMarkersRef.current.push(m);
+        } else {
+          // ── Одиночный белый пин с индикатором загруженности ──
+          const p = cell.points[0];
+          const color = catColor[p.category] ?? "#64748B";
+          const occ = occupancyColor[occupancyForId(p.id)];
+          const { svg, label } = iconSvgFor(p);
+          const el = document.createElement("button");
+          el.className =
+            "group relative flex flex-col items-center transition-transform hover:z-50 hover:scale-110";
+          el.innerHTML = `
+            <div style="position:relative;">
+              <div style="display:grid;place-items:center;width:40px;height:40px;border-radius:9999px;background:white;box-shadow:0 4px 12px rgba(0,0,0,0.16);border:1px solid rgba(0,0,0,0.04);color:${color};">
+                ${svg}
+              </div>
+              <span style="position:absolute;top:-1px;right:-1px;width:12px;height:12px;border-radius:9999px;background:${occ};border:2px solid white;box-shadow:0 1px 3px rgba(0,0,0,0.25);"></span>
+            </div>
+            <div class="opacity-0 transition-opacity group-hover:opacity-100" style="position:absolute;top:44px;white-space:nowrap;border-radius:6px;background:rgba(17,17,17,0.9);padding:2px 6px;font-size:9.5px;font-weight:500;color:white;backdrop-filter:blur(6px);">${label}</div>`;
+          el.onclick = () => openPointRef.current(p);
+          const m = new mapboxgl.Marker({ element: el, anchor: "center" })
+            .setLngLat([p.coords.lng, p.coords.lat])
+            .addTo(map);
+          pointMarkersRef.current.push(m);
+        }
+      });
+    };
+
     map.on("load", () => {
       map.resize();
       setTimeout(() => map.resize(), 300);
+      renderClusters();
 
-      // Все точки карты (19+) — цветные пины по категории.
-      mapPoints.forEach((p) => {
-        const idHash = [...p.id].reduce((acc, char) => acc + char.charCodeAt(0), 0);
-        const busyness = (idHash % 100) / 100;
-        
-        let ringColor = "#22C55E";
-        if (busyness > 0.7) ringColor = "#EF4444";
-        else if (busyness > 0.4) ringColor = "#F59E0B";
-
-        const dashLength = busyness * 100.5;
-
-        let iconSvg = "";
-        let categoryLabel = "";
-        if (p.category === "food") {
-          categoryLabel = "Ресторан";
-          iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2v0a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/></svg>`;
-        } else if (p.category === "beauty") {
-          categoryLabel = p.name.toLowerCase().includes("барбер") ? "Барбершоп" : "Спа";
-          if (categoryLabel === "Барбершоп") {
-             iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>`;
-          } else {
-             iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/><path d="M20 3v4"/><path d="M22 5h-4"/><path d="M4 17v2"/><path d="M5 18H3"/></svg>`;
-          }
-        } else if (p.category === "medicine") {
-          categoryLabel = p.name.toLowerCase().includes("стом") ? "Стоматология" : "Мед. центр";
-          iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.8 2.3A.3.3 0 1 0 5 2H4a2 2 0 0 0-2 2v5a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6V4a2 2 0 0 0-2-2h-1a.2.2 0 1 0 .3.3"/><path d="M8 15v8"/><path d="M16 6H8"/><path d="m11.5 23-4-2"/><path d="m20.2 13.3 2.1-2.1a2 2 0 1 0-2.8-2.8l-2.1 2.1"/><path d="M22 22 17 17"/></svg>`;
-        } else {
-          categoryLabel = p.name;
-          iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>`;
-        }
-
-        const el = document.createElement("button");
-        el.className = "group relative flex flex-col items-center transition-transform hover:z-50 hover:scale-105";
-        el.innerHTML = `
-          <div class="relative flex h-[42px] w-[42px] items-center justify-center rounded-full bg-[#111111] shadow-[0_4px_12px_rgba(0,0,0,0.5)]">
-            <svg class="absolute inset-0 h-full w-full -rotate-90" viewBox="0 0 36 36">
-              <circle cx="18" cy="18" r="16" fill="none" stroke="${ringColor}33" stroke-width="2.5"></circle>
-              <circle cx="18" cy="18" r="16" fill="none" stroke="${ringColor}" stroke-width="2.5" stroke-dasharray="${dashLength}, 100.5" stroke-linecap="round"></circle>
-            </svg>
-            <div style="color: ${ringColor}; display: flex; align-items: center; justify-content: center;">
-              ${iconSvg}
-            </div>
-          </div>
-          <div class="absolute top-11 whitespace-nowrap rounded bg-[#1A1A1A]/90 px-1.5 py-0.5 text-[9.5px] font-medium text-white/90 backdrop-blur-md opacity-80 transition-opacity group-hover:opacity-100">
-            ${categoryLabel}
-          </div>
-        `;
-        // Рестораны открывают карточку.
-        if (p.category === "food") {
-          const rest = restaurants.find((r) => r.id === p.id);
-          if (rest) el.onclick = () => onOpenRestaurant(rest);
-        }
-        const m = new mapboxgl.Marker({ element: el, anchor: "center" })
-          .setLngLat([p.coords.lng, p.coords.lat])
-          .addTo(map);
-        markersRef.current.push(m);
-      });
-
-      // Аватарки друзей (Zenly-style, 8 штук).
+      // Аватарки друзей (Zenly-style, 8 штук) — создаются один раз.
       friendMapLocations.forEach((f) => {
         const el = document.createElement("div");
         el.className = "friend-marker";
@@ -215,17 +285,23 @@ export function MapScreen({
         const m = new mapboxgl.Marker({ element: el, anchor: "center" })
           .setLngLat([f.coords.lng, f.coords.lat])
           .addTo(map);
-        markersRef.current.push(m);
+        friendMarkersRef.current.push(m);
       });
     });
 
+    // Перекластеризация при изменении масштаба/сдвиге.
+    map.on("zoomend", renderClusters);
+    map.on("moveend", renderClusters);
+
     return () => {
-      markersRef.current.forEach((m) => m.remove());
-      markersRef.current = [];
+      pointMarkersRef.current.forEach((m) => m.remove());
+      friendMarkersRef.current.forEach((m) => m.remove());
+      pointMarkersRef.current = [];
+      friendMarkersRef.current = [];
       map.remove();
       mapRef.current = null;
     };
-  }, [onOpenRestaurant]);
+  }, []);
 
   // Перелёт к результату поиска.
   const flyTo = (r: GeoResult) => {
@@ -282,6 +358,16 @@ export function MapScreen({
   // Прокрутка содержимого внутри шторки: только в full-режиме каталожная часть скроллится.
   // В half — скроллится горизонтальная карусель карточек.
   const catVenues = venues.filter((v) => cat === "food" || v.category === cat);
+
+  // Карточки для Cover Flow карусели (Task 2): афиша города.
+  const coverItems: CoverFlowItem[] = cityEvents.map((e) => ({
+    id: e.id,
+    image: e.cover,
+    title: e.title,
+    subtitle: `${e.place} · ${e.date}`,
+    badge: e.hot ? "Хит" : e.tag,
+    meta: e.price === 0 ? "Бесплатно" : `от ${money(e.price)}`,
+  }));
 
   return (
     <div ref={containerRef} className="relative h-full w-full overflow-hidden bg-neutral-100">
@@ -465,7 +551,7 @@ export function MapScreen({
         </div>
 
         {/* ── Half-состояние: горизонтальная карусель "Рядом с вами" ─ */}
-        {sheet !== "collapsed" && (
+        {sheet === "half" && (
           <div className="shrink-0 pb-2">
             <div className="flex items-center justify-between px-4 pb-2">
               <h3 className="text-[15px] font-semibold text-neutral-900">Рядом с вами</h3>
@@ -510,11 +596,61 @@ export function MapScreen({
           </div>
         )}
 
-        {/* ── Full-состояние: полный каталог (скроллится) ──────────── */}
+        {/* ── Full-состояние: полный каталог (единый скролл) ──────────── */}
         {sheet === "full" && (
-          <div className="flex-1 overflow-y-auto pb-[140px]">
+          <div className="flex-1 overflow-y-auto bg-gray-50 pb-[140px]">
+            {/* Рядом с вами — теперь часть единого скролла (Task 2) */}
+            <div className="pt-2">
+              <div className="flex items-center justify-between px-5 pb-2">
+                <h3 className="text-[15px] font-semibold text-neutral-900">Рядом с вами</h3>
+                <span className="text-xs text-neutral-500">{restaurants.length} мест</span>
+              </div>
+              <div className="no-scrollbar flex gap-3 overflow-x-auto px-5 pb-1">
+                {restaurants.map((r) => (
+                  <button
+                    key={r.id}
+                    onClick={() => onOpenRestaurant(r)}
+                    className="group w-[240px] shrink-0 overflow-hidden rounded-3xl border border-border/50 bg-white text-left shadow-soft"
+                  >
+                    <div className="relative h-32 w-full overflow-hidden">
+                      <img
+                        src={r.cover}
+                        alt={r.name}
+                        className="h-full w-full object-cover transition group-hover:scale-105"
+                      />
+                      <div className="absolute left-3 top-3 flex items-center gap-1 rounded-full bg-black/70 px-2 py-1 text-[11px] font-semibold text-white backdrop-blur">
+                        <Star className="h-3 w-3 fill-white" /> {r.rating}
+                      </div>
+                    </div>
+                    <div className="p-3">
+                      <p className="text-[15px] font-semibold text-neutral-900">{r.name}</p>
+                      <p className="text-xs text-neutral-500">
+                        {r.cuisine} · {r.district}
+                      </p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Cover Flow карусель (Task 2) между "Рядом" и "Городской хаб" */}
+            <div className="mt-5">
+              <div className="flex items-center justify-between px-5 pb-3">
+                <h3 className="flex items-center gap-2 text-[15px] font-semibold text-neutral-900">
+                  <Flame className="h-4 w-4 text-primary" /> Выбор дня
+                </h3>
+              </div>
+              <CoverFlowCarousel
+                items={coverItems}
+                onSelect={(it) => {
+                  const ev = cityEvents.find((e) => e.id === it.id);
+                  if (ev) setEvent(ev);
+                }}
+              />
+            </div>
+
             {/* Заголовок каталога */}
-            <div className="sticky top-0 z-10 bg-white/85 px-5 pb-3 pt-2 backdrop-blur-xl">
+            <div className="px-5 pb-3 pt-6">
               <p className="text-[11px] uppercase tracking-widest text-neutral-500">
                 Городской хаб
               </p>
@@ -734,8 +870,8 @@ export function MapScreen({
                   <motion.button
                     key={v.id}
                     whileTap={{ scale: 0.98 }}
-                    onClick={() => setVenue(v)}
-                    className="w-full overflow-hidden rounded-3xl bg-white text-left shadow-soft"
+                    onClick={() => openVenue(v)}
+                    className="w-full overflow-hidden rounded-3xl border border-border/50 bg-white text-left shadow-soft"
                   >
                     <div className="relative h-36">
                       <img src={v.cover} alt="" className="h-full w-full object-cover" />
@@ -773,6 +909,9 @@ export function MapScreen({
           {story && <StoryViewer key="story" story={story} onClose={() => setStory(null)} />}
           {venue && <VenueModal key="venue" venue={venue} onClose={() => setVenue(null)} />}
           {event && <EventModal key="event" event={event} onClose={() => setEvent(null)} />}
+          {carWash && (
+            <CarWashSheet key="carwash" wash={carWash} onClose={() => setCarWash(null)} />
+          )}
         </AnimatePresence>
       </motion.div>
     </div>
