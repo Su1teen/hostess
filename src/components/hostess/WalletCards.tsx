@@ -4,8 +4,8 @@ import { loyaltyCards } from "@/data/hostess";
 
 /* ── Constants ────────────────────────────────────────────────────── */
 
-const CARD_OFFSET = 24;   // px visible per stacked card
-const BASE_SCALE = 0.94;  // scale decrement per depth level
+const CARD_OFFSET = 24; // px visible per stacked card
+const BASE_SCALE = 0.94; // scale decrement per depth level
 
 /* ── Component ────────────────────────────────────────────────────── */
 
@@ -70,9 +70,7 @@ export function WalletCards() {
                 {/* Top row: tier + brand badge */}
                 <div className="flex items-start justify-between">
                   <div>
-                    <p className="text-[11px] uppercase tracking-widest opacity-70">
-                      {card.tier}
-                    </p>
+                    <p className="text-[11px] uppercase tracking-widest opacity-70">{card.tier}</p>
                     <p className="text-lg font-semibold">{card.name}</p>
                   </div>
                   <span className="rounded-full bg-white/20 px-2.5 py-1 text-[10px] font-semibold backdrop-blur">

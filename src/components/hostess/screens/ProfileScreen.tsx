@@ -1,29 +1,24 @@
-import { Settings, ChevronRight, Split, Wallet, Heart, Clock, Users, BarChart3 } from "lucide-react";
-import { friends, money } from "@/data/hostess";
-import { motion } from "framer-motion";
-import { WalletCards } from "../WalletCards";
-import { VisitHistory } from "../VisitHistory";
+import { Settings, ChevronRight, Split, Wallet, Heart, Clock } from "lucide-react";
+import { friends, history, money } from "@/data/hostess";
+import { BentoCard, BentoHeader } from "../Bento";
+import { WalletStack } from "../WalletStack";
+import { MyQueuesSection } from "../waitlist/MyQueuesSection";
 
 export function ProfileScreen({ onSplitBill }: { onSplitBill: () => void }) {
   return (
-    <div className="h-full overflow-y-auto bg-white pb-[140px]">
-      {/* ── Header ─────────────────────────────────────────────── */}
+    <div className="h-full overflow-y-auto bg-gray-50 pb-[140px]">
       <div className="flex items-center justify-between px-5 pt-14">
         <p className="text-[11px] uppercase tracking-widest text-neutral-500">Профиль</p>
-        <button className="grid h-10 w-10 place-items-center rounded-full bg-neutral-100">
+        <button className="grid h-10 w-10 place-items-center rounded-full bg-white shadow-soft">
           <Settings className="h-4 w-4" />
         </button>
       </div>
 
-      {/* ── Ваш профиль ────────────────────────────────────────── */}
       <div className="px-5 pt-4">
-        <h2 className="mb-3 flex items-center gap-2 text-[15px] font-semibold">
-          <Heart className="h-4 w-4 text-primary" /> Ваш профиль
-        </h2>
         <div className="flex items-center gap-4">
           <img
             src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=200&q=80"
-            className="h-16 w-16 rounded-full object-cover ring-4 ring-neutral-100"
+            className="h-16 w-16 rounded-full object-cover ring-4 ring-white shadow-soft"
             alt=""
           />
           <div>
@@ -31,14 +26,9 @@ export function ProfileScreen({ onSplitBill }: { onSplitBill: () => void }) {
             <p className="text-xs text-neutral-500">Hostess Gold · с 2023</p>
           </div>
         </div>
-      </div>
 
-      {/* ── Статистика ─────────────────────────────────────────── */}
-      <div className="px-5 pt-5">
-        <h2 className="mb-3 flex items-center gap-2 text-[15px] font-semibold">
-          <BarChart3 className="h-4 w-4 text-primary" /> Статистика
-        </h2>
-        <div className="grid grid-cols-3 overflow-hidden rounded-3xl bg-neutral-50">
+        {/* Статистика — Bento */}
+        <BentoCard className="mt-5 grid grid-cols-3 divide-x divide-border/60" padded={false}>
           {[
             { v: "42", l: "Места" },
             { v: "186k", l: "Потрачено ₸" },
@@ -49,8 +39,11 @@ export function ProfileScreen({ onSplitBill }: { onSplitBill: () => void }) {
               <p className="text-[11px] text-neutral-500">{s.l}</p>
             </div>
           ))}
-        </div>
+        </BentoCard>
       </div>
+
+      {/* Активные очереди (Task 6.4) */}
+      <MyQueuesSection />
 
       {/* Stories */}
       <div className="mt-6">
@@ -78,39 +71,38 @@ export function ProfileScreen({ onSplitBill }: { onSplitBill: () => void }) {
         </div>
       </div>
 
-      {/* ── Кошелёк ────────────────────────────────────────────── */}
+      {/* Кошелёк — вертикальная колода карт (Task 4) */}
       <div className="mt-6">
-        <div className="flex items-center justify-between px-5 pb-3">
-          <h3 className="flex items-center gap-2 text-[15px] font-semibold">
-            <Wallet className="h-4 w-4 text-primary" /> Кошелёк
-          </h3>
-          <button className="text-xs text-neutral-500">Все</button>
-        </div>
-        <div className="px-5">
-          <WalletCards />
-        </div>
+        <BentoHeader
+          title="Кошелёк"
+          icon={<Wallet className="h-4 w-4" />}
+          className="px-5 pb-3"
+          action={<span className="text-xs text-neutral-500">Нажмите, чтобы раскрыть</span>}
+        />
+        <WalletStack />
       </div>
 
-      {/* ── Друзья ─────────────────────────────────────────────── */}
+      {/* Friends */}
       <div className="mt-6 px-5">
-        <div className="flex items-center justify-between pb-3">
-          <h3 className="flex items-center gap-2 text-[15px] font-semibold">
-            <Users className="h-4 w-4 text-primary" /> Друзья
-          </h3>
-          <button className="text-xs text-neutral-500">Управлять</button>
-        </div>
+        <BentoHeader
+          title="Друзья"
+          className="pb-3"
+          action={<span className="text-xs text-neutral-500">Управлять</span>}
+        />
         <div className="space-y-2">
           {friends.slice(0, 4).map((f) => (
-            <div key={f.id} className="flex items-center gap-3 rounded-2xl bg-white p-2.5 hairline">
-              <img src={f.avatar} className="h-11 w-11 rounded-full object-cover" alt="" />
-              <div className="flex-1">
-                <p className="text-sm font-semibold">{f.name}</p>
-                <p className="text-xs text-neutral-500">{f.lastSeen}</p>
+            <BentoCard key={f.id} className="flex items-center gap-3" padded={false}>
+              <div className="flex flex-1 items-center gap-3 p-2.5">
+                <img src={f.avatar} className="h-11 w-11 rounded-full object-cover" alt="" />
+                <div className="flex-1">
+                  <p className="text-sm font-semibold">{f.name}</p>
+                  <p className="text-xs text-neutral-500">{f.lastSeen}</p>
+                </div>
+                <span className="mr-2.5 grid h-8 w-8 place-items-center rounded-full bg-neutral-100">
+                  <ChevronRight className="h-4 w-4" />
+                </span>
               </div>
-              <button className="rounded-full bg-neutral-100 p-2">
-                <ChevronRight className="h-4 w-4" />
-              </button>
-            </div>
+            </BentoCard>
           ))}
         </div>
       </div>
@@ -119,7 +111,7 @@ export function ProfileScreen({ onSplitBill }: { onSplitBill: () => void }) {
       <div className="mt-6 px-5">
         <button
           onClick={onSplitBill}
-          className="flex w-full items-center gap-3 rounded-2xl bg-neutral-900 p-4 text-left text-white"
+          className="flex w-full items-center gap-3 rounded-[24px] bg-neutral-900 p-4 text-left text-white shadow-float"
         >
           <div className="grid h-11 w-11 place-items-center rounded-2xl bg-primary">
             <Split className="h-5 w-5" />
@@ -132,12 +124,27 @@ export function ProfileScreen({ onSplitBill }: { onSplitBill: () => void }) {
         </button>
       </div>
 
-      {/* ── История посещений ──────────────────────────────────── */}
+      {/* History */}
       <div className="mt-6 px-5">
-        <h3 className="flex items-center gap-2 pb-3 text-[15px] font-semibold">
-          <Clock className="h-4 w-4 text-primary" /> История посещений
-        </h3>
-        <VisitHistory />
+        <BentoHeader
+          title="История посещений"
+          icon={<Clock className="h-4 w-4" />}
+          className="pb-3"
+        />
+        <BentoCard className="divide-y divide-border/60" padded={false}>
+          {history.map((h) => (
+            <div key={h.id} className="flex items-center gap-3 p-3">
+              <div className="grid h-10 w-10 place-items-center rounded-xl bg-neutral-100">
+                <Heart className="h-4 w-4 text-neutral-500" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-semibold">{h.place}</p>
+                <p className="text-xs text-neutral-500">{h.when}</p>
+              </div>
+              <p className="text-sm font-semibold">{money(h.sum)}</p>
+            </div>
+          ))}
+        </BentoCard>
       </div>
     </div>
   );

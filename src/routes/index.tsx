@@ -11,9 +11,11 @@ import { CalendarScreen } from "@/components/hostess/screens/CalendarScreen";
 import { ProfileScreen } from "@/components/hostess/screens/ProfileScreen";
 import { RestaurantSheet } from "@/components/hostess/RestaurantSheet";
 import { PaymentSheet } from "@/components/hostess/PaymentSheet";
+import { WaitlistProvider, useWaitlist } from "@/components/hostess/waitlist/WaitlistProvider";
+import { ActiveWaitlistWidget } from "@/components/hostess/waitlist/ActiveWaitlistWidget";
+import { SpotAvailableOverlay } from "@/components/hostess/waitlist/SpotAvailableOverlay";
 import type { Screen, BookingPayload } from "@/components/hostess/types";
 import { restaurants, type Restaurant } from "@/data/hostess";
-
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -77,75 +79,92 @@ function Index() {
 
   return (
     <ThemeProvider>
-    <PhoneFrame>
-      <AnimatePresence>{splash && <Splash key="splash" />}</AnimatePresence>
+      <WaitlistProvider>
+        <PhoneFrame>
+          <AnimatePresence>{splash && <Splash key="splash" />}</AnimatePresence>
 
-      <div className="relative h-full w-full overflow-hidden">
-        {/* popLayout: старый экран уезжает, новый въезжает — без белой вспышки */}
-        <AnimatePresence mode="popLayout" custom={dir} initial={false}>
-          <motion.div
-            key={screen}
-            custom={dir}
-            variants={{
-              enter: (d: number) => ({ x: d * 64, opacity: 0 }),
-              center: { x: 0, opacity: 1 },
-              exit: (d: number) => ({ x: d * -64, opacity: 0 }),
-            }}
-            initial="enter"
-            animate="center"
-            exit="exit"
-            transition={{ type: "spring", stiffness: 380, damping: 36 }}
-            className="absolute inset-0"
-          >
-            {screen === "map" && (
-              <MapScreen
-                onOpenRestaurant={setRestaurant}
-                sheetState={sheetState}
-                onSheetStateChange={setSheetState}
-              />
-            )}
-            {screen === "ai" && <AIScreen />}
-            {screen === "calendar" && <CalendarScreen />}
-            {screen === "profile" && (
-              <ProfileScreen
-                onSplitBill={() =>
-                  setPayment({
-                    restaurant: restaurants[0],
-                    table: 4,
-                    day: "Сегодня",
-                    time: "20:00",
-                    guests: 4,
-                    preorder: [],
-                  })
-                }
-              />
-            )}
-          </motion.div>
-        </AnimatePresence>
+          <div className="relative h-full w-full overflow-hidden">
+            {/* popLayout: старый экран уезжает, новый въезжает — без белой вспышки */}
+            <AnimatePresence mode="popLayout" custom={dir} initial={false}>
+              <motion.div
+                key={screen}
+                custom={dir}
+                variants={{
+                  enter: (d: number) => ({ x: d * 64, opacity: 0 }),
+                  center: { x: 0, opacity: 1 },
+                  exit: (d: number) => ({ x: d * -64, opacity: 0 }),
+                }}
+                initial="enter"
+                animate="center"
+                exit="exit"
+                transition={{ type: "spring", stiffness: 380, damping: 36 }}
+                className="absolute inset-0"
+              >
+                {screen === "map" && (
+                  <MapScreen
+                    onOpenRestaurant={setRestaurant}
+                    sheetState={sheetState}
+                    onSheetStateChange={setSheetState}
+                  />
+                )}
+                {screen === "ai" && <AIScreen />}
+                {screen === "calendar" && <CalendarScreen />}
+                {screen === "profile" && (
+                  <ProfileScreen
+                    onSplitBill={() =>
+                      setPayment({
+                        restaurant: restaurants[0],
+                        table: 4,
+                        day: "Сегодня",
+                        time: "20:00",
+                        guests: 4,
+                        preorder: [],
+                      })
+                    }
+                  />
+                )}
+              </motion.div>
+            </AnimatePresence>
 
-        <AnimatePresence>
-          {restaurant && (
-            <RestaurantSheet
-              key="rest"
-              r={restaurant}
-              onClose={() => setRestaurant(null)}
-              onProceed={(b) => setPayment(b)}
-            />
-          )}
-          {payment && (
-            <PaymentSheet
-              key="payment"
-              booking={payment}
-              onClose={() => setPayment(null)}
-              onDone={closeAll}
-            />
-          )}
-        </AnimatePresence>
+            <AnimatePresence>
+              {restaurant && (
+                <RestaurantSheet
+                  key="rest"
+                  r={restaurant}
+                  onClose={() => setRestaurant(null)}
+                  onProceed={(b) => setPayment(b)}
+                />
+              )}
+              {payment && (
+                <PaymentSheet
+                  key="payment"
+                  booking={payment}
+                  onClose={() => setPayment(null)}
+                  onDone={closeAll}
+                />
+              )}
+            </AnimatePresence>
 
-        <BottomNav active={activeTab} onChange={handleNavChange} />
-      </div>
-    </PhoneFrame>
+            {/* Плавающий виджет активной очереди + оверлей освободившегося слота */}
+            <ActiveWaitlistWidget onOpen={() => setScreen("profile")} />
+            <WaitlistOverlayHost />
+
+            <BottomNav active={activeTab} onChange={handleNavChange} />
+          </div>
+        </PhoneFrame>
+      </WaitlistProvider>
     </ThemeProvider>
   );
 }
 
+// Хост полноэкранного оверлея «освободился слот».
+function WaitlistOverlayHost() {
+  const { readyEntry } = useWaitlist();
+  return (
+    <AnimatePresence>
+      {readyEntry && (
+        <SpotAvailableOverlay key={readyEntry.id} entry={readyEntry} onClaim={() => {}} />
+      )}
+    </AnimatePresence>
+  );
+}

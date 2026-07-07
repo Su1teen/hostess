@@ -85,7 +85,9 @@ export function VenueBookingModal({ venue, onClose }: { venue: Venue; onClose: (
                   >
                     <div>
                       <p className="text-sm font-semibold">{s.name}</p>
-                      <p className={`text-xs ${service === i ? "text-white/60" : "text-neutral-500"}`}>
+                      <p
+                        className={`text-xs ${service === i ? "text-white/60" : "text-neutral-500"}`}
+                      >
                         {s.duration}
                       </p>
                     </div>

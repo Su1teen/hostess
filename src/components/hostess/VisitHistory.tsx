@@ -25,8 +25,7 @@ function Stars({ count }: { count: number }) {
 export function VisitHistory() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  const toggle = (id: string) =>
-    setExpandedId((prev) => (prev === id ? null : id));
+  const toggle = (id: string) => setExpandedId((prev) => (prev === id ? null : id));
 
   return (
     <div className="divide-y divide-neutral-100 overflow-hidden rounded-2xl bg-white hairline">
@@ -83,19 +82,14 @@ export function VisitHistory() {
                       </p>
                       <div className="space-y-1">
                         {entry.items.map((item, idx) => (
-                          <div
-                            key={idx}
-                            className="flex items-center justify-between text-xs"
-                          >
+                          <div key={idx} className="flex items-center justify-between text-xs">
                             <span className="text-neutral-700">
                               {item.name}{" "}
                               {item.qty > 1 && (
                                 <span className="text-neutral-400">×{item.qty}</span>
                               )}
                             </span>
-                            <span className="font-medium">
-                              {money(item.price * item.qty)}
-                            </span>
+                            <span className="font-medium">{money(item.price * item.qty)}</span>
                           </div>
                         ))}
                       </div>
@@ -105,9 +99,7 @@ export function VisitHistory() {
                     {entry.companions.length > 0 && (
                       <div className="flex items-center gap-2">
                         <Users className="h-3.5 w-3.5 text-neutral-400" />
-                        <p className="text-xs text-neutral-600">
-                          {entry.companions.join(", ")}
-                        </p>
+                        <p className="text-xs text-neutral-600">{entry.companions.join(", ")}</p>
                       </div>
                     )}
 
@@ -116,8 +108,7 @@ export function VisitHistory() {
                       <div className="flex items-center gap-2">
                         <HandCoins className="h-3.5 w-3.5 text-neutral-400" />
                         <p className="text-xs text-neutral-600">
-                          Чаевые:{" "}
-                          <span className="font-medium">{money(entry.tips)}</span>
+                          Чаевые: <span className="font-medium">{money(entry.tips)}</span>
                         </p>
                       </div>
                     )}
@@ -125,9 +116,7 @@ export function VisitHistory() {
                     {/* Review */}
                     <div className="flex items-start gap-2 rounded-xl bg-neutral-50 p-2.5">
                       <Stars count={entry.review.stars} />
-                      <p className="text-xs leading-snug text-neutral-600">
-                        {entry.review.text}
-                      </p>
+                      <p className="text-xs leading-snug text-neutral-600">{entry.review.text}</p>
                     </div>
                   </div>
                 </motion.div>

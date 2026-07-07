@@ -1,12 +1,6 @@
 import { useCallback, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import {
-  Star,
-  Flame,
-  TrendingUp,
-  Clock,
-  Ticket,
-} from "lucide-react";
+import { Star, Flame, TrendingUp, Clock, Ticket } from "lucide-react";
 import {
   restaurants,
   venues,
@@ -259,7 +253,9 @@ export function CatalogScreen({ onOpenRestaurant }: { onOpenRestaurant: (r: Rest
                     ))}
                   </div>
                   {hotDeals[r.id] && (
-                    <p className="mt-1 text-[10px] font-semibold text-neutral-900">{hotDeals[r.id]}</p>
+                    <p className="mt-1 text-[10px] font-semibold text-neutral-900">
+                      {hotDeals[r.id]}
+                    </p>
                   )}
                 </div>
                 <div className="text-right text-[11px] text-neutral-500">

@@ -6,11 +6,11 @@ import { money } from "@/data/hostess";
 /* ── Props ────────────────────────────────────────────────────────── */
 
 interface VenueStatsProps {
-  occupancy: number;   // 0-100 percentage
-  avgCheck: number;    // in tenge
-  peakHours: string;   // e.g. "19:00 – 21:00"
-  rating: number;      // e.g. 4.9
-  reviews: number;     // e.g. 1284
+  occupancy: number; // 0-100 percentage
+  avgCheck: number; // in tenge
+  peakHours: string; // e.g. "19:00 – 21:00"
+  rating: number; // e.g. 4.9
+  reviews: number; // e.g. 1284
 }
 
 /* ── SVG Donut constants ──────────────────────────────────────────── */
@@ -28,22 +28,12 @@ export function VenueStats({ occupancy, avgCheck, peakHours, rating, reviews }: 
   const targetOffset = CIRCUMFERENCE - (occupancy / 100) * CIRCUMFERENCE;
 
   return (
-    <div
-      ref={ref}
-      className="flex items-center gap-4 rounded-2xl bg-neutral-50 p-4"
-    >
+    <div ref={ref} className="flex items-center gap-4 rounded-2xl bg-neutral-50 p-4">
       {/* ── Donut chart ───────────────────────────────────────── */}
       <div className="relative h-[120px] w-[120px] shrink-0">
         <svg viewBox="0 0 100 100" className="h-full w-full -rotate-90">
           {/* Background ring */}
-          <circle
-            cx="50"
-            cy="50"
-            r={RADIUS}
-            fill="none"
-            stroke="#e5e5e5"
-            strokeWidth="7"
-          />
+          <circle cx="50" cy="50" r={RADIUS} fill="none" stroke="#e5e5e5" strokeWidth="7" />
           {/* Animated progress ring */}
           <motion.circle
             cx="50"

@@ -23,7 +23,7 @@ export function BottomNav({ active, onChange }: { active: Screen; onChange: (s: 
         initial={{ y: 60, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ type: "spring", stiffness: 260, damping: 26 }}
-        className="pointer-events-auto flex items-center gap-0.5 rounded-full bg-white/70 px-2 py-2 shadow-[0_20px_50px_-15px_rgba(0,0,0,0.25)] backdrop-blur-xl"
+        className="glass-frosted pointer-events-auto flex items-center gap-0.5 rounded-full px-2 py-2"
       >
         {items.map(({ key, label, Icon }) => {
           const isActive = active === key;

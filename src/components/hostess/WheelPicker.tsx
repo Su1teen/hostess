@@ -37,7 +37,6 @@ export function WheelPicker({
     };
   }, []);
 
-
   const paint = () => {
     const el = ref.current;
     if (!el) return;

@@ -77,7 +77,14 @@ export const restaurants: Restaurant[] = [
             kcal: 310,
             tags: ["говядина", "сырое", "острое 🌶"],
             image: img("photo-1544025162-d76694265947"),
-            ingredients: ["мраморная говядина", "перепелиный желток", "дижонская горчица", "копчёное масло", "каперсы", "лук-шалот"],
+            ingredients: [
+              "мраморная говядина",
+              "перепелиный желток",
+              "дижонская горчица",
+              "копчёное масло",
+              "каперсы",
+              "лук-шалот",
+            ],
             protein: 28,
             fat: 19,
             carbs: 4,
@@ -124,7 +131,13 @@ export const restaurants: Restaurant[] = [
             kcal: 280,
             tags: ["лёгкое"],
             image: img("photo-1512621776951-a57141f2eefd"),
-            ingredients: ["конина", "салат", "помидоры черри", "перепелиные яйца", "горчичная заправка"],
+            ingredients: [
+              "конина",
+              "салат",
+              "помидоры черри",
+              "перепелиные яйца",
+              "горчичная заправка",
+            ],
             protein: 22,
             fat: 12,
             carbs: 15,
@@ -143,7 +156,7 @@ export const restaurants: Restaurant[] = [
             fat: 15,
             carbs: 35,
           },
-        ]
+        ],
       },
       {
         section: "Горячее",
@@ -157,7 +170,13 @@ export const restaurants: Restaurant[] = [
             kcal: 780,
             tags: ["ягнёнок", "традиция", "хит 🔥"],
             image: img("photo-1546069901-ba9599a7e63c"),
-            ingredients: ["ягнёнок томлёный 12ч", "тесто ручной раскатки", "лук", "сорпа", "зелень"],
+            ingredients: [
+              "ягнёнок томлёный 12ч",
+              "тесто ручной раскатки",
+              "лук",
+              "сорпа",
+              "зелень",
+            ],
             protein: 42,
             fat: 31,
             carbs: 55,
@@ -171,7 +190,13 @@ export const restaurants: Restaurant[] = [
             kcal: 410,
             tags: ["рыба", "гриль"],
             image: img("photo-1519708227418-c8fd9a32b7a2"),
-            ingredients: ["дикий судак", "ферментированный перец", "зелёное масло", "лимон", "тимьян"],
+            ingredients: [
+              "дикий судак",
+              "ферментированный перец",
+              "зелёное масло",
+              "лимон",
+              "тимьян",
+            ],
             protein: 34,
             fat: 14,
             carbs: 6,
@@ -223,7 +248,7 @@ export const restaurants: Restaurant[] = [
             fat: 22,
             carbs: 40,
           },
-        ]
+        ],
       },
       {
         section: "Напитки",
@@ -256,8 +281,8 @@ export const restaurants: Restaurant[] = [
             fat: 4,
             carbs: 15,
           },
-        ]
-      }
+        ],
+      },
     ],
     specials: [
       {
@@ -313,7 +338,13 @@ export const restaurants: Restaurant[] = [
             kcal: 920,
             tags: ["говядина", "dry-aged", "хит 🔥"],
             image: img("photo-1558030006-450675393462"),
-            ingredients: ["рибай ангус 45 дней выдержки", "соль Малдон", "костный мозг", "розмарин", "чеснок конфи"],
+            ingredients: [
+              "рибай ангус 45 дней выдержки",
+              "соль Малдон",
+              "костный мозг",
+              "розмарин",
+              "чеснок конфи",
+            ],
             protein: 62,
             fat: 58,
             carbs: 0,
@@ -346,7 +377,13 @@ export const restaurants: Restaurant[] = [
             kcal: 320,
             tags: ["сырое"],
             image: img("photo-1512621776951-a57141f2eefd"),
-            ingredients: ["мраморная говядина", "пармезан", "каперсы", "трюфельное масло", "лимонный сок"],
+            ingredients: [
+              "мраморная говядина",
+              "пармезан",
+              "каперсы",
+              "трюфельное масло",
+              "лимонный сок",
+            ],
             protein: 26,
             fat: 22,
             carbs: 3,
@@ -365,7 +402,7 @@ export const restaurants: Restaurant[] = [
             fat: 65,
             carbs: 18,
           },
-        ]
+        ],
       },
       {
         section: "Гарниры",
@@ -398,7 +435,7 @@ export const restaurants: Restaurant[] = [
             fat: 10,
             carbs: 15,
           },
-        ]
+        ],
       },
       {
         section: "Напитки",
@@ -431,8 +468,8 @@ export const restaurants: Restaurant[] = [
             fat: 0,
             carbs: 15,
           },
-        ]
-      }
+        ],
+      },
     ],
     specials: [
       {
@@ -477,7 +514,13 @@ export const restaurants: Restaurant[] = [
             kcal: 540,
             tags: ["яйца", "рыба", "хит 🔥"],
             image: img("photo-1608039755401-742074f0548d"),
-            ingredients: ["бриошь", "яйцо пашот", "лосось слабой соли", "голландский соус", "укроп"],
+            ingredients: [
+              "бриошь",
+              "яйцо пашот",
+              "лосось слабой соли",
+              "голландский соус",
+              "укроп",
+            ],
             protein: 26,
             fat: 32,
             carbs: 28,
@@ -491,7 +534,15 @@ export const restaurants: Restaurant[] = [
             kcal: 480,
             tags: ["сладкое", "веган 🌱"],
             image: img("photo-1509440159596-0249088772ff"),
-            ingredients: ["творог 9%", "яйцо", "мука", "сахар", "сметана", "ягоды", "кленовый сироп"],
+            ingredients: [
+              "творог 9%",
+              "яйцо",
+              "мука",
+              "сахар",
+              "сметана",
+              "ягоды",
+              "кленовый сироп",
+            ],
             protein: 22,
             fat: 20,
             carbs: 45,
@@ -524,7 +575,14 @@ export const restaurants: Restaurant[] = [
             kcal: 320,
             tags: ["лёгкое"],
             image: img("photo-1512621776951-a57141f2eefd"),
-            ingredients: ["ростбиф", "микс салата", "вяленые томаты", "горчица", "мёд", "оливковое масло"],
+            ingredients: [
+              "ростбиф",
+              "микс салата",
+              "вяленые томаты",
+              "горчица",
+              "мёд",
+              "оливковое масло",
+            ],
             protein: 25,
             fat: 18,
             carbs: 12,
@@ -543,7 +601,7 @@ export const restaurants: Restaurant[] = [
             fat: 30,
             carbs: 15,
           },
-        ]
+        ],
       },
       {
         section: "Горячее",
@@ -576,7 +634,7 @@ export const restaurants: Restaurant[] = [
             fat: 25,
             carbs: 8,
           },
-        ]
+        ],
       },
       {
         section: "Напитки",
@@ -609,8 +667,8 @@ export const restaurants: Restaurant[] = [
             fat: 0,
             carbs: 45,
           },
-        ]
-      }
+        ],
+      },
     ],
     specials: [],
   },
@@ -709,7 +767,15 @@ export const restaurants: Restaurant[] = [
             kcal: 650,
             tags: ["курица", "хит 🔥"],
             image: img("photo-1546069901-d5bfd2cbfb1f"),
-            ingredients: ["рисовая лапша", "курица", "яйцо", "тофу", "ростки сои", "арахис", "тамаринд"],
+            ingredients: [
+              "рисовая лапша",
+              "курица",
+              "яйцо",
+              "тофу",
+              "ростки сои",
+              "арахис",
+              "тамаринд",
+            ],
             protein: 32,
             fat: 20,
             carbs: 75,
@@ -742,7 +808,16 @@ export const restaurants: Restaurant[] = [
             kcal: 450,
             tags: ["морепродукты", "острое 🌶", "хит 🔥"],
             image: img("photo-1544148103-0773bf10d330"),
-            ingredients: ["креветки", "кальмары", "мидии", "кокосовое молоко", "лемнграсс", "галангал", "чили", "грибы"],
+            ingredients: [
+              "креветки",
+              "кальмары",
+              "мидии",
+              "кокосовое молоко",
+              "лемнграсс",
+              "галангал",
+              "чили",
+              "грибы",
+            ],
             protein: 28,
             fat: 30,
             carbs: 18,
@@ -767,7 +842,7 @@ export const restaurants: Restaurant[] = [
             carbs: 15,
           },
         ],
-      }
+      },
     ],
     specials: [],
   },
@@ -820,7 +895,7 @@ export const restaurants: Restaurant[] = [
             fat: 8,
             carbs: 85,
           },
-        ]
+        ],
       },
       {
         section: "Закуски",
@@ -834,12 +909,20 @@ export const restaurants: Restaurant[] = [
             kcal: 650,
             tags: ["веган 🌱", "на компанию"],
             image: img("photo-1546069901-d5bfd2cbfb1f"),
-            ingredients: ["нут", "баклажаны", "тахини", "томаты", "чеснок", "оливковое масло", "пита"],
+            ingredients: [
+              "нут",
+              "баклажаны",
+              "тахини",
+              "томаты",
+              "чеснок",
+              "оливковое масло",
+              "пита",
+            ],
             protein: 18,
             fat: 42,
             carbs: 55,
           },
-        ]
+        ],
       },
       {
         section: "Напитки",
@@ -858,8 +941,8 @@ export const restaurants: Restaurant[] = [
             fat: 0,
             carbs: 30,
           },
-        ]
-      }
+        ],
+      },
     ],
     specials: [],
   },
@@ -911,7 +994,7 @@ export const restaurants: Restaurant[] = [
             fat: 60,
             carbs: 85,
           },
-        ]
+        ],
       },
       {
         section: "Выпечка",
@@ -930,7 +1013,7 @@ export const restaurants: Restaurant[] = [
             fat: 45,
             carbs: 75,
           },
-        ]
+        ],
       },
       {
         section: "Горячее",
@@ -949,7 +1032,7 @@ export const restaurants: Restaurant[] = [
             fat: 50,
             carbs: 35,
           },
-        ]
+        ],
       },
       {
         section: "Напитки",
@@ -968,8 +1051,8 @@ export const restaurants: Restaurant[] = [
             fat: 0,
             carbs: 45,
           },
-        ]
-      }
+        ],
+      },
     ],
     specials: [
       {
@@ -1417,9 +1500,7 @@ export const history: VisitEntry[] = [
     when: "28 апр",
     sum: 9800,
     color: "bg-emerald-100 text-emerald-500",
-    items: [
-      { name: "Эгг Бенедикт с лососем", qty: 2, price: 4900 },
-    ],
+    items: [{ name: "Эгг Бенедикт с лососем", qty: 2, price: 4900 }],
     companions: ["Мадина"],
     tips: 1000,
     review: { stars: 4, text: "Уютно, завтрак был отличный" },
@@ -1460,9 +1541,7 @@ export const history: VisitEntry[] = [
     when: "5 апр",
     sum: 9000,
     color: "bg-sky-100 text-sky-500",
-    items: [
-      { name: "Стрижка + укладка", qty: 1, price: 9000 },
-    ],
+    items: [{ name: "Стрижка + укладка", qty: 1, price: 9000 }],
     companions: [],
     tips: 1000,
     review: { stars: 5, text: "Отличный мастер, всё быстро и чётко" },
@@ -1486,6 +1565,136 @@ export const calendarEvents: Record<number, { title: string; color: string }[]> 
 };
 
 export const money = (n: number) => `${n.toLocaleString("ru-RU")} ₸`;
+
+/* ── Загруженность (occupancy) ────────────────────────────────────── */
+// Универсальная модель заполненности для пинов на карте, столиков и боксов.
+export type Occupancy = "available" | "moderate" | "busy";
+
+export const occupancyColor: Record<Occupancy, string> = {
+  available: "#22C55E", // зелёный — свободно
+  moderate: "#F59E0B", // оранжевый — скоро освободится
+  busy: "#EF4444", // красный — занято надолго
+};
+
+export const occupancyLabel: Record<Occupancy, string> = {
+  available: "Свободно",
+  moderate: "Скоро освободится",
+  busy: "Занято",
+};
+
+/** Детерминированная «загруженность» по id — стабильна между рендерами. */
+export function occupancyForId(id: string): Occupancy {
+  const hash = [...id].reduce((acc, c) => acc + c.charCodeAt(0), 0);
+  const v = (hash % 100) / 100;
+  if (v > 0.7) return "busy";
+  if (v > 0.4) return "moderate";
+  return "available";
+}
+
+/* ── Автомойка (Task 5) ───────────────────────────────────────────── */
+
+export type WashService = {
+  id: string;
+  name: string;
+  price: number;
+  duration: string;
+};
+
+export type WashBox = {
+  id: string;
+  label: string;
+  status: Occupancy;
+  /** Время освобождения, напр. "14:30" — только для занятых боксов. */
+  freeAt?: string;
+  /** Прогресс текущей мойки 0..1 — сколько времени прошло. */
+  progress?: number;
+};
+
+export type CarWash = {
+  id: string;
+  name: string;
+  address: string;
+  rating: number;
+  reviews: number;
+  cover: string;
+  priceFrom: number;
+  distanceKm: number;
+  coords: { lng: number; lat: number };
+  services: WashService[];
+  boxes: WashBox[];
+};
+
+const washServices: WashService[] = [
+  { id: "ws1", name: "Комплексная мойка кузова", price: 5000, duration: "40 мин" },
+  { id: "ws2", name: "Химчистка салона", price: 35000, duration: "4 часа" },
+  { id: "ws3", name: "Чернение шин", price: 2000, duration: "15 мин" },
+  { id: "ws4", name: "Полировка кузова", price: 25000, duration: "3 часа" },
+  { id: "ws5", name: "Озонирование", price: 8000, duration: "30 мин" },
+  { id: "ws6", name: "Нанокерамика", price: 180000, duration: "2 дня" },
+];
+
+const makeBoxes = (seed: string): WashBox[] =>
+  Array.from({ length: 6 }, (_, i) => {
+    const id = `${seed}-box${i + 1}`;
+    const status = occupancyForId(id);
+    const busy = status !== "available";
+    const progress = status === "busy" ? 0.25 + (i % 3) * 0.15 : status === "moderate" ? 0.7 : 0;
+    const freeMin = status === "busy" ? 25 + i * 6 : status === "moderate" ? 8 + i * 2 : 0;
+    const free = new Date(Date.now() + freeMin * 60000);
+    return {
+      id,
+      label: `Бокс ${i + 1}`,
+      status,
+      progress: busy ? progress : undefined,
+      freeAt: busy
+        ? `${String(free.getHours()).padStart(2, "0")}:${String(free.getMinutes()).padStart(2, "0")}`
+        : undefined,
+    };
+  });
+
+export const carWashes: CarWash[] = [
+  {
+    id: "v3",
+    name: "Details Detailing",
+    address: "Автомойка · Left Bank",
+    rating: 4.7,
+    reviews: 210,
+    cover: img("photo-1607860108855-64acf2078ed9"),
+    priceFrom: 5000,
+    distanceKm: 3.4,
+    coords: { lng: 71.46, lat: 51.15 },
+    services: washServices,
+    boxes: makeBoxes("details"),
+  },
+  {
+    id: "mp10",
+    name: "Shine Car Wash",
+    address: "Автомойка · Есиль",
+    rating: 4.5,
+    reviews: 120,
+    cover: img("photo-1520340356584-f9917d1eea6f"),
+    priceFrom: 4000,
+    distanceKm: 2.9,
+    coords: { lng: 71.465, lat: 51.158 },
+    services: washServices,
+    boxes: makeBoxes("shine"),
+  },
+  {
+    id: "mp11",
+    name: "Auto Spa Astana",
+    address: "Детейлинг · Есиль",
+    rating: 4.8,
+    reviews: 190,
+    cover: img("photo-1552930294-6b595f4c2974"),
+    priceFrom: 6000,
+    distanceKm: 4.1,
+    coords: { lng: 71.472, lat: 51.162 },
+    services: washServices,
+    boxes: makeBoxes("autospa"),
+  },
+];
+
+export const carWashById = (id: string) => carWashes.find((c) => c.id === id);
 
 /* ── Плотные данные для карты (Zenly-style) ───────────────────────── */
 
@@ -1519,20 +1728,86 @@ export const mapPoints: MapPoint[] = [
     coords: v.coords,
   })),
   // Дополнительные моковые точки — рестораны
-  { id: "mp1", name: "Sandyq", category: "food", rating: 4.8, coords: { lng: 71.43, lat: 51.1608 } },
-  { id: "mp2", name: "Ashana", category: "food", rating: 4.5, coords: { lng: 71.415, lat: 51.1505 } },
-  { id: "mp3", name: "Marina Bay", category: "food", rating: 4.6, coords: { lng: 71.455, lat: 51.132 } },
-  { id: "mp4", name: "Beirut", category: "food", rating: 4.7, coords: { lng: 71.426, lat: 51.1395 } },
-  { id: "mp5", name: "Fusion Coffee", category: "food", rating: 4.9, coords: { lng: 71.438, lat: 51.127 } },
+  {
+    id: "mp1",
+    name: "Sandyq",
+    category: "food",
+    rating: 4.8,
+    coords: { lng: 71.43, lat: 51.1608 },
+  },
+  {
+    id: "mp2",
+    name: "Ashana",
+    category: "food",
+    rating: 4.5,
+    coords: { lng: 71.415, lat: 51.1505 },
+  },
+  {
+    id: "mp3",
+    name: "Marina Bay",
+    category: "food",
+    rating: 4.6,
+    coords: { lng: 71.455, lat: 51.132 },
+  },
+  {
+    id: "mp4",
+    name: "Beirut",
+    category: "food",
+    rating: 4.7,
+    coords: { lng: 71.426, lat: 51.1395 },
+  },
+  {
+    id: "mp5",
+    name: "Fusion Coffee",
+    category: "food",
+    rating: 4.9,
+    coords: { lng: 71.438, lat: 51.127 },
+  },
   // Дополнительные — барбершопы / салоны
-  { id: "mp6", name: "Gentlemen's Club", category: "beauty", rating: 4.8, coords: { lng: 71.421, lat: 51.1362 } },
-  { id: "mp7", name: "Lash Bar", category: "beauty", rating: 4.9, coords: { lng: 71.448, lat: 51.1418 } },
+  {
+    id: "mp6",
+    name: "Gentlemen's Club",
+    category: "beauty",
+    rating: 4.8,
+    coords: { lng: 71.421, lat: 51.1362 },
+  },
+  {
+    id: "mp7",
+    name: "Lash Bar",
+    category: "beauty",
+    rating: 4.9,
+    coords: { lng: 71.448, lat: 51.1418 },
+  },
   // Дополнительные — стоматологии / медицина
-  { id: "mp8", name: "Dent Studio", category: "medicine", rating: 4.7, coords: { lng: 71.433, lat: 51.1512 } },
-  { id: "mp9", name: "Medilux", category: "medicine", rating: 4.6, coords: { lng: 71.419, lat: 51.1438 } },
+  {
+    id: "mp8",
+    name: "Dent Studio",
+    category: "medicine",
+    rating: 4.7,
+    coords: { lng: 71.433, lat: 51.1512 },
+  },
+  {
+    id: "mp9",
+    name: "Medilux",
+    category: "medicine",
+    rating: 4.6,
+    coords: { lng: 71.419, lat: 51.1438 },
+  },
   // Дополнительные — автомойки / авто
-  { id: "mp10", name: "Shine Car Wash", category: "auto", rating: 4.5, coords: { lng: 71.465, lat: 51.158 } },
-  { id: "mp11", name: "Auto Spa Astana", category: "auto", rating: 4.8, coords: { lng: 71.472, lat: 51.162 } },
+  {
+    id: "mp10",
+    name: "Shine Car Wash",
+    category: "auto",
+    rating: 4.5,
+    coords: { lng: 71.465, lat: 51.158 },
+  },
+  {
+    id: "mp11",
+    name: "Auto Spa Astana",
+    category: "auto",
+    rating: 4.8,
+    coords: { lng: 71.472, lat: 51.162 },
+  },
 ];
 
 export type FriendMapLocation = {

@@ -27,12 +27,19 @@ import {
   cityEvents,
   stories,
   money,
+  occupancyForId,
+  occupancyColor,
+  carWashById,
   type Restaurant,
   type Venue,
   type CityEvent,
   type Story,
+  type CarWash,
+  type MapPoint,
 } from "@/data/hostess";
 import { geocode, type GeoResult } from "@/lib/geo";
+import { CoverFlowCarousel, type CoverFlowItem } from "../CoverFlowCarousel";
+import { CarWashSheet } from "../CarWashSheet";
 import { useTheme, categoryToTheme } from "@/components/hostess/ThemeProvider";
 import { StoryViewer } from "@/components/hostess/StoryViewer";
 import { VenueBookingModal } from "@/components/hostess/VenueBookingModal";
@@ -51,6 +58,35 @@ const catColor: Record<string, string> = {
   concerts: "#A855F7",
 };
 
+// SVG-иконка по категории (для белых пинов на карте).
+function iconSvgFor(p: MapPoint): { svg: string; label: string } {
+  if (p.category === "food") {
+    return {
+      label: "Ресторан",
+      svg: `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2v0a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/></svg>`,
+    };
+  }
+  if (p.category === "beauty") {
+    const barber = p.name.toLowerCase().includes("барбер");
+    return {
+      label: barber ? "Барбершоп" : "Красота",
+      svg: barber
+        ? `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>`
+        : `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/></svg>`,
+    };
+  }
+  if (p.category === "medicine") {
+    return {
+      label: "Медицина",
+      svg: `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 2v2"/><path d="M5 2v2"/><path d="M5 3H4a2 2 0 0 0-2 2v4a6 6 0 0 0 12 0V5a2 2 0 0 0-2-2h-1"/><path d="M8 15a6 6 0 0 0 12 0v-3"/><circle cx="20" cy="10" r="2"/></svg>`,
+    };
+  }
+  return {
+    label: "Авто",
+    svg: `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><path d="M9 17h6"/><circle cx="17" cy="17" r="2"/></svg>`,
+  };
+}
+
 // ── Состояния шторки ──────────────────────────────────────────────
 type SheetState = "collapsed" | "half" | "full";
 
@@ -65,7 +101,9 @@ export function MapScreen({
 }) {
   const mapNode = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
-  const markersRef = useRef<mapboxgl.Marker[]>([]);
+  const pointMarkersRef = useRef<mapboxgl.Marker[]>([]);
+  const friendMarkersRef = useRef<mapboxgl.Marker[]>([]);
+  const openPointRef = useRef<(p: MapPoint) => void>(() => {});
   const sheetRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerH, setContainerH] = useState(800);
@@ -88,6 +126,26 @@ export function MapScreen({
   const [story, setStory] = useState<Story | null>(null);
   const [venue, setVenue] = useState<Venue | null>(null);
   const [event, setEvent] = useState<CityEvent | null>(null);
+  const [carWash, setCarWash] = useState<CarWash | null>(null);
+
+  // Открытие точки: ресторан → карточка, авто → экран автомойки.
+  const openVenue = (v: Venue) => {
+    const wash = carWashById(v.id);
+    if (v.category === "auto" && wash) setCarWash(wash);
+    else setVenue(v);
+  };
+
+  // Клик по пину на карте.
+  const openPoint = (p: MapPoint) => {
+    if (p.category === "food") {
+      const rest = restaurants.find((r) => r.id === p.id);
+      if (rest) onOpenRestaurant(rest);
+    } else if (p.category === "auto") {
+      const wash = carWashById(p.id);
+      if (wash) setCarWash(wash);
+    }
+  };
+  openPointRef.current = openPoint;
 
   // Динамическая тема: переключается при смене категории.
   const { setTheme } = useTheme();
@@ -138,7 +196,7 @@ export function MapScreen({
   const onOpenRef = useRef(onOpenRestaurant);
   onOpenRef.current = onOpenRestaurant;
 
-  // Инициализация карты — выполняется один раз.
+  // Инициализация карты + динамическая кластеризация — выполняется один раз.
   useEffect(() => {
     if (!mapNode.current || mapRef.current) return;
     const map = new mapboxgl.Map({
@@ -151,33 +209,86 @@ export function MapScreen({
     });
     mapRef.current = map;
 
+    // ── Клиентская кластеризация по пиксельной сетке ──────────────
+    // При отдалении близкие пины группируются в кластер со счётчиком;
+    // при приближении сетка «разъезжается» и открываются одиночные пины.
+    const CELL = 68; // размер ячейки сетки, px
+    const renderClusters = () => {
+      // Убираем прежние пины точек (аватарки друзей не трогаем).
+      pointMarkersRef.current.forEach((m) => m.remove());
+      pointMarkersRef.current = [];
+
+      type Cell = { points: MapPoint[]; sx: number; sy: number };
+      const cells = new Map<string, Cell>();
+      mapPoints.forEach((p) => {
+        const px = map.project([p.coords.lng, p.coords.lat]);
+        const key = `${Math.floor(px.x / CELL)}:${Math.floor(px.y / CELL)}`;
+        const cell = cells.get(key) ?? { points: [], sx: 0, sy: 0 };
+        cell.points.push(p);
+        cell.sx += p.coords.lng;
+        cell.sy += p.coords.lat;
+        cells.set(key, cell);
+      });
+
+      cells.forEach((cell) => {
+        if (cell.points.length > 1) {
+          // ── Кластер ──
+          const lng = cell.sx / cell.points.length;
+          const lat = cell.sy / cell.points.length;
+          const el = document.createElement("button");
+          el.className = "cluster-marker";
+          el.innerHTML = `
+            <div style="position:relative;display:grid;place-items:center;width:46px;height:46px;border-radius:9999px;background:white;box-shadow:0 6px 18px rgba(0,0,0,0.18);border:1px solid rgba(0,0,0,0.04);">
+              <span style="font-size:15px;font-weight:700;color:#111;">${cell.points.length}</span>
+              <span style="position:absolute;inset:0;border-radius:9999px;border:2px solid rgba(249,115,22,0.35);"></span>
+            </div>`;
+          el.onclick = () =>
+            map.easeTo({
+              center: [lng, lat],
+              zoom: Math.min(map.getZoom() + 2, 16),
+              duration: 500,
+            });
+          const m = new mapboxgl.Marker({ element: el, anchor: "center" })
+            .setLngLat([lng, lat])
+            .addTo(map);
+          pointMarkersRef.current.push(m);
+        } else {
+          // ── Одиночный белый пин с индикатором загруженности ──
+          const p = cell.points[0];
+          const color = catColor[p.category] ?? "#64748B";
+          const occ = occupancyColor[occupancyForId(p.id)];
+          const { svg, label } = iconSvgFor(p);
+          const el = document.createElement("button");
+          el.className =
+            "group relative flex flex-col items-center transition-transform hover:z-50 hover:scale-110";
+          el.innerHTML = `
+            <div style="position:relative;">
+              <div style="display:grid;place-items:center;width:40px;height:40px;border-radius:9999px;background:white;box-shadow:0 4px 12px rgba(0,0,0,0.16);border:1px solid rgba(0,0,0,0.04);color:${color};">
+                ${svg}
+              </div>
+              <span style="position:absolute;top:-1px;right:-1px;width:12px;height:12px;border-radius:9999px;background:${occ};border:2px solid white;box-shadow:0 1px 3px rgba(0,0,0,0.25);"></span>
+            </div>
+            <div class="opacity-0 transition-opacity group-hover:opacity-100" style="position:absolute;top:44px;white-space:nowrap;border-radius:6px;background:rgba(17,17,17,0.9);padding:2px 6px;font-size:9.5px;font-weight:500;color:white;backdrop-filter:blur(6px);">${label}</div>`;
+          el.onclick = () => openPointRef.current(p);
+          const m = new mapboxgl.Marker({ element: el, anchor: "center" })
+            .setLngLat([p.coords.lng, p.coords.lat])
+            .addTo(map);
+          pointMarkersRef.current.push(m);
+        }
+      });
+    };
+
     map.on("load", () => {
       map.resize();
       setTimeout(() => map.resize(), 300);
+      renderClusters();
 
-      // Все точки карты — цветные пины по категории.
-      mapPoints.forEach((p) => {
-        const color = catColor[p.category] ?? "#64748B";
-        const el = document.createElement("button");
-        el.className =
-          "flex items-center gap-1 rounded-full bg-white px-2 py-1 text-[10px] font-semibold text-neutral-900 shadow-[0_6px_16px_-4px_rgba(0,0,0,0.22)] ring-1 ring-black/5 hover:scale-105 transition";
-        el.innerHTML = `<span class="h-2 w-2 rounded-full" style="background:${color}"></span>${p.name}`;
-        // Рестораны открывают карточку (через ref для стабильной ссылки).
-        if (p.category === "food") {
-          const rest = restaurants.find((r) => r.id === p.id);
-          if (rest) el.onclick = () => onOpenRef.current(rest);
-        }
-        const m = new mapboxgl.Marker({ element: el, anchor: "bottom" })
-          .setLngLat([p.coords.lng, p.coords.lat])
-          .addTo(map);
-        markersRef.current.push(m);
-      });
-
-      // Аватарки друзей (Zenly-style, 8 штук).
+      // Аватарки друзей (Zenly-style, 8 штук) — создаются один раз.
       friendMapLocations.forEach((f) => {
         const el = document.createElement("div");
         el.className = "friend-marker";
-        const agoText = f.minutesAgo < 60 ? `${f.minutesAgo} мин` : `${Math.floor(f.minutesAgo / 60)} ч`;
+        const agoText =
+          f.minutesAgo < 60 ? `${f.minutesAgo} мин` : `${Math.floor(f.minutesAgo / 60)} ч`;
         el.innerHTML = `
           <div style="position:relative;width:44px;height:44px;">
             <div style="position:absolute;inset:-3px;border-radius:50%;background:linear-gradient(135deg,#F97316,#EC4899);animation:pulse-ring 2.5s ease-out infinite;"></div>
@@ -188,13 +299,19 @@ export function MapScreen({
         const m = new mapboxgl.Marker({ element: el, anchor: "center" })
           .setLngLat([f.coords.lng, f.coords.lat])
           .addTo(map);
-        markersRef.current.push(m);
+        friendMarkersRef.current.push(m);
       });
     });
 
+    // Перекластеризация при изменении масштаба/сдвиге.
+    map.on("zoomend", renderClusters);
+    map.on("moveend", renderClusters);
+
     return () => {
-      markersRef.current.forEach((m) => m.remove());
-      markersRef.current = [];
+      pointMarkersRef.current.forEach((m) => m.remove());
+      friendMarkersRef.current.forEach((m) => m.remove());
+      pointMarkersRef.current = [];
+      friendMarkersRef.current = [];
       map.remove();
       mapRef.current = null;
     };
@@ -246,6 +363,16 @@ export function MapScreen({
 
   // Фильтрация venues по категории (bugfix: при cat=food не показываем все venues).
   const catVenues = venues.filter((v) => v.category === cat);
+
+  // Карточки для Cover Flow карусели (Task 2): афиша города.
+  const coverItems: CoverFlowItem[] = cityEvents.map((e) => ({
+    id: e.id,
+    image: e.cover,
+    title: e.title,
+    subtitle: `${e.place} · ${e.date}`,
+    badge: e.hot ? "Хит" : e.tag,
+    meta: e.price === 0 ? "Бесплатно" : `от ${money(e.price)}`,
+  }));
 
   return (
     <div ref={containerRef} className="relative h-full w-full overflow-hidden bg-neutral-100">
@@ -396,7 +523,9 @@ export function MapScreen({
       >
         {/* Грань для перетаскивания */}
         <button
-          onClick={() => setSheet(sheet === "collapsed" ? "half" : sheet === "half" ? "full" : "collapsed")}
+          onClick={() =>
+            setSheet(sheet === "collapsed" ? "half" : sheet === "half" ? "full" : "collapsed")
+          }
           className="flex w-full shrink-0 flex-col items-center gap-1 pt-2.5 pb-1"
           aria-label="Переключить шторку"
         >
@@ -426,8 +555,8 @@ export function MapScreen({
           </div>
         </div>
 
-        {/* ── Half-состояние: горизонтальная карусель ─────────────── */}
-        {sheet !== "collapsed" && (
+        {/* ── Half-состояние: горизонтальная карусель "Рядом с вами" ─ */}
+        {sheet === "half" && (
           <div className="shrink-0 pb-2">
             <div className="flex items-center justify-between px-4 pb-2">
               <h3 className="section-title">Ближайшие заведения</h3>
@@ -472,12 +601,74 @@ export function MapScreen({
           </div>
         )}
 
-        {/* ── Full-состояние: полный каталог (скроллится) ──────────── */}
+        {/* ── Full-состояние: полный каталог (единый скролл) ──────────── */}
         {sheet === "full" && (
-          <div className="flex-1 overflow-y-auto pb-[140px]">
+          <div className="flex-1 overflow-y-auto bg-gray-50 pb-[140px]">
+            {/* Рядом с вами — теперь часть единого скролла (Task 2) */}
+            <div className="pt-2">
+              <div className="flex items-center justify-between px-5 pb-2">
+                <h3 className="text-[15px] font-semibold text-neutral-900">Рядом с вами</h3>
+                <span className="text-xs text-neutral-500">{restaurants.length} мест</span>
+              </div>
+              <div className="no-scrollbar flex gap-3 overflow-x-auto px-5 pb-1">
+                {restaurants.map((r) => (
+                  <button
+                    key={r.id}
+                    onClick={() => onOpenRestaurant(r)}
+                    className="group w-[240px] shrink-0 overflow-hidden rounded-3xl border border-border/50 bg-white text-left shadow-soft"
+                  >
+                    <div className="relative h-32 w-full overflow-hidden">
+                      <img
+                        src={r.cover}
+                        alt={r.name}
+                        className="h-full w-full object-cover transition group-hover:scale-105"
+                      />
+                      <div className="absolute left-3 top-3 flex items-center gap-1 rounded-full bg-black/70 px-2 py-1 text-[11px] font-semibold text-white backdrop-blur">
+                        <Star className="h-3 w-3 fill-white" /> {r.rating}
+                      </div>
+                    </div>
+                    <div className="p-3">
+                      <p className="text-[15px] font-semibold text-neutral-900">{r.name}</p>
+                      <p className="text-xs text-neutral-500">
+                        {r.cuisine} · {r.district}
+                      </p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Cover Flow карусель (Task 2) между "Рядом" и "Городской хаб" */}
+            <div className="mt-5">
+              <div className="flex items-center justify-between px-5 pb-3">
+                <h3 className="flex items-center gap-2 text-[15px] font-semibold text-neutral-900">
+                  <Flame className="h-4 w-4 text-primary" /> Выбор дня
+                </h3>
+              </div>
+              <CoverFlowCarousel
+                items={coverItems}
+                onSelect={(it) => {
+                  const ev = cityEvents.find((e) => e.id === it.id);
+                  if (ev) setEvent(ev);
+                }}
+              />
+            </div>
+
             {/* Заголовок каталога */}
-            <div className="px-5 pb-3 pt-4">
-              <p className="section-subtitle">Городской хаб</p>
+            <div className="px-5 pb-3 pt-6">
+              <p className="text-[11px] uppercase tracking-widest text-neutral-500">
+                Городской хаб
+              </p>
+              <h1 className="text-3xl font-semibold tracking-tight text-neutral-900">
+                Вся{" "}
+                <span
+                  className="italic text-neutral-500"
+                  style={{ fontFamily: "var(--font-display)" }}
+                >
+                  Астана
+                </span>{" "}
+                здесь
+              </h1>
             </div>
 
             {/* ── Истории друзей ────────────────────────────────────── */}
@@ -543,7 +734,11 @@ export function MapScreen({
                     onClick={() => setEvent(e)}
                     className="relative h-44 w-[280px] shrink-0 overflow-hidden rounded-3xl text-left shadow-soft"
                   >
-                    <img src={e.cover} alt="" className="absolute inset-0 h-full w-full object-cover" />
+                    <img
+                      src={e.cover}
+                      alt=""
+                      className="absolute inset-0 h-full w-full object-cover"
+                    />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/15 to-transparent" />
                     <div className="absolute left-3 top-3 flex items-center gap-1.5">
                       <span className="rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-bold text-neutral-900 backdrop-blur">
@@ -691,8 +886,8 @@ export function MapScreen({
                   <motion.button
                     key={v.id}
                     whileTap={{ scale: 0.98 }}
-                    onClick={() => setVenue(v)}
-                    className="w-full overflow-hidden rounded-3xl bg-white text-left shadow-soft"
+                    onClick={() => openVenue(v)}
+                    className="w-full overflow-hidden rounded-3xl border border-border/50 bg-white text-left shadow-soft"
                   >
                     <div className="relative h-36">
                       <img src={v.cover} alt="" className="h-full w-full object-cover" />
@@ -713,7 +908,9 @@ export function MapScreen({
                       </div>
                       <div className="text-right">
                         <p className="text-[11px] text-neutral-500">{v.distanceKm} км</p>
-                        <p className="text-xs font-semibold text-neutral-900">от {money(v.priceFrom)}</p>
+                        <p className="text-xs font-semibold text-neutral-900">
+                          от {money(v.priceFrom)}
+                        </p>
                       </div>
                     </div>
                   </motion.button>
@@ -728,6 +925,9 @@ export function MapScreen({
           {story && <StoryViewer key="story" story={story} onClose={() => setStory(null)} />}
           {venue && <VenueBookingModal key="venue" venue={venue} onClose={() => setVenue(null)} />}
           {event && <EventTicketModal key="event" event={event} onClose={() => setEvent(null)} />}
+          {carWash && (
+            <CarWashSheet key="carwash" wash={carWash} onClose={() => setCarWash(null)} />
+          )}
         </AnimatePresence>
       </motion.div>
     </div>
