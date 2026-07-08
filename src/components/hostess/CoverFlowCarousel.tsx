@@ -9,6 +9,7 @@ export type CoverFlowItem = {
   subtitle?: string;
   badge?: string;
   meta?: string;
+  payload?: any;
 };
 
 const CARD_W = 208; // ширина карточки (px)
@@ -54,7 +55,8 @@ export function CoverFlowCarousel({
       const opacity = 1 - abs * 0.34;
       const rotate = norm * -14; // cover-flow наклон
       const translateY = abs * 10;
-      card.style.transform = `translateY(${translateY}px) perspective(800px) rotateY(${rotate}deg) scale(${scale})`;
+      const translateX = norm * -45;
+      card.style.transform = `translateX(${translateX}px) translateY(${translateY}px) perspective(800px) rotateY(${rotate}deg) scale(${scale})`;
       card.style.opacity = String(Math.max(0.3, opacity));
       card.style.zIndex = String(100 - Math.round(abs * 10));
       if (Math.abs(dist) < nearestDist) {
@@ -66,7 +68,9 @@ export function CoverFlowCarousel({
     if (nearest !== activeRef.current) {
       activeRef.current = nearest;
       setActive(((nearest % items.length) + items.length) % items.length);
-      hapticTick();
+      if (typeof navigator !== "undefined" && typeof navigator.vibrate === "function") {
+        navigator.vibrate(50);
+      }
     }
   }, [items.length]);
 
