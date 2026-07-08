@@ -30,6 +30,7 @@ import {
   occupancyForId,
   occupancyColor,
   carWashById,
+  carWashes,
   type Restaurant,
   type Venue,
   type CityEvent,
@@ -256,19 +257,34 @@ export function MapScreen({
           // ── Одиночный белый пин с индикатором загруженности ──
           const p = cell.points[0];
           const color = catColor[p.category] ?? "#64748B";
-          const occ = occupancyColor[occupancyForId(p.id)];
+
+          let ringColorClass = "ring-green-500";
+          const occStatus = occupancyForId(p.id);
+          if (occStatus === "moderate") ringColorClass = "ring-orange-500";
+          if (occStatus === "busy") ringColorClass = "ring-red-500";
+
+          let coverImg = "";
+          const rest = restaurants.find(r => r.id === p.id);
+          const venue = venues.find(v => v.id === p.id);
+          const wash = carWashes.find(w => w.id === p.id);
+          if (rest) coverImg = rest.cover;
+          else if (venue) coverImg = venue.cover;
+          else if (wash) coverImg = wash.cover;
+
           const { svg, label } = iconSvgFor(p);
           const el = document.createElement("button");
           el.className =
             "group relative flex flex-col items-center transition-transform hover:z-50 hover:scale-110";
+
+          const content = coverImg
+            ? `<img src="${coverImg}" class="w-full h-full object-cover rounded-full" />`
+            : `<div style="display:grid;place-items:center;width:100%;height:100%;border-radius:9999px;background:white;color:${color};">${svg}</div>`;
+
           el.innerHTML = `
-            <div style="position:relative;">
-              <div style="display:grid;place-items:center;width:40px;height:40px;border-radius:9999px;background:white;box-shadow:0 4px 12px rgba(0,0,0,0.16);border:1px solid rgba(0,0,0,0.04);color:${color};">
-                ${svg}
-              </div>
-              <span style="position:absolute;top:-1px;right:-1px;width:12px;height:12px;border-radius:9999px;background:${occ};border:2px solid white;box-shadow:0 1px 3px rgba(0,0,0,0.25);"></span>
+            <div class="w-10 h-10 rounded-full bg-white ring-2 ring-offset-2 ring-offset-white ${ringColorClass} shadow-md overflow-hidden p-0.5">
+              ${content}
             </div>
-            <div class="opacity-0 transition-opacity group-hover:opacity-100" style="position:absolute;top:44px;white-space:nowrap;border-radius:6px;background:rgba(17,17,17,0.9);padding:2px 6px;font-size:9.5px;font-weight:500;color:white;backdrop-filter:blur(6px);">${label}</div>`;
+            <div class="opacity-0 transition-opacity group-hover:opacity-100" style="position:absolute;top:48px;white-space:nowrap;border-radius:6px;background:rgba(17,17,17,0.9);padding:2px 6px;font-size:9.5px;font-weight:500;color:white;backdrop-filter:blur(6px);">${label}</div>`;
           el.onclick = () => openPointRef.current(p);
           const m = new mapboxgl.Marker({ element: el, anchor: "center" })
             .setLngLat([p.coords.lng, p.coords.lat])
@@ -364,15 +380,47 @@ export function MapScreen({
   // Фильтрация venues по категории (bugfix: при cat=food не показываем все venues).
   const catVenues = venues.filter((v) => v.category === cat);
 
-  // Карточки для Cover Flow карусели (Task 2): афиша города.
-  const coverItems: CoverFlowItem[] = cityEvents.map((e) => ({
-    id: e.id,
-    image: e.cover,
-    title: e.title,
-    subtitle: `${e.place} · ${e.date}`,
-    badge: e.hot ? "Хит" : e.tag,
-    meta: e.price === 0 ? "Бесплатно" : `от ${money(e.price)}`,
-  }));
+  // Карточки для Cover Flow карусели (Task 2): афиша города, рестораны, заведения, автомойки
+  const coverItems: CoverFlowItem[] = [
+    ...cityEvents.map((e) => ({
+      id: e.id,
+      image: e.cover,
+      title: e.title,
+      subtitle: `${e.place} · ${e.date}`,
+      badge: e.hot ? "Хит" : e.tag,
+      meta: e.price === 0 ? "Бесплатно" : `от ${money(e.price)}`,
+      payload: { type: "event", item: e },
+    })),
+    ...restaurants.slice(0, 3).map((r) => ({
+      id: r.id,
+      image: r.cover,
+      title: r.name,
+      subtitle: `${r.cuisine} · ${r.district}`,
+      badge: "Топ",
+      meta: `от ${money(r.avgCheck)}`,
+      payload: { type: "restaurant", item: r },
+    })),
+    ...venues.slice(0, 2).map((v) => ({
+      id: v.id,
+      image: v.cover,
+      title: v.name,
+      subtitle: v.kind,
+      badge: v.badge || "Популярное",
+      meta: `от ${money(v.priceFrom)}`,
+      payload: { type: "venue", item: v },
+    })),
+    ...carWashes.slice(0, 2).map((w) => ({
+      id: w.id,
+      image: w.cover,
+      title: w.name,
+      subtitle: w.address,
+      badge: "Авто",
+      meta: `от ${money(w.priceFrom)}`,
+      payload: { type: "carwash", item: w },
+    }))
+  ];
+
+  // Перемешиваем чтобы было интересно (опционально, можно оставить как есть для фиксированного порядка)
 
   return (
     <div ref={containerRef} className="relative h-full w-full overflow-hidden bg-neutral-100">
@@ -604,38 +652,33 @@ export function MapScreen({
         {/* ── Full-состояние: полный каталог (единый скролл) ──────────── */}
         {sheet === "full" && (
           <div className="flex-1 overflow-y-auto bg-gray-50 pb-[140px]">
-            {/* Рядом с вами — теперь часть единого скролла (Task 2) */}
-            <div className="pt-2">
-              <div className="flex items-center justify-between px-5 pb-2">
-                <h3 className="text-[15px] font-semibold text-neutral-900">Рядом с вами</h3>
-                <span className="text-xs text-neutral-500">{restaurants.length} мест</span>
-              </div>
-              <div className="no-scrollbar flex gap-3 overflow-x-auto px-5 pb-1">
-                {restaurants.map((r) => (
+
+            {/* ── Категории (перемещены наверх) ────────────────────────────────────────── */}
+            <div className="no-scrollbar mt-4 flex gap-2 overflow-x-auto px-5 pb-2 pt-2">
+              {categories.map((c) => {
+                const isSelected = cat === c.key;
+                const activeColors: Record<string, string> = {
+                  food: "bg-orange-500 text-white",
+                  concerts: "bg-purple-500 text-white",
+                  beauty: "bg-pink-500 text-white",
+                  medicine: "bg-green-500 text-white",
+                  auto: "bg-blue-500 text-white",
+                };
+                return (
                   <button
-                    key={r.id}
-                    onClick={() => onOpenRestaurant(r)}
-                    className="group w-[240px] shrink-0 overflow-hidden rounded-3xl border border-border/50 bg-white text-left shadow-soft"
+                    key={c.key}
+                    onClick={() => handleCategoryChange(c.key)}
+                    className={`flex shrink-0 items-center gap-2 rounded-full py-1.5 pl-1.5 pr-4 text-sm font-medium transition-colors ${
+                      isSelected ? activeColors[c.key] || "bg-neutral-900 text-white" : "bg-white text-neutral-800 border border-neutral-200 shadow-soft"
+                    }`}
                   >
-                    <div className="relative h-32 w-full overflow-hidden">
-                      <img
-                        src={r.cover}
-                        alt={r.name}
-                        className="h-full w-full object-cover transition group-hover:scale-105"
-                      />
-                      <div className="absolute left-3 top-3 flex items-center gap-1 rounded-full bg-black/70 px-2 py-1 text-[11px] font-semibold text-white backdrop-blur">
-                        <Star className="h-3 w-3 fill-white" /> {r.rating}
-                      </div>
-                    </div>
-                    <div className="p-3">
-                      <p className="text-[15px] font-semibold text-neutral-900">{r.name}</p>
-                      <p className="text-xs text-neutral-500">
-                        {r.cuisine} · {r.district}
-                      </p>
-                    </div>
+                    <span className="grid h-8 w-8 place-items-center rounded-full bg-white text-base shadow-sm">
+                      {c.emoji}
+                    </span>
+                    <span>{c.label}</span>
                   </button>
-                ))}
-              </div>
+                );
+              })}
             </div>
 
             {/* Cover Flow карусель (Task 2) между "Рядом" и "Городской хаб" */}
@@ -648,8 +691,11 @@ export function MapScreen({
               <CoverFlowCarousel
                 items={coverItems}
                 onSelect={(it) => {
-                  const ev = cityEvents.find((e) => e.id === it.id);
-                  if (ev) setEvent(ev);
+                  if (!it.payload) return;
+                  if (it.payload.type === "event") setEvent(it.payload.item);
+                  if (it.payload.type === "restaurant") onOpenRestaurant(it.payload.item);
+                  if (it.payload.type === "venue") setVenue(it.payload.item);
+                  if (it.payload.type === "carwash") setCarWash(it.payload.item);
                 }}
               />
             </div>
@@ -696,24 +742,6 @@ export function MapScreen({
                     />
                   </span>
                   <span className="text-[10px] font-medium text-neutral-600">{s.name}</span>
-                </button>
-              ))}
-            </div>
-
-            {/* ── Категории ────────────────────────────────────────── */}
-            <div className="no-scrollbar mt-3 flex gap-2 overflow-x-auto px-5 pb-2">
-              {categories.map((c) => (
-                <button
-                  key={c.key}
-                  onClick={() => handleCategoryChange(c.key)}
-                  className={`flex shrink-0 items-center gap-2 rounded-full py-2 pl-1.5 pr-4 text-sm transition-colors ${
-                    cat === c.key ? "bg-neutral-900 text-white" : "bg-neutral-100 text-neutral-800"
-                  }`}
-                >
-                  <span className="grid h-8 w-8 place-items-center rounded-full bg-white text-base shadow-soft">
-                    {c.emoji}
-                  </span>
-                  <span className="font-medium">{c.label}</span>
                 </button>
               ))}
             </div>

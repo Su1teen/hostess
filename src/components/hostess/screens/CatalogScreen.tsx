@@ -81,20 +81,30 @@ export function CatalogScreen({ onOpenRestaurant }: { onOpenRestaurant: (r: Rest
 
       {/* ── Категории ──────────────────────────────────────────────── */}
       <div className="no-scrollbar mt-3 flex gap-2 overflow-x-auto px-5 pb-2">
-        {categories.map((c) => (
-          <button
-            key={c.key}
-            onClick={() => handleCategoryChange(c.key)}
-            className={`flex shrink-0 items-center gap-2 rounded-full py-2 pl-1.5 pr-4 text-sm transition-colors ${
-              cat === c.key ? "bg-neutral-900 text-white" : "bg-neutral-100 text-neutral-800"
-            }`}
-          >
-            <span className="grid h-8 w-8 place-items-center rounded-full bg-white text-base shadow-soft">
-              {c.emoji}
-            </span>
-            <span className="font-medium">{c.label}</span>
-          </button>
-        ))}
+        {categories.map((c) => {
+          const isSelected = cat === c.key;
+          const activeColors: Record<string, string> = {
+            food: "bg-orange-500 text-white",
+            concerts: "bg-purple-500 text-white",
+            beauty: "bg-pink-500 text-white",
+            medicine: "bg-green-500 text-white",
+            auto: "bg-blue-500 text-white",
+          };
+          return (
+            <button
+              key={c.key}
+              onClick={() => handleCategoryChange(c.key)}
+              className={`flex shrink-0 items-center gap-2 rounded-full py-1.5 pl-1.5 pr-4 text-sm font-medium transition-colors ${
+                isSelected ? activeColors[c.key] || "bg-neutral-900 text-white" : "bg-white text-neutral-800 border border-neutral-200 shadow-soft"
+              }`}
+            >
+              <span className="grid h-8 w-8 place-items-center rounded-full bg-white text-base shadow-sm">
+                {c.emoji}
+              </span>
+              <span>{c.label}</span>
+            </button>
+          );
+        })}
       </div>
 
       {/* ── Афиша выходных ──────────────────────────────────────────── */}
