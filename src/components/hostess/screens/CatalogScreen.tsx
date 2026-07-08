@@ -94,11 +94,13 @@ export function CatalogScreen({ onOpenRestaurant }: { onOpenRestaurant: (r: Rest
             <button
               key={c.key}
               onClick={() => handleCategoryChange(c.key)}
-              className={`flex shrink-0 items-center gap-2 rounded-full py-1.5 pl-1.5 pr-4 text-sm font-medium transition-colors ${
-                isSelected ? activeColors[c.key] || "bg-neutral-900 text-white" : "bg-white text-neutral-800 border border-neutral-200 shadow-soft"
+              className={`flex shrink-0 items-center gap-1.5 rounded-full py-1 pl-1 pr-3 text-[13px] font-medium transition-colors ${
+                isSelected
+                  ? activeColors[c.key] || "bg-neutral-900 text-white"
+                  : "bg-white text-neutral-800 border border-neutral-200 shadow-soft"
               }`}
             >
-              <span className="grid h-8 w-8 place-items-center rounded-full bg-white text-base shadow-sm">
+              <span className="grid h-7 w-7 place-items-center rounded-full bg-white text-sm shadow-sm">
                 {c.emoji}
               </span>
               <span>{c.label}</span>
@@ -151,37 +153,7 @@ export function CatalogScreen({ onOpenRestaurant }: { onOpenRestaurant: (r: Rest
 
       {cat === "food" ? (
         <>
-          {/* ── Выбор редакции ────────────────────────────────────────── */}
-          <div className="px-5 pt-4">
-            <p className="section-subtitle mb-3 flex items-center gap-2">
-              <Flame className="h-3.5 w-3.5 text-neutral-900" /> Выбор редакции
-            </p>
-            <motion.button
-              whileTap={{ scale: 0.98 }}
-              onClick={() => onOpenRestaurant(restaurants[0])}
-              className="relative h-72 w-full overflow-hidden rounded-3xl text-left shadow-float"
-            >
-              <img
-                src={restaurants[0].cover}
-                alt=""
-                className="absolute inset-0 h-full w-full object-cover"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
-              <div className="absolute left-4 top-4 flex items-center gap-2">
-                <span className="rounded-full bg-neutral-900 px-3 py-1 text-[11px] font-semibold text-white">
-                  Новое
-                </span>
-                <span className="glass rounded-full px-3 py-1 text-[11px] font-semibold text-neutral-900">
-                  <Star className="mr-1 -mt-0.5 inline h-3 w-3 fill-neutral-900 text-neutral-900" />
-                  {restaurants[0].rating}
-                </span>
-              </div>
-              <div className="absolute inset-x-4 bottom-4 text-white">
-                <h2 className="text-2xl">{restaurants[0].name}</h2>
-                <p className="text-sm opacity-80">{restaurants[0].description}</p>
-              </div>
-            </motion.button>
-          </div>
+
 
           {/* ── Сейчас популярны ──────────────────────────────────────── */}
           <div className="mt-6">

@@ -12,15 +12,30 @@ export type CoverFlowItem = {
   payload?: any;
 };
 
-const CARD_W = 208; // ширина карточки (px)
-const GAP = 16;
-const STEP = CARD_W + GAP;
+/*
+ * ── Layout constants ───────────────────────────────────────────
+ * CARD_W  — visual width of the card (~86 vw, large & prominent).
+ * ITEM_W  — width of the flex scroll-item; determines the scroll
+ *           step and therefore how tightly cards stack. Smaller
+ *           value → cards overlap more → tighter stack.
+ * STEP    — how many px of scroll correspond to one card change.
+ */
+const CARD_W = 345;
+const ITEM_W = 50;
+const STEP = ITEM_W;
 
 /**
- * Горизонтальная «барабанная» карусель (Cover Flow, Task 2).
- * Центральная карточка увеличена, боковые — уменьшены и слегка повёрнуты.
- * Бесконечная прокрутка (список утраивается и рецентрируется).
- * Тактильный «тик» (navigator.vibrate) при каждой смене активной карточки.
+ * Stacked card carousel with native horizontal scroll.
+ *
+ * Cards are visually large (CARD_W) but sit inside narrow flex items
+ * (ITEM_W), so they naturally overlap and create a tight "stacked"
+ * look. A per-frame `paint` pass applies 3-D transforms (scale,
+ * rotateY, translateZ) to the cards based on their distance from
+ * the scroll-viewport center, producing the classic Cover Flow
+ * depth effect. Haptic feedback fires on each card change.
+ *
+ * Infinite scroll is achieved by tripling the list and silently
+ * re-centering after scroll settles.
  */
 export function CoverFlowCarousel({
   items,
@@ -32,33 +47,50 @@ export function CoverFlowCarousel({
   const scrollerRef = useRef<HTMLDivElement>(null);
   const cardsRef = useRef<(HTMLDivElement | null)[]>([]);
   const raf = useRef<number>(0);
-  const activeRef = useRef<number>(items.length); // индекс в утроённом списке
-  const [active, setActive] = useState<number>(0); // индекс в исходном списке
+  const activeRef = useRef<number>(items.length);
+  const [active, setActive] = useState<number>(0);
 
-  // Утраиваем для бесконечной прокрутки.
+  // Triple the list for infinite scroll illusion.
   const loop = [...items, ...items, ...items];
   const mid = items.length;
 
+  // ── Paint: apply 3-D transforms every scroll frame ──────────
   const paint = useCallback(() => {
     const el = scrollerRef.current;
     if (!el) return;
     const center = el.scrollLeft + el.clientWidth / 2;
     let nearest = 0;
     let nearestDist = Infinity;
+
     cardsRef.current.forEach((card, i) => {
       if (!card) return;
       const cardCenter = card.offsetLeft + card.offsetWidth / 2;
       const dist = cardCenter - center;
-      const norm = Math.max(-2, Math.min(2, dist / STEP));
+      const norm = Math.max(-3, Math.min(3, dist / STEP));
       const abs = Math.abs(norm);
-      const scale = 1 - abs * 0.16;
-      const opacity = 1 - abs * 0.34;
-      const rotate = norm * -14; // cover-flow наклон
-      const translateY = abs * 10;
-      const translateX = norm * -45;
-      card.style.transform = `translateX(${translateX}px) translateY(${translateY}px) perspective(800px) rotateY(${rotate}deg) scale(${scale})`;
-      card.style.opacity = String(Math.max(0.3, opacity));
+
+      // Scale: center = 1, side = 0.86, clamp at 2 steps
+      const scale = 1 - Math.min(abs, 2) * 0.07;
+
+      // Opacity: center = 1, side fades
+      const opacity = 1 - Math.min(abs, 2) * 0.25;
+
+      // Rotate for 3-D depth
+      const rotateY = norm * -12;
+
+      // Push side cards back in Z
+      const translateZ = -Math.min(abs, 2) * 50;
+
+      // Slight vertical offset for depth feel
+      const translateY = Math.min(abs, 1.5) * 8;
+
+      card.style.transform =
+        `perspective(1200px) translateY(${translateY}px) translateZ(${translateZ}px) rotateY(${rotateY}deg) scale(${scale})`;
+      card.style.opacity = String(Math.max(0.25, opacity));
       card.style.zIndex = String(100 - Math.round(abs * 10));
+      // Apply transition only when not actively scrolling (snap settling)
+      card.style.transition = "opacity 0.15s ease";
+
       if (Math.abs(dist) < nearestDist) {
         nearestDist = Math.abs(dist);
         nearest = i;
@@ -68,16 +100,14 @@ export function CoverFlowCarousel({
     if (nearest !== activeRef.current) {
       activeRef.current = nearest;
       setActive(((nearest % items.length) + items.length) % items.length);
-      if (typeof navigator !== "undefined" && typeof navigator.vibrate === "function") {
-        navigator.vibrate(50);
-      }
+      hapticTick();
     }
   }, [items.length]);
 
+  // ── Recenter to mid-copy for infinite loop ──────────────────
   const recenter = useCallback(() => {
     const el = scrollerRef.current;
     if (!el) return;
-    // Держим прокрутку в пределах средней копии для эффекта бесконечности.
     const idx = activeRef.current;
     if (idx < items.length || idx >= items.length * 2) {
       const target = mid + (((idx % items.length) + items.length) % items.length);
@@ -94,7 +124,7 @@ export function CoverFlowCarousel({
     raf.current = requestAnimationFrame(paint);
   };
 
-  // Центрируем на средней копии при монтировании.
+  // Center on mid-copy at mount.
   useLayoutEffect(() => {
     const el = scrollerRef.current;
     const card = cardsRef.current[mid];
@@ -106,14 +136,14 @@ export function CoverFlowCarousel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Рецентрируем после остановки прокрутки.
+  // Recenter after scroll settles.
   useEffect(() => {
     const el = scrollerRef.current;
     if (!el) return;
     let settle: ReturnType<typeof setTimeout>;
     const handler = () => {
       clearTimeout(settle);
-      settle = setTimeout(recenter, 120);
+      settle = setTimeout(recenter, 150);
     };
     el.addEventListener("scroll", handler);
     return () => {
@@ -122,6 +152,7 @@ export function CoverFlowCarousel({
     };
   }, [recenter]);
 
+  // Snap-scroll to a specific card.
   const scrollToCard = (i: number) => {
     const el = scrollerRef.current;
     const card = cardsRef.current[i];
@@ -135,14 +166,17 @@ export function CoverFlowCarousel({
 
   return (
     <div className="select-none">
+      {/* ── Scrollable track ─────────────────────────────────── */}
       <div
         ref={scrollerRef}
         onScroll={onScroll}
-        className="no-scrollbar flex snap-x snap-mandatory overflow-x-auto pb-2"
+        className="no-scrollbar flex snap-x snap-mandatory overflow-x-auto"
         style={{
-          gap: GAP,
-          paddingLeft: "calc(50% - 104px)",
-          paddingRight: "calc(50% - 104px)",
+          paddingLeft: `calc(50% - ${ITEM_W / 2}px)`,
+          paddingRight: `calc(50% - ${ITEM_W / 2}px)`,
+          /* extra vertical padding so rotated/scaled cards aren't clipped */
+          paddingTop: 10,
+          paddingBottom: 16,
         }}
       >
         {loop.map((item, i) => (
@@ -151,16 +185,28 @@ export function CoverFlowCarousel({
             ref={(node) => {
               cardsRef.current[i] = node;
             }}
-            className="shrink-0 snap-center will-change-transform"
-            style={{ width: CARD_W }}
+            className="relative shrink-0 snap-center"
+            style={{
+              width: ITEM_W,
+              /* The visual card overflows this narrow item.
+                 We need a fixed height so the flex row has height. */
+              height: CARD_W * (5 / 4),
+            }}
           >
+            {/* Visual card — wider than the flex item, centered via
+                absolute + left:50% + negative margin */}
             <button
               onClick={() => {
                 if (i === activeRef.current) onSelect?.(item);
                 else scrollToCard(i);
               }}
-              className="relative block w-full overflow-hidden rounded-[24px] text-left shadow-float"
-              style={{ aspectRatio: "4 / 5" }}
+              className="absolute top-0 overflow-hidden rounded-[24px] text-left shadow-float will-change-transform"
+              style={{
+                width: CARD_W,
+                height: CARD_W * (5 / 4),
+                left: "50%",
+                marginLeft: -(CARD_W / 2),
+              }}
             >
               <img
                 src={item.image}
@@ -176,7 +222,9 @@ export function CoverFlowCarousel({
               )}
               <div className="absolute inset-x-3 bottom-3 text-white">
                 <p className="text-[15px] font-semibold leading-tight">{item.title}</p>
-                {item.subtitle && <p className="mt-0.5 text-[11px] opacity-80">{item.subtitle}</p>}
+                {item.subtitle && (
+                  <p className="mt-0.5 text-[11px] opacity-80">{item.subtitle}</p>
+                )}
                 {item.meta && (
                   <span className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-semibold backdrop-blur">
                     {item.meta} <ChevronRight className="h-2.5 w-2.5" />
@@ -188,12 +236,12 @@ export function CoverFlowCarousel({
         ))}
       </div>
 
-      {/* Индикаторы-точки */}
+      {/* ── Dot indicators ───────────────────────────────────── */}
       <div className="mt-1 flex items-center justify-center gap-1.5">
         {items.map((it, i) => (
           <span
             key={it.id}
-            className={`h-1.5 rounded-full transition-all ${
+            className={`h-1.5 rounded-full transition-all duration-300 ${
               i === active ? "w-5 bg-primary" : "w-1.5 bg-neutral-300"
             }`}
           />

@@ -49,7 +49,7 @@ export function CalendarScreen() {
       <div className="mt-6 flex items-end justify-between px-5">
         <h1
           className="text-5xl font-semibold tracking-tight"
-          style={{ fontFamily: "var(--font-display)", fontStyle: "italic" }}
+          style={{ fontFamily: "var(--font-display)" }}
         >
           Май
         </h1>
