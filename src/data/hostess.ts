@@ -1702,6 +1702,7 @@ export type MapPoint = {
   name: string;
   category: "food" | "beauty" | "medicine" | "auto" | "concerts";
   rating: number;
+  cover: string;
   coords: { lng: number; lat: number };
 };
 
@@ -1716,6 +1717,7 @@ export const mapPoints: MapPoint[] = [
     name: r.name,
     category: "food" as const,
     rating: r.rating,
+    cover: r.cover,
     coords: r.coords,
   })),
   // Заведения (из основного массива)
@@ -1724,7 +1726,21 @@ export const mapPoints: MapPoint[] = [
     name: v.name,
     category: v.category as MapPoint["category"],
     rating: v.rating,
+    cover: v.cover,
     coords: v.coords,
+  })),
+  ...cityEvents.map((event, index) => ({
+    id: event.id,
+    name: event.title,
+    category: "concerts" as const,
+    rating: event.hot ? 4.9 : 4.7,
+    cover: event.cover,
+    coords: [
+      { lng: 71.4405, lat: 51.149 },
+      { lng: 71.458, lat: 51.154 },
+      { lng: 71.405, lat: 51.143 },
+      { lng: 71.432, lat: 51.176 },
+    ][index],
   })),
   // Дополнительные моковые точки — рестораны
   {
@@ -1732,6 +1748,7 @@ export const mapPoints: MapPoint[] = [
     name: "Sandyq",
     category: "food",
     rating: 4.8,
+    cover: img("photo-1569058242253-92a9c755a0ec"),
     coords: { lng: 71.43, lat: 51.1608 },
   },
   {
@@ -1739,6 +1756,7 @@ export const mapPoints: MapPoint[] = [
     name: "Ashana",
     category: "food",
     rating: 4.5,
+    cover: img("photo-1515003197210-e0cd71810b5f"),
     coords: { lng: 71.415, lat: 51.1505 },
   },
   {
@@ -1746,6 +1764,7 @@ export const mapPoints: MapPoint[] = [
     name: "Marina Bay",
     category: "food",
     rating: 4.6,
+    cover: img("photo-1517248135467-4c7edcad34c4"),
     coords: { lng: 71.455, lat: 51.132 },
   },
   {
@@ -1753,6 +1772,7 @@ export const mapPoints: MapPoint[] = [
     name: "Beirut",
     category: "food",
     rating: 4.7,
+    cover: img("photo-1541544741938-0af808871cc0"),
     coords: { lng: 71.426, lat: 51.1395 },
   },
   {
@@ -1760,6 +1780,7 @@ export const mapPoints: MapPoint[] = [
     name: "Fusion Coffee",
     category: "food",
     rating: 4.9,
+    cover: img("photo-1501339847302-ac426a4a7cbb"),
     coords: { lng: 71.438, lat: 51.127 },
   },
   // Дополнительные — барбершопы / салоны
@@ -1768,6 +1789,7 @@ export const mapPoints: MapPoint[] = [
     name: "Gentlemen's Club",
     category: "beauty",
     rating: 4.8,
+    cover: img("photo-1503951914875-452162b0f3f1"),
     coords: { lng: 71.421, lat: 51.1362 },
   },
   {
@@ -1775,6 +1797,7 @@ export const mapPoints: MapPoint[] = [
     name: "Lash Bar",
     category: "beauty",
     rating: 4.9,
+    cover: img("photo-1522337660859-02fbefca4702"),
     coords: { lng: 71.448, lat: 51.1418 },
   },
   // Дополнительные — стоматологии / медицина
@@ -1783,6 +1806,7 @@ export const mapPoints: MapPoint[] = [
     name: "Dent Studio",
     category: "medicine",
     rating: 4.7,
+    cover: img("photo-1629909613654-28e377c37b09"),
     coords: { lng: 71.433, lat: 51.1512 },
   },
   {
@@ -1790,6 +1814,7 @@ export const mapPoints: MapPoint[] = [
     name: "Medilux",
     category: "medicine",
     rating: 4.6,
+    cover: img("photo-1519494026892-80bbd2d6fd0d"),
     coords: { lng: 71.419, lat: 51.1438 },
   },
   // Дополнительные — автомойки / авто
@@ -1798,6 +1823,7 @@ export const mapPoints: MapPoint[] = [
     name: "Shine Car Wash",
     category: "auto",
     rating: 4.5,
+    cover: img("photo-1520340356584-f9917d1eea6f"),
     coords: { lng: 71.465, lat: 51.158 },
   },
   {
@@ -1805,6 +1831,7 @@ export const mapPoints: MapPoint[] = [
     name: "Auto Spa Astana",
     category: "auto",
     rating: 4.8,
+    cover: img("photo-1552930294-6b595f4c2974"),
     coords: { lng: 71.472, lat: 51.162 },
   },
 ];
