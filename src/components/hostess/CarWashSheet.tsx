@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { useMemo, useRef, useState } from "react";
+import { AnimatePresence, motion, useScroll, useTransform } from "framer-motion";
 import { X, Star, Check, Car, Droplets } from "lucide-react";
 import { money, type CarWash, type WashBox } from "@/data/hostess";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -7,10 +7,16 @@ import { hapticSelect } from "@/lib/haptics";
 import { WashBoxGrid } from "./WashBoxGrid";
 import { WaitlistButton } from "./waitlist/WaitlistButton";
 
+const CTA_BOTTOM = "bottom-[calc(80px+env(safe-area-inset-bottom)+16px)]";
+const SCROLL_PB = "pb-[calc(140px+env(safe-area-inset-bottom)+16px)]";
+
 /**
  * Экран автомойки (Task 5): мультивыбор услуг через чекбоксы, сетка боксов,
  * модалка бронирования с гос-номером / маркой / выбранными услугами.
  * Если свободных боксов нет — вместо брони показывается «Встать в очередь».
+ *
+ * Task 1/2: sticky hero с parallax + плавное смешение с контентом + floating CTA
+ * с корректным отступом от BottomNav / safe-area.
  */
 export function CarWashSheet({ wash, onClose }: { wash: CarWash; onClose: () => void }) {
   const [selectedServices, setSelectedServices] = useState<string[]>([wash.services[0].id]);
@@ -18,6 +24,11 @@ export function CarWashSheet({ wash, onClose }: { wash: CarWash; onClose: () => 
   const [plate, setPlate] = useState("");
   const [brand, setBrand] = useState("");
   const [booked, setBooked] = useState(false);
+
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const { scrollYProgress } = useScroll({ container: scrollRef });
+  const heroScale = useTransform(scrollYProgress, [0, 1], [1, 1.2]);
+  const heroOpacity = useTransform(scrollYProgress, [0, 1], [1, 0.6]);
 
   const hasFreeBox = wash.boxes.some((b) => b.status === "available");
   const total = useMemo(
@@ -42,6 +53,8 @@ export function CarWashSheet({ wash, onClose }: { wash: CarWash; onClose: () => 
     setBox(b);
   };
 
+  const canSubmit = plate.trim().length > 0 && chosen.length > 0 && box != null;
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -56,12 +69,19 @@ export function CarWashSheet({ wash, onClose }: { wash: CarWash; onClose: () => 
         exit={{ y: "100%" }}
         transition={{ type: "spring", stiffness: 300, damping: 32 }}
         onClick={(e) => e.stopPropagation()}
-        className="max-h-[94%] w-full overflow-y-auto rounded-t-[32px] bg-gray-50 pb-8 shadow-float"
+        className={`relative max-h-[94%] w-full overflow-y-auto overscroll-none rounded-t-[32px] bg-gray-50 shadow-float ${SCROLL_PB}`}
+        ref={scrollRef}
       >
-        {/* Hero */}
-        <div className="relative h-44">
-          <img src={wash.cover} alt="" className="h-full w-full rounded-t-[32px] object-cover" />
+        {/* Hero — sticky + parallax + blending с bg-gray-50 контентом */}
+        <div className="sticky top-0 z-0 h-44 overflow-hidden">
+          <motion.img
+            src={wash.cover}
+            alt=""
+            style={{ scale: heroScale, opacity: heroOpacity, originY: 0 }}
+            className="h-full w-full rounded-t-[32px] object-cover"
+          />
           <div className="absolute inset-0 rounded-t-[32px] bg-gradient-to-t from-black/50 to-transparent" />
+          <div className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-gray-50/95 via-gray-50/80 to-transparent" />
           <button
             onClick={onClose}
             className="absolute right-4 top-4 grid h-9 w-9 place-items-center rounded-full bg-white/90 shadow-soft backdrop-blur"
@@ -69,7 +89,7 @@ export function CarWashSheet({ wash, onClose }: { wash: CarWash; onClose: () => 
           >
             <X className="h-4 w-4" />
           </button>
-          <div className="absolute inset-x-4 bottom-3 text-white">
+          <div className="absolute inset-x-4 bottom-16 text-white">
             <h2 className="text-xl font-semibold">{wash.name}</h2>
             <p className="flex items-center gap-2 text-xs opacity-90">
               <Star className="h-3 w-3 fill-white" /> {wash.rating} · {wash.address}
@@ -78,7 +98,7 @@ export function CarWashSheet({ wash, onClose }: { wash: CarWash; onClose: () => 
         </div>
 
         {booked ? (
-          <div className="px-5 py-12 text-center">
+          <div className="relative z-10 px-5 py-12 text-center">
             <motion.div
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
@@ -99,7 +119,7 @@ export function CarWashSheet({ wash, onClose }: { wash: CarWash; onClose: () => 
             </button>
           </div>
         ) : (
-          <div className="space-y-3 px-4 pt-4">
+          <div className="relative z-10 space-y-3 rounded-t-[32px] bg-gray-50 px-4 pt-4">
             {/* Услуги — мультивыбор через чекбоксы */}
             <div className="rounded-[24px] border border-border/60 bg-white p-4 shadow-soft">
               <p className="mb-3 flex items-center gap-2 text-[13px] font-semibold text-neutral-900">
@@ -133,10 +153,10 @@ export function CarWashSheet({ wash, onClose }: { wash: CarWash; onClose: () => 
               <WashBoxGrid boxes={wash.boxes} selected={box?.id ?? null} onSelect={onSelectBox} />
             </div>
 
-            {/* Форма брони или очередь */}
-            {hasFreeBox ? (
+            {/* Форма брони */}
+            {hasFreeBox && (
               <AnimatePresence mode="popLayout">
-                {box ? (
+                {box && (
                   <motion.div
                     key="form"
                     initial={{ opacity: 0, y: 10 }}
@@ -179,23 +199,12 @@ export function CarWashSheet({ wash, onClose }: { wash: CarWash; onClose: () => 
                         </div>
                       </>
                     )}
-
-                    <motion.button
-                      whileTap={{ scale: 0.97 }}
-                      disabled={!plate || chosen.length === 0}
-                      onClick={() => setBooked(true)}
-                      className="mt-4 w-full rounded-full bg-neutral-900 py-4 text-sm font-semibold text-white shadow-float disabled:opacity-40"
-                    >
-                      Забронировать · {money(total)}
-                    </motion.button>
                   </motion.div>
-                ) : (
-                  <p key="hint" className="px-2 pb-2 text-center text-xs text-neutral-500">
-                    Выберите свободный бокс, чтобы продолжить
-                  </p>
                 )}
               </AnimatePresence>
-            ) : (
+            )}
+
+            {!hasFreeBox && (
               <div className="rounded-[24px] border border-border/60 bg-white p-4 shadow-soft">
                 <p className="mb-3 text-center text-xs text-neutral-500">Все боксы сейчас заняты</p>
                 <WaitlistButton
@@ -211,6 +220,26 @@ export function CarWashSheet({ wash, onClose }: { wash: CarWash; onClose: () => 
                 />
               </div>
             )}
+
+            {!box && (
+              <p className="px-2 pb-2 text-center text-xs text-neutral-500">
+                Выберите свободный бокс, чтобы продолжить
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Floating CTA — над BottomNav */}
+        {hasFreeBox && box && !booked && (
+          <div className={`pointer-events-none absolute inset-x-0 z-40 px-4 ${CTA_BOTTOM}`}>
+            <motion.button
+              whileTap={{ scale: 0.97 }}
+              disabled={!canSubmit}
+              onClick={() => setBooked(true)}
+              className="pointer-events-auto w-full rounded-full bg-neutral-900 py-4 text-sm font-semibold text-white shadow-float disabled:opacity-40"
+            >
+              Забронировать {box.label} · {money(total)}
+            </motion.button>
           </div>
         )}
       </motion.div>

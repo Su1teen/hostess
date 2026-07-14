@@ -31,8 +31,8 @@ type CategoryRailProps = {
 
 export function CategoryRail({ activeValues, onSelect }: CategoryRailProps) {
   return (
-    <div className="no-scrollbar touch-pan-x snap-x snap-mandatory overflow-x-auto py-3">
-      <div className="flex w-max gap-3 px-5">
+    <div className="no-scrollbar touch-pan-x snap-x snap-mandatory overflow-x-auto py-3 px-4">
+      <div className="flex w-max gap-3 after:w-4 after:shrink-0 after:content-['']">
         {categories.map((category) => {
           const isActive = activeValues.includes(category.key);
           const meta = categoryMeta[category.key] ?? categoryMeta.food;
@@ -86,7 +86,7 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
       transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
       className="space-y-3"
     >
-      <h2 className="px-5 text-[21px] font-normal tracking-[-0.02em] text-neutral-900">{title}</h2>
+      <h2 className="px-4 text-[21px] font-normal tracking-[-0.02em] text-neutral-900">{title}</h2>
       {children}
     </motion.section>
   );
@@ -94,8 +94,8 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 
 function CardRail({ children }: { children: ReactNode }) {
   return (
-    <div className="no-scrollbar touch-pan-x snap-x snap-mandatory overflow-x-auto px-5 pb-3">
-      <div className="flex w-max gap-3.5">{children}</div>
+    <div className="no-scrollbar touch-pan-x snap-x snap-mandatory overflow-x-auto px-4 pb-3">
+      <div className="flex w-max gap-3.5 after:w-4 after:shrink-0 after:content-['']">{children}</div>
     </div>
   );
 }
@@ -247,7 +247,7 @@ export function CatalogScreen({
   );
 
   return (
-    <div className="catalog-scroll h-full overflow-y-auto bg-[#fafafa] pb-[120px]">
+    <div className="catalog-scroll h-full overflow-y-auto bg-[#fafafa] pb-[calc(100px+env(safe-area-inset-bottom))]">
       <div className="sticky top-0 z-10 bg-[#fafafa]/92 pt-11 backdrop-blur-xl">
         <CategoryRail activeValues={[category]} onSelect={handleCategoryChange} />
       </div>

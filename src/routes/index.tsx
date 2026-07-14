@@ -1,21 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { PhoneFrame } from "@/components/hostess/PhoneFrame";
-import { BottomNav } from "@/components/hostess/BottomNav";
 import { Splash } from "@/components/hostess/Splash";
 import { ThemeProvider } from "@/components/hostess/ThemeProvider";
-import { MapScreen } from "@/components/hostess/screens/MapScreen";
-import { AIScreen } from "@/components/hostess/screens/AIScreen";
-import { CalendarScreen } from "@/components/hostess/screens/CalendarScreen";
-import { ProfileScreen } from "@/components/hostess/screens/ProfileScreen";
-import { RestaurantSheet } from "@/components/hostess/RestaurantSheet";
-import { PaymentSheet } from "@/components/hostess/PaymentSheet";
-import { WaitlistProvider, useWaitlist } from "@/components/hostess/waitlist/WaitlistProvider";
-import { ActiveWaitlistWidget } from "@/components/hostess/waitlist/ActiveWaitlistWidget";
-import { SpotAvailableOverlay } from "@/components/hostess/waitlist/SpotAvailableOverlay";
-import type { Screen, BookingPayload } from "@/components/hostess/types";
-import { restaurants, type Restaurant } from "@/data/hostess";
+import { AuthScreen } from "@/components/hostess/screens/AuthScreen";
+import { B2CApp } from "@/components/hostess/B2CApp";
+import { BusinessLayout } from "@/components/hostess/BusinessLayout";
+import { useAuth } from "@/components/hostess/AuthContext";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -31,140 +23,52 @@ export const Route = createFileRoute("/")({
   component: Index,
 });
 
-// "catalog" — это не отдельный экран, а раскрытая шторка на карте.
-// Но вкладка в навбаре остаётся, поэтому держим её в порядке слайдов.
-const screenOrder: Screen[] = ["map", "catalog", "ai", "calendar", "profile"];
-
-type SheetState = "collapsed" | "half" | "full";
-
 function Index() {
-  const [screen, setScreen] = useState<Screen>("map");
+  const { role, login, logout } = useAuth();
   const [splash, setSplash] = useState(true);
-  const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
-  const [payment, setPayment] = useState<BookingPayload | null>(null);
-  const [sheetState, setSheetState] = useState<SheetState>("collapsed");
-  const prevScreen = useRef<Screen>("map");
-
-  // Направление слайда: вправо/влево по порядку вкладок (как в iOS).
-  const dir = screenOrder.indexOf(screen) >= screenOrder.indexOf(prevScreen.current) ? 1 : -1;
-  useEffect(() => {
-    prevScreen.current = screen;
-  }, [screen]);
 
   useEffect(() => {
     const t = setTimeout(() => setSplash(false), 1100);
     return () => clearTimeout(t);
   }, []);
 
-  const closeAll = () => {
-    setPayment(null);
-    setRestaurant(null);
-  };
-
-  // Обработчик переключения вкладок навбара.
-  const handleNavChange = (s: Screen) => {
-    if (s === "catalog") {
-      // "Места" — не отдельный экран, а раскрытая шторка на карте.
-      setScreen("map");
-      setSheetState("full");
-    } else {
-      setScreen(s);
-      // Сворачиваем шторку при переключении на другие табы или клике на саму "Карту"
-      setSheetState("collapsed");
-    }
-  };
-
-  // Когда шторка полностью раскрыта — подсвечиваем вкладку "Места".
-  const activeTab: Screen = sheetState === "full" && screen === "map" ? "catalog" : screen;
-
   return (
-    <ThemeProvider>
-      <WaitlistProvider>
-        <PhoneFrame>
-          <AnimatePresence>{splash && <Splash key="splash" />}</AnimatePresence>
+    <PhoneFrame>
+      <AnimatePresence mode="wait" initial={false}>
+        {splash && role !== null && <Splash key="splash" />}
+      </AnimatePresence>
 
-          <div className="relative h-full w-full overflow-hidden">
-            {/* popLayout: старый экран уезжает, новый въезжает — без белой вспышки */}
-            <AnimatePresence mode="popLayout" custom={dir} initial={false}>
-              <motion.div
-                key={screen}
-                custom={dir}
-                variants={{
-                  enter: (d: number) => ({ x: d * 64, opacity: 0 }),
-                  center: { x: 0, opacity: 1 },
-                  exit: (d: number) => ({ x: d * -64, opacity: 0 }),
-                }}
-                initial="enter"
-                animate="center"
-                exit="exit"
-                transition={{ type: "spring", stiffness: 380, damping: 36 }}
-                className="absolute inset-0"
-              >
-                {screen === "map" && (
-                  <MapScreen
-                    onOpenRestaurant={setRestaurant}
-                    sheetState={sheetState}
-                    onSheetStateChange={setSheetState}
-                  />
-                )}
-                {screen === "ai" && <AIScreen />}
-                {screen === "calendar" && <CalendarScreen />}
-                {screen === "profile" && (
-                  <ProfileScreen
-                    onSplitBill={() =>
-                      setPayment({
-                        restaurant: restaurants[0],
-                        table: 4,
-                        day: "Сегодня",
-                        time: "20:00",
-                        guests: 4,
-                        preorder: [],
-                      })
-                    }
-                  />
-                )}
-              </motion.div>
-            </AnimatePresence>
-
-            <AnimatePresence>
-              {restaurant && (
-                <RestaurantSheet
-                  key="rest"
-                  r={restaurant}
-                  onClose={() => setRestaurant(null)}
-                  onProceed={(b) => setPayment(b)}
-                />
-              )}
-              {payment && (
-                <PaymentSheet
-                  key="payment"
-                  booking={payment}
-                  onClose={() => setPayment(null)}
-                  onDone={closeAll}
-                />
-              )}
-            </AnimatePresence>
-
-            {/* Плавающий виджет активной очереди + оверлей освободившегося слота */}
-            <ActiveWaitlistWidget onOpen={() => setScreen("profile")} />
-            <WaitlistOverlayHost />
-
-            <BottomNav active={activeTab} onChange={handleNavChange} />
-          </div>
-        </PhoneFrame>
-      </WaitlistProvider>
-    </ThemeProvider>
-  );
-}
-
-// Хост полноэкранного оверлея «освободился слот».
-function WaitlistOverlayHost() {
-  const { readyEntry } = useWaitlist();
-  return (
-    <AnimatePresence>
-      {readyEntry && (
-        <SpotAvailableOverlay key={readyEntry.id} entry={readyEntry} onClaim={() => {}} />
-      )}
-    </AnimatePresence>
+      <AnimatePresence mode="wait" initial={false}>
+        {role === null && <AuthScreen key="auth" onLogin={login} />}
+        {role === "guest" && (
+          <motion.div
+            key="guest"
+            initial={{ opacity: 0, x: 40 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -40 }}
+            transition={{ type: "spring", stiffness: 320, damping: 34 }}
+            className="absolute inset-0"
+          >
+            <ThemeProvider>
+              <B2CApp onLogout={logout} />
+            </ThemeProvider>
+          </motion.div>
+        )}
+        {role === "business" && (
+          <motion.div
+            key="business"
+            initial={{ opacity: 0, x: 40 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -40 }}
+            transition={{ type: "spring", stiffness: 320, damping: 34 }}
+            className="absolute inset-0"
+          >
+            <ThemeProvider>
+              <BusinessLayout onLogout={logout} />
+            </ThemeProvider>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </PhoneFrame>
   );
 }

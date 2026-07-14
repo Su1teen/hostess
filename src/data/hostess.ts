@@ -957,8 +957,12 @@ export const restaurants: Restaurant[] = [
     distanceKm: 2.8,
     occupancy: 90,
     peakHours: "18:30 – 21:30",
-    cover: img("photo-1606850780554-b55ea44fede8"),
-    gallery: [img("photo-1544025162-d76694265947"), img("photo-1414235077428-338989a2e8c0")],
+    cover: img("photo-1517248135467-4c7edcad34c4"),
+    gallery: [
+      img("photo-1517248135467-4c7edcad34c4"),
+      img("photo-1565299624946-b28f40a0ae38"),
+      img("photo-1559339352-11b0d566a44a"),
+    ],
     coords: { lng: 71.46, lat: 51.14 },
     description: "Настоящая грузинская кухня: хинкали, хачапури из дровяной печи и домашнее вино.",
     tags: ["Хинкали", "Вино", "Выпечка"],
@@ -1562,6 +1566,87 @@ export const calendarEvents: Record<number, { title: string; color: string }[]> 
   24: [{ title: "Бранч", color: "#F59E0B" }],
   28: [{ title: "Кофе", color: "#3B82F6" }],
 };
+
+export type Booking = {
+  id: string;
+  place: string;
+  cover: string;
+  date: string;
+  time: string;
+  guests: number;
+  status: "confirmed" | "pending" | "completed" | "cancelled";
+  area?: string;
+  amount?: number;
+};
+
+export const bookings: Booking[] = [
+  {
+    id: "b1",
+    place: "Ауыл",
+    cover: img("photo-1518837695005-2083093ee35b", 400),
+    date: "Сегодня",
+    time: "20:00",
+    guests: 4,
+    status: "confirmed",
+    area: "Основной зал",
+    amount: 24500,
+  },
+  {
+    id: "b2",
+    place: "Jazz Night: Astana Quartet",
+    cover: img("photo-1511192336575-5a79af67a629", 400),
+    date: "Сб, 4 июля",
+    time: "21:00",
+    guests: 2,
+    status: "confirmed",
+    area: "The Bus Bar",
+    amount: 16000,
+  },
+  {
+    id: "b3",
+    place: "Barbershop TOMB",
+    cover: img("photo-1585747860715-2ba37e788b70", 400),
+    date: "Вс, 6 июля",
+    time: "13:00",
+    guests: 1,
+    status: "pending",
+    area: "Стрижка + укладка",
+    amount: 9000,
+  },
+  {
+    id: "b4",
+    place: "Sadu",
+    cover: img("photo-1555396273-367ea4eb4db5", 400),
+    date: "12 мая",
+    time: "19:30",
+    guests: 2,
+    status: "completed",
+    area: "Основной зал",
+    amount: 24500,
+  },
+  {
+    id: "b5",
+    place: "Line Brew",
+    cover: img("photo-1544025162-c77340a6f9c9", 400),
+    date: "3 мая",
+    time: "20:00",
+    guests: 4,
+    status: "completed",
+    area: "Пати-сад",
+    amount: 41200,
+  },
+  {
+    id: "b6",
+    place: "Неделька",
+    cover: img("photo-1551218808-94e220e084d2", 400),
+    date: "28 апр",
+    time: "10:00",
+    guests: 2,
+    status: "cancelled",
+    area: "Терраса",
+    amount: 9800,
+  },
+];
 
 export const money = (n: number) => `${n.toLocaleString("ru-RU")} ₸`;
 

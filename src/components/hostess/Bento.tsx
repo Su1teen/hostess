@@ -11,13 +11,18 @@ export function BentoCard({
   className,
   padded = true,
   as: Tag = "div",
+  type,
+  ...props
 }: {
   children: ReactNode;
   className?: string;
   /** Отключить внутренний паддинг (для карточек с картинкой во всю ширину). */
   padded?: boolean;
-  as?: "div" | "section";
-}) {
+  as?: "div" | "section" | "button";
+  type?: "button" | "submit";
+} & React.HTMLAttributes<HTMLElement>) {
+  const buttonProps = Tag === "button" ? { type: type ?? "button" } : undefined;
+
   return (
     <Tag
       className={cn(
@@ -25,6 +30,8 @@ export function BentoCard({
         padded && "p-4",
         className,
       )}
+      {...props}
+      {...buttonProps}
     >
       {children}
     </Tag>

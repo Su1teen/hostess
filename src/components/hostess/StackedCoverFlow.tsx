@@ -40,7 +40,7 @@ export function StackedCoverFlow({ items }: { items: StackedCoverFlowItem[] }) {
 
   return (
     <div className="overflow-hidden pb-1">
-      <div className="relative mx-auto aspect-[9/16] w-[59vw] min-w-[220px] max-w-[252px] [perspective:1000px]">
+      <div className="relative mx-auto aspect-[10/16] w-[65vw] min-w-[240px] max-w-[280px] [perspective:1000px]">
         {items.map((item, index) => {
           const offset = circularOffset(index, activeIndex, items.length);
           const distance = Math.abs(offset);

@@ -1,11 +1,15 @@
-import { useState } from "react";
-import { motion } from "framer-motion";
+import { useRef, useState } from "react";
+import { motion, useScroll, useTransform } from "framer-motion";
 import { X, Flame, Minus, Plus, Check } from "lucide-react";
 import { money, type Dish } from "@/data/hostess";
+
+const CTA_BOTTOM = "bottom-[calc(80px+env(safe-area-inset-bottom)+16px)]";
+const SCROLL_PB = "pb-[calc(140px+env(safe-area-inset-bottom)+16px)]";
 
 /**
  * Детальная карточка блюда: крупное фото, состав, КБЖУ,
  * количество и добавление к предзаказу.
+ * Task 1/2: sticky hero с parallax + floating CTA с отступом от BottomNav.
  */
 export function DishModal({
   dish,
@@ -18,6 +22,11 @@ export function DishModal({
 }) {
   const [qty, setQty] = useState(1);
   const [added, setAdded] = useState(false);
+
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const { scrollYProgress } = useScroll({ container: scrollRef });
+  const heroScale = useTransform(scrollYProgress, [0, 1], [1, 1.15]);
+  const heroOpacity = useTransform(scrollYProgress, [0, 1], [1, 0.7]);
 
   const add = () => {
     setAdded(true);
@@ -34,17 +43,24 @@ export function DishModal({
       onClick={onClose}
     >
       <motion.div
+        ref={scrollRef}
         initial={{ y: "100%" }}
         animate={{ y: 0 }}
         exit={{ y: "100%" }}
         transition={{ type: "spring", stiffness: 320, damping: 32 }}
         onClick={(e) => e.stopPropagation()}
-        className="max-h-[92%] w-full overflow-y-auto rounded-t-[32px] bg-white pb-8 shadow-float"
+        className={`relative max-h-[92%] w-full overflow-y-auto overscroll-none rounded-t-[32px] bg-white shadow-float ${SCROLL_PB}`}
       >
-        {/* Фото */}
-        <div className="relative h-64 w-full overflow-hidden rounded-t-[32px]">
-          <img src={dish.image} alt={dish.name} className="h-full w-full object-cover" />
+        {/* Фото — sticky + parallax + blending */}
+        <div className="sticky top-0 z-0 h-64 w-full overflow-hidden rounded-t-[32px]">
+          <motion.img
+            src={dish.image}
+            alt={dish.name}
+            style={{ scale: heroScale, opacity: heroOpacity, originY: 0 }}
+            className="h-full w-full object-cover"
+          />
           <div className="absolute inset-0 bg-gradient-to-t from-black/25 to-transparent" />
+          <div className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-white/95 via-white/80 to-transparent" />
           <button
             onClick={onClose}
             className="absolute right-4 top-4 grid h-9 w-9 place-items-center rounded-full bg-white/90 shadow-soft backdrop-blur"
@@ -52,16 +68,16 @@ export function DishModal({
           >
             <X className="h-4 w-4" />
           </button>
-          <span className="absolute bottom-3 left-4 rounded-full bg-black/60 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur">
+          <span className="absolute bottom-16 left-4 rounded-full bg-black/60 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur">
             {dish.weight} г
           </span>
-          <span className="absolute bottom-3 left-20 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-semibold text-neutral-900 backdrop-blur">
+          <span className="absolute bottom-16 left-24 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-semibold text-neutral-900 backdrop-blur">
             <Flame className="mr-0.5 -mt-0.5 inline h-3 w-3 text-primary" />
             {dish.kcal} ккал
           </span>
         </div>
 
-        <div className="px-5 pt-4">
+        <div className="relative z-10 rounded-t-[32px] bg-white px-5 pt-4">
           <h2 className="text-xl font-semibold tracking-tight">{dish.name}</h2>
           <p className="mt-1 text-sm leading-relaxed text-neutral-500">{dish.desc}</p>
 
@@ -101,7 +117,7 @@ export function DishModal({
             </div>
           )}
 
-          {/* Количество + добавить */}
+          {/* Количество — padding-bottom учитывает floating CTA */}
           <div className="mt-6 flex items-center gap-3">
             <div className="flex items-center gap-3 rounded-full bg-neutral-100 px-2 py-1.5">
               <button
@@ -120,22 +136,26 @@ export function DishModal({
                 <Plus className="h-3.5 w-3.5" />
               </button>
             </div>
-            <motion.button
-              onClick={add}
-              whileTap={{ scale: 0.97 }}
-              className={`flex flex-1 items-center justify-center gap-2 rounded-full py-3.5 text-sm font-semibold text-white shadow-float transition-colors ${
-                added ? "bg-emerald-500" : "bg-neutral-900"
-              }`}
-            >
-              {added ? (
-                <>
-                  <Check className="h-4 w-4" /> Добавлено
-                </>
-              ) : (
-                <>Добавить к предзаказу · {money(dish.price * qty)}</>
-              )}
-            </motion.button>
           </div>
+        </div>
+
+        {/* Floating CTA — над BottomNav */}
+        <div className={`pointer-events-none absolute inset-x-0 z-40 px-5 ${CTA_BOTTOM}`}>
+          <motion.button
+            onClick={add}
+            whileTap={{ scale: 0.97 }}
+            className={`pointer-events-auto flex w-full items-center justify-center gap-2 rounded-full py-3.5 text-sm font-semibold text-white shadow-float transition-colors ${
+              added ? "bg-emerald-500" : "bg-neutral-900"
+            }`}
+          >
+            {added ? (
+              <>
+                <Check className="h-4 w-4" /> Добавлено
+              </>
+            ) : (
+              <>Добавить к предзаказу · {money(dish.price * qty)}</>
+            )}
+          </motion.button>
         </div>
       </motion.div>
     </motion.div>

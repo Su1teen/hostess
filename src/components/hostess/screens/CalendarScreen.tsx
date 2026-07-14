@@ -1,185 +1,220 @@
 import { useState } from "react";
-import { Plus, Search, Settings, ChevronLeft, ChevronRight, Users, MapPin } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { calendarEvents, upcomingActivities } from "@/data/hostess";
+import {
+  CalendarDays,
+  QrCode,
+  Users,
+  MapPin,
+  Clock,
+  Ban,
+  CalendarX,
+  Search,
+} from "lucide-react";
+import { bookings, calendarEvents, type Booking } from "@/data/hostess";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { BentoCard, BentoHeader } from "../Bento";
 
-const modes = ["День", "Неделя", "Месяц"] as const;
+function statusLabel(status: Booking["status"]) {
+  return {
+    confirmed: { label: "Подтверждено", color: "bg-emerald-100 text-emerald-700" },
+    pending: { label: "Ожидание", color: "bg-amber-100 text-amber-700" },
+    completed: { label: "Завершено", color: "bg-neutral-100 text-neutral-600" },
+    cancelled: { label: "Отменено", color: "bg-red-100 text-red-700" },
+  }[status];
+}
 
-export function CalendarScreen() {
-  const [mode, setMode] = useState<(typeof modes)[number]>("Месяц");
-  const [selected, setSelected] = useState<number | null>(16);
+/**
+ * Экран календаря (Task 4b): вкладки «Предстоящие / Прошлые», карточки
+ * бронирований с QR, временем, гостями, статусом, возможностью отмены;
+ * пустое состояние с CTA на карту.
+ */
+export function CalendarScreen({ onNavigateToMap }: { onNavigateToMap?: () => void }) {
+  const [active, setActive] = useState<"upcoming" | "past">("upcoming");
+  const [list, setList] = useState<Booking[]>(bookings);
+  const [showQrId, setShowQrId] = useState<string | null>(null);
 
-  const daysInMonth = 31;
-  const startWeekday = 3; // Thu = 3 for May 1
-  const cells: (number | null)[] = [];
-  for (let i = 0; i < startWeekday; i++) cells.push(null);
-  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+  const upcoming = list.filter((b) => b.status === "confirmed" || b.status === "pending");
+  const past = list.filter((b) => b.status === "completed" || b.status === "cancelled");
+  const shown = active === "upcoming" ? upcoming : past;
+
+  const cancel = (id: string) => {
+    setList((prev) =>
+      prev.map((b) => (b.id === id ? { ...b, status: "cancelled" } : b)),
+    );
+  };
 
   return (
-    <div className="relative h-full overflow-y-auto bg-white pb-[140px]">
-      <div className="flex items-center justify-between px-5 pt-14">
-        <button className="grid h-10 w-10 place-items-center rounded-full bg-neutral-100">
-          <Search className="h-4 w-4" />
-        </button>
-        <div className="flex rounded-full bg-neutral-100 p-1">
-          {modes.map((m) => (
-            <button
-              key={m}
-              onClick={() => setMode(m)}
-              className={`relative rounded-full px-4 py-1.5 text-xs font-medium ${
-                mode === m ? "text-white" : "text-neutral-600"
-              }`}
-            >
-              {mode === m && (
-                <motion.span
-                  layoutId="cal-mode"
-                  className="absolute inset-0 rounded-full bg-neutral-900"
-                  transition={{ type: "spring", stiffness: 380, damping: 30 }}
-                />
-              )}
-              <span className="relative">{m}</span>
-            </button>
+    <div className="h-full overflow-y-auto overscroll-none bg-gray-50 pb-[calc(80px+env(safe-area-inset-bottom)+16px)]">
+      <div className="px-5 pt-14">
+        <p className="text-[11px] uppercase tracking-widest text-neutral-500">Календарь</p>
+        <h1 className="mt-1 text-2xl font-semibold tracking-tight">Мои бронирования</h1>
+      </div>
+
+      <Tabs
+        value={active}
+        onValueChange={(v) => setActive(v as "upcoming" | "past")}
+        className="mt-5 px-5"
+      >
+        <TabsList className="w-full rounded-[20px] p-1">
+          <TabsTrigger value="upcoming" className="flex-1 rounded-2xl text-sm">
+            Предстоящие
+          </TabsTrigger>
+          <TabsTrigger value="past" className="flex-1 rounded-2xl text-sm">
+            Прошлые
+          </TabsTrigger>
+        </TabsList>
+
+        <AnimatePresence mode="wait">
+          <TabsContent key={active} value={active} className="mt-4">
+            {shown.length === 0 ? (
+              <EmptyState onNavigateToMap={onNavigateToMap} />
+            ) : (
+              <div className="space-y-3">
+                {shown.map((b) => {
+                  const status = statusLabel(b.status);
+                  const isPast = b.status === "completed" || b.status === "cancelled";
+                  return (
+                    <motion.div
+                      key={b.id}
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                    >
+                      <BentoCard className="overflow-hidden" padded={false}>
+                        <div className="flex">
+                          <img
+                            src={b.cover}
+                            alt=""
+                            className="h-24 w-24 shrink-0 object-cover"
+                          />
+                          <div className="flex flex-1 flex-col justify-center p-3">
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="text-sm font-semibold leading-tight">{b.place}</p>
+                              <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${status.color}`}>
+                                {status.label}
+                              </span>
+                            </div>
+                            <p className="mt-1 flex items-center gap-1 text-[11px] text-neutral-500">
+                              <Clock className="h-3 w-3" strokeWidth={1.5} /> {b.date} · {b.time}
+                            </p>
+                            <p className="mt-0.5 flex items-center gap-1 text-[11px] text-neutral-500">
+                              <MapPin className="h-3 w-3" strokeWidth={1.5} /> {b.area}
+                            </p>
+                            <div className="mt-2 flex items-center gap-3">
+                              <span className="flex items-center gap-1 text-[11px] font-medium text-neutral-700">
+                                <Users className="h-3 w-3" strokeWidth={1.5} /> {b.guests}
+                              </span>
+                              {!isPast && (
+                                <button
+                                  onClick={() => setShowQrId(showQrId === b.id ? null : b.id)}
+                                  className="flex items-center gap-1 rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] font-semibold text-neutral-700"
+                                >
+                                  <QrCode className="h-3 w-3" strokeWidth={1.5} />
+                                  QR
+                                </button>
+                              )}
+                              {!isPast && b.status !== "cancelled" && (
+                                <button
+                                  onClick={() => cancel(b.id)}
+                                  className="flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-semibold text-red-600"
+                                >
+                                  <Ban className="h-3 w-3" strokeWidth={1.5} />
+                                  Отменить
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        <AnimatePresence>
+                          {showQrId === b.id && (
+                            <motion.div
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{ height: "auto", opacity: 1 }}
+                              exit={{ height: 0, opacity: 0 }}
+                              className="overflow-hidden border-t border-border/60 bg-neutral-50"
+                            >
+                              <div className="p-4 text-center">
+                                <p className="text-[11px] font-semibold uppercase tracking-widest text-neutral-500">
+                                  QR-код для входа
+                                </p>
+                                <div className="mt-3 inline-grid grid-cols-6 gap-1 p-3 bg-white rounded-2xl">
+                                  {Array.from({ length: 24 }).map((_, i) => (
+                                    <span
+                                      key={i}
+                                      className={`h-3 w-3 rounded-sm ${i % 5 === 0 || i % 7 === 0 ? "bg-neutral-900" : "bg-neutral-200"}`}
+                                    />
+                                  ))}
+                                </div>
+                                <p className="mt-2 text-[10px] text-neutral-400">
+                                  Покажите на входе в {b.place}
+                                </p>
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </BentoCard>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            )}
+          </TabsContent>
+        </AnimatePresence>
+      </Tabs>
+
+      {/* Mini calendar — дни с событиями */}
+      <div className="px-5 pb-8">
+        <BentoHeader title="Июль" className="pb-3" />
+        <div className="grid grid-cols-7 gap-1 text-center text-xs text-neutral-500">
+          {["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"].map((d) => (
+            <span key={d} className="py-2">
+              {d}
+            </span>
           ))}
-        </div>
-        <button className="grid h-10 w-10 place-items-center rounded-full bg-neutral-100">
-          <Settings className="h-4 w-4" />
-        </button>
-      </div>
-
-      <div className="mt-6 flex items-end justify-between px-5">
-        <h1
-          className="text-5xl font-semibold tracking-tight"
-          style={{ fontFamily: "var(--font-display)" }}
-        >
-          Май
-        </h1>
-        <div className="flex items-center gap-2">
-          <button className="grid h-9 w-9 place-items-center rounded-full bg-neutral-100">
-            <ChevronLeft className="h-4 w-4" />
-          </button>
-          <button className="grid h-9 w-9 place-items-center rounded-full bg-neutral-100">
-            <ChevronRight className="h-4 w-4" />
-          </button>
-        </div>
-      </div>
-
-      <div className="mt-4 grid grid-cols-7 gap-y-3 px-3 text-center text-[11px] font-medium uppercase text-neutral-400">
-        {["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"].map((d) => (
-          <div key={d}>{d}</div>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-7 gap-y-2 px-3 pt-2">
-        {cells.map((d, i) => {
-          if (!d) return <div key={i} className="h-14" />;
-          const events = calendarEvents[d] ?? [];
-          const isSelected = selected === d;
-          return (
-            <button
-              key={i}
-              onClick={() => setSelected(d)}
-              className="flex h-14 flex-col items-center justify-start gap-1 pt-1"
-            >
-              <span
-                className={`grid h-8 w-8 place-items-center rounded-full text-sm ${
-                  isSelected ? "bg-neutral-900 text-white font-semibold" : "text-neutral-800"
+          {Array.from({ length: 31 }).map((_, i) => {
+            const day = i + 1;
+            const events = calendarEvents[day] ?? [];
+            return (
+              <div
+                key={day}
+                className={`grid h-10 place-items-center rounded-2xl text-[11px] ${
+                  events.length > 0 ? "bg-neutral-900 font-semibold text-white" : "bg-white text-neutral-700"
                 }`}
               >
-                {d}
-              </span>
-              <div className="flex gap-0.5">
-                {events.slice(0, 3).map((e, j) => (
-                  <span key={j} className="h-1 w-3 rounded-full" style={{ background: e.color }} />
-                ))}
+                <span>{day}</span>
+                {events.length > 1 && (
+                  <span className="mb-1.5 h-1 w-1 rounded-full bg-primary" />
+                )}
               </div>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Upcoming */}
-      <div className="mt-6 px-5">
-        <div className="flex items-center justify-between pb-3">
-          <h3 className="text-[15px] font-semibold">Предстоящие активности</h3>
-          <button className="grid h-8 w-8 place-items-center rounded-full bg-primary text-white">
-            <Plus className="h-4 w-4" />
-          </button>
-        </div>
-        <div className="space-y-2.5">
-          {upcomingActivities.map((a) => (
-            <div key={a.id} className="rounded-2xl bg-white p-4 hairline">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-sm font-semibold">{a.title}</p>
-                  <p className="mt-0.5 text-xs text-neutral-500">{a.when}</p>
-                </div>
-                <span className="rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-primary">
-                  Подтверждено
-                </span>
-              </div>
-              <div className="mt-3 flex items-center gap-3 text-xs text-neutral-600">
-                <span className="flex items-center gap-1">
-                  <MapPin className="h-3 w-3" />
-                  {a.place}
-                </span>
-                <span className="flex items-center gap-1">
-                  <Users className="h-3 w-3" />
-                  {a.guests} гостей
-                </span>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
-
-      {/* Day bottom sheet */}
-      <AnimatePresence>
-        {selected && (
-          <motion.div
-            key={selected}
-            initial={{ y: 400, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 400, opacity: 0 }}
-            transition={{ type: "spring", stiffness: 260, damping: 30 }}
-            className="absolute inset-x-0 bottom-0 z-30 rounded-t-[28px] bg-white p-5 pb-32 shadow-[0_-30px_60px_-15px_rgba(0,0,0,0.25)]"
-          >
-            <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-neutral-300" />
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs uppercase tracking-wider text-neutral-500">
-                  {selected} мая · четверг
-                </p>
-                <h3 className="text-xl font-semibold">
-                  {calendarEvents[selected]?.length ?? 0} событий
-                </h3>
-              </div>
-              <button
-                onClick={() => setSelected(null)}
-                className="rounded-full bg-neutral-100 px-3 py-1.5 text-xs"
-              >
-                Закрыть
-              </button>
-            </div>
-            <div className="mt-4 space-y-2">
-              {(calendarEvents[selected] ?? []).map((e, i) => (
-                <div key={i} className="flex items-center gap-3 rounded-2xl bg-neutral-50 p-3">
-                  <span className="h-10 w-1.5 rounded-full" style={{ background: e.color }} />
-                  <div className="flex-1">
-                    <p className="text-sm font-semibold">{e.title}</p>
-                    <p className="text-xs text-neutral-500">19:30 · Ауыл · 4 гостя</p>
-                  </div>
-                  <button className="rounded-full bg-neutral-900 px-3 py-1.5 text-xs font-semibold text-white">
-                    Открыть
-                  </button>
-                </div>
-              ))}
-              {(!calendarEvents[selected] || calendarEvents[selected]!.length === 0) && (
-                <p className="py-6 text-center text-sm text-neutral-500">Свободный день ✨</p>
-              )}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
+  );
+}
+
+function EmptyState({ onNavigateToMap }: { onNavigateToMap?: () => void }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.98 }}
+      animate={{ opacity: 1, scale: 1 }}
+      className="flex flex-col items-center justify-center px-8 py-12 text-center"
+    >
+      <div className="grid h-16 w-16 place-items-center rounded-full bg-neutral-100">
+        <CalendarX className="h-7 w-7 text-neutral-400" strokeWidth={1.5} />
+      </div>
+      <p className="mt-4 text-base font-semibold">Нет бронирований</p>
+      <p className="mt-1 text-sm text-neutral-500">
+        Забронируйте столик, мойку или мероприятие — всё появится здесь.
+      </p>
+      <button
+        onClick={onNavigateToMap}
+        className="mt-5 flex items-center gap-2 rounded-full bg-neutral-900 px-6 py-3 text-sm font-semibold text-white shadow-float"
+      >
+        <Search className="h-4 w-4" strokeWidth={1.5} />
+        Найти место
+      </button>
+    </motion.div>
   );
 }

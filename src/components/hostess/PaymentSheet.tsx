@@ -21,6 +21,9 @@ export function PaymentSheet({
   const [stage, setStage] = useState<Stage>("review");
   const [selected, setSelected] = useState<string[]>([friends[0].id, friends[1].id]);
 
+  const SCROLL_PB = "pb-[calc(140px+env(safe-area-inset-bottom)+16px)]";
+  const CTA_BOTTOM = "bottom-[calc(80px+env(safe-area-inset-bottom)+16px)]";
+
   const items = useMemo(() => {
     if (booking.preorder.length > 0) {
       return booking.preorder.map((p) => ({
@@ -63,7 +66,7 @@ export function PaymentSheet({
       transition={{ type: "spring", stiffness: 300, damping: 32 }}
       className="absolute inset-0 z-[100] flex flex-col bg-white"
     >
-      <div className="flex-1 overflow-y-auto pb-[190px]">
+      <div className={`flex-1 overflow-y-auto overscroll-none ${SCROLL_PB}`}>
         {/* Header */}
         <div className="flex items-center justify-between px-5 pt-14">
           <button
@@ -207,7 +210,7 @@ export function PaymentSheet({
       </div>
 
       {/* Плавающая кнопка оплаты — выше навбара */}
-      <div className="pointer-events-none absolute inset-x-0 bottom-[100px] z-40 px-5">
+      <div className={`pointer-events-none absolute inset-x-0 z-40 px-5 ${CTA_BOTTOM}`}>
         <motion.button
           onClick={pay}
           whileTap={{ scale: 0.97 }}

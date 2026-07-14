@@ -49,7 +49,7 @@ const catColor: Record<string, string> = {
 };
 
 const fallbackMarkerPhoto =
-  "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=600&q=82";
+  "https://images.unsplash.com/photo-1600607686527-6fb886090705?auto=format&fit=crop&w=600&q=80";
 
 function mapPointToVenue(point: MapPoint): Venue {
   const kind: Record<MapPoint["category"], string> = {
@@ -236,9 +236,20 @@ export function MapScreen({
 
       type Cell = { points: MapPoint[]; sx: number; sy: number };
       const cells = new Map<string, Cell>();
-      mapPoints
-        .filter((point) => activeCategoriesRef.current.has(point.category))
-        .forEach((p) => {
+      const currentCenter = map.getCenter();
+      
+      const activePoints = mapPoints.filter((point) => activeCategoriesRef.current.has(point.category));
+      
+      // Сортировка по удаленности от центра карты для ограничения (оставляем 15 ближайших)
+      const sortedPoints = activePoints.sort((a, b) => {
+        const distA = Math.pow(a.coords.lng - currentCenter.lng, 2) + Math.pow(a.coords.lat - currentCenter.lat, 2);
+        const distB = Math.pow(b.coords.lng - currentCenter.lng, 2) + Math.pow(b.coords.lat - currentCenter.lat, 2);
+        return distA - distB;
+      });
+      
+      const limitedPoints = sortedPoints.slice(0, 15);
+
+      limitedPoints.forEach((p) => {
           const px = map.project([p.coords.lng, p.coords.lat]);
           const key = `${Math.floor(px.x / CELL)}:${Math.floor(px.y / CELL)}`;
           const cell = cells.get(key) ?? { points: [], sx: 0, sy: 0 };
@@ -405,7 +416,8 @@ export function MapScreen({
   };
 
   // ── Физика шторки ────────────────────────────────────────────────
-  const collapsedH = 118;
+  // Увеличенная высота collapsed-состояния, чтобы контент не перекрывался навбаром
+  const collapsedH = 220;
   const halfH = Math.round(containerH * 0.55);
   const fullH = containerH;
 
@@ -435,7 +447,7 @@ export function MapScreen({
   return (
     <div ref={containerRef} className="relative h-full w-full overflow-hidden bg-neutral-100">
       {/* ── Карта на весь экран ─────────────────────────────────────── */}
-      <div ref={mapNode} className="absolute inset-0 h-full w-full" />
+      <div ref={mapNode} className="absolute inset-0 h-full w-full touch-manipulation" />
 
       {/* ── Верхний оверлей: поиск + профиль ─────────────────────────── */}
       <div className="pointer-events-none absolute inset-x-0 top-0 z-10 px-4 pt-[calc(env(safe-area-inset-top)+12px)]">
@@ -615,15 +627,15 @@ export function MapScreen({
 
         {/* ── Half-состояние: горизонтальная карусель "Рядом с вами" ─ */}
         {sheet === "half" && (
-          <div className="min-h-0 flex-1 overflow-y-auto pb-4">
-            <div className="flex items-center justify-between px-5 pb-3 pt-1">
+          <div className="catalog-scroll min-h-0 flex-1 overflow-y-auto pb-[calc(80px+env(safe-area-inset-bottom)+1rem)]">
+            <div className="flex items-center justify-between px-4 pb-3 pt-1">
               <h3 className="text-[19px] font-normal tracking-[-0.02em] text-neutral-900">
                 Ближайшие заведения
               </h3>
               <span className="text-xs font-light text-neutral-500">{restaurants.length} мест</span>
             </div>
-            <div className="no-scrollbar touch-pan-x snap-x snap-mandatory overflow-x-auto px-5 pb-2">
-              <div className="flex w-max gap-3.5">
+            <div className="no-scrollbar touch-pan-x snap-x snap-mandatory overflow-x-auto px-4 pb-2">
+              <div className="flex w-max gap-3.5 after:w-4 after:shrink-0 after:content-['']">
                 {restaurants.map((r) => (
                   <motion.button
                     key={r.id}
@@ -658,7 +670,7 @@ export function MapScreen({
 
         {/* ── Full-состояние: категории + три чистых блока ─────────── */}
         {sheet === "full" && (
-          <div className="catalog-scroll min-h-0 flex-1 overflow-y-auto bg-[#fafafa] pb-[130px]">
+          <div className="catalog-scroll min-h-0 flex-1 overflow-y-auto bg-[#fafafa] pb-[calc(100px+env(safe-area-inset-bottom))]">
             <CatalogSections
               category={cat}
               onOpenRestaurant={onOpenRestaurant}
