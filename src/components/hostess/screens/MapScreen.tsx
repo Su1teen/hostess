@@ -12,9 +12,6 @@ import {
   MapPin,
   ChevronUp,
   ChevronDown,
-  Flame,
-  TrendingUp,
-  Ticket,
 } from "lucide-react";
 import {
   ASTANA,
@@ -24,31 +21,23 @@ import {
   mapPoints,
   friendMapLocations,
   categories,
-  cityEvents,
-  stories,
-  money,
   occupancyForId,
-  occupancyColor,
   carWashById,
   carWashes,
   type Restaurant,
   type Venue,
   type CityEvent,
-  type Story,
   type CarWash,
   type MapPoint,
 } from "@/data/hostess";
 import { geocode, type GeoResult } from "@/lib/geo";
-import { CoverFlowCarousel, type CoverFlowItem } from "../CoverFlowCarousel";
 import { CarWashSheet } from "../CarWashSheet";
 import { useTheme, categoryToTheme } from "@/components/hostess/ThemeProvider";
-import { StoryViewer } from "@/components/hostess/StoryViewer";
 import { VenueBookingModal } from "@/components/hostess/VenueBookingModal";
 import { EventTicketModal } from "@/components/hostess/EventTicketModal";
+import { CatalogSections, CategoryRail } from "@/components/hostess/screens/CatalogScreen";
 
 mapboxgl.accessToken = MAPBOX_TOKEN;
-
-const filters = ["Рядом", "Ужин", "Завтрак", "Терраса", "Wine bar", "Азия", "Стейк"];
 
 // Цвет пина по категории.
 const catColor: Record<string, string> = {
@@ -58,35 +47,6 @@ const catColor: Record<string, string> = {
   auto: "#22C55E",
   concerts: "#A855F7",
 };
-
-// SVG-иконка по категории (для белых пинов на карте).
-function iconSvgFor(p: MapPoint): { svg: string; label: string } {
-  if (p.category === "food") {
-    return {
-      label: "Ресторан",
-      svg: `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2v0a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/></svg>`,
-    };
-  }
-  if (p.category === "beauty") {
-    const barber = p.name.toLowerCase().includes("барбер");
-    return {
-      label: barber ? "Барбершоп" : "Красота",
-      svg: barber
-        ? `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>`
-        : `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/></svg>`,
-    };
-  }
-  if (p.category === "medicine") {
-    return {
-      label: "Медицина",
-      svg: `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 2v2"/><path d="M5 2v2"/><path d="M5 3H4a2 2 0 0 0-2 2v4a6 6 0 0 0 12 0V5a2 2 0 0 0-2-2h-1"/><path d="M8 15a6 6 0 0 0 12 0v-3"/><circle cx="20" cy="10" r="2"/></svg>`,
-    };
-  }
-  return {
-    label: "Авто",
-    svg: `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><path d="M9 17h6"/><circle cx="17" cy="17" r="2"/></svg>`,
-  };
-}
 
 // ── Состояния шторки ──────────────────────────────────────────────
 type SheetState = "collapsed" | "half" | "full";
@@ -124,7 +84,6 @@ export function MapScreen({
 
   // Каталог-стейт
   const [cat, setCat] = useState("food");
-  const [story, setStory] = useState<Story | null>(null);
   const [venue, setVenue] = useState<Venue | null>(null);
   const [event, setEvent] = useState<CityEvent | null>(null);
   const [carWash, setCarWash] = useState<CarWash | null>(null);
@@ -144,6 +103,9 @@ export function MapScreen({
     } else if (p.category === "auto") {
       const wash = carWashById(p.id);
       if (wash) setCarWash(wash);
+    } else {
+      const item = venues.find((venueItem) => venueItem.id === p.id);
+      if (item) setVenue(item);
     }
   };
   openPointRef.current = openPoint;
@@ -233,16 +195,25 @@ export function MapScreen({
 
       cells.forEach((cell) => {
         if (cell.points.length > 1) {
-          // ── Кластер ──
           const lng = cell.sx / cell.points.length;
           const lat = cell.sy / cell.points.length;
           const el = document.createElement("button");
           el.className = "cluster-marker";
-          el.innerHTML = `
-            <div style="position:relative;display:grid;place-items:center;width:46px;height:46px;border-radius:9999px;background:white;box-shadow:0 6px 18px rgba(0,0,0,0.18);border:1px solid rgba(0,0,0,0.04);">
-              <span style="font-size:15px;font-weight:700;color:#111;">${cell.points.length}</span>
-              <span style="position:absolute;inset:0;border-radius:9999px;border:2px solid rgba(249,115,22,0.35);"></span>
-            </div>`;
+          el.type = "button";
+          el.setAttribute("aria-label", `${cell.points.length} заведений`);
+          Object.assign(el.style, {
+            width: "58px",
+            height: "50px",
+            borderRadius: "18px",
+            background: "#ffffff",
+            color: "#171717",
+            fontFamily: "Clarity City, sans-serif",
+            fontSize: "15px",
+            fontWeight: "400",
+            boxShadow: "0 10px 26px rgba(15, 23, 42, 0.2)",
+            border: "1px solid rgba(15, 23, 42, 0.07)",
+          });
+          el.textContent = String(cell.points.length);
           el.onclick = () =>
             map.easeTo({
               center: [lng, lat],
@@ -254,37 +225,82 @@ export function MapScreen({
             .addTo(map);
           pointMarkersRef.current.push(m);
         } else {
-          // ── Одиночный белый пин с индикатором загруженности ──
           const p = cell.points[0];
           const color = catColor[p.category] ?? "#64748B";
-
-          let ringColorClass = "ring-green-500";
           const occStatus = occupancyForId(p.id);
-          if (occStatus === "moderate") ringColorClass = "ring-orange-500";
-          if (occStatus === "busy") ringColorClass = "ring-red-500";
+          const ringColor =
+            occStatus === "busy" ? "#ef4444" : occStatus === "moderate" ? "#f97316" : "#22c55e";
 
           let coverImg = "";
-          const rest = restaurants.find(r => r.id === p.id);
-          const venue = venues.find(v => v.id === p.id);
-          const wash = carWashes.find(w => w.id === p.id);
+          const rest = restaurants.find((restaurant) => restaurant.id === p.id);
+          const venue = venues.find((item) => item.id === p.id);
+          const wash = carWashes.find((item) => item.id === p.id);
           if (rest) coverImg = rest.cover;
           else if (venue) coverImg = venue.cover;
           else if (wash) coverImg = wash.cover;
 
-          const { svg, label } = iconSvgFor(p);
+          const isLarge = map.getZoom() >= 14 || occStatus === "busy";
+          const markerWidth = isLarge ? 84 : 66;
+          const markerHeight = isLarge ? 68 : 54;
           const el = document.createElement("button");
-          el.className =
-            "group relative flex flex-col items-center transition-transform hover:z-50 hover:scale-110";
+          el.type = "button";
+          el.className = "group relative flex flex-col items-center";
+          el.setAttribute("aria-label", p.name);
 
-          const content = coverImg
-            ? `<img src="${coverImg}" class="w-full h-full object-cover rounded-full" />`
-            : `<div style="display:grid;place-items:center;width:100%;height:100%;border-radius:9999px;background:white;color:${color};">${svg}</div>`;
+          const frame = document.createElement("span");
+          Object.assign(frame.style, {
+            display: "block",
+            width: `${markerWidth}px`,
+            height: `${markerHeight}px`,
+            overflow: "hidden",
+            borderRadius: isLarge ? "22px" : "18px",
+            border: `3px solid ${ringColor}`,
+            background: "#ffffff",
+            boxShadow: "0 10px 28px rgba(15, 23, 42, 0.24)",
+            padding: "2px",
+          });
 
-          el.innerHTML = `
-            <div class="w-10 h-10 rounded-full bg-white ring-2 ring-offset-2 ring-offset-white ${ringColorClass} shadow-md overflow-hidden p-0.5">
-              ${content}
-            </div>
-            <div class="opacity-0 transition-opacity group-hover:opacity-100" style="position:absolute;top:48px;white-space:nowrap;border-radius:6px;background:rgba(17,17,17,0.9);padding:2px 6px;font-size:9.5px;font-weight:500;color:white;backdrop-filter:blur(6px);">${label}</div>`;
+          if (coverImg) {
+            const image = document.createElement("img");
+            image.src = coverImg;
+            image.alt = "";
+            Object.assign(image.style, {
+              display: "block",
+              width: "100%",
+              height: "100%",
+              objectFit: "cover",
+              borderRadius: isLarge ? "17px" : "13px",
+            });
+            frame.appendChild(image);
+          } else {
+            Object.assign(frame.style, {
+              display: "grid",
+              placeItems: "center",
+              background: color,
+              color: "#ffffff",
+              fontFamily: "Clarity City, sans-serif",
+              fontSize: "18px",
+              fontWeight: "400",
+            });
+            frame.textContent = p.name.slice(0, 1);
+          }
+
+          const label = document.createElement("span");
+          label.textContent = p.name;
+          Object.assign(label.style, {
+            maxWidth: `${Math.max(markerWidth + 30, 104)}px`,
+            marginTop: "5px",
+            overflow: "hidden",
+            color: "#171717",
+            fontFamily: "Clarity City, sans-serif",
+            fontSize: "10px",
+            fontWeight: "400",
+            lineHeight: "1.1",
+            textOverflow: "ellipsis",
+            textShadow: "0 1px 2px rgba(255,255,255,0.95)",
+            whiteSpace: "nowrap",
+          });
+          el.append(frame, label);
           el.onclick = () => openPointRef.current(p);
           const m = new mapboxgl.Marker({ element: el, anchor: "center" })
             .setLngLat([p.coords.lng, p.coords.lat])
@@ -309,7 +325,7 @@ export function MapScreen({
           <div style="position:relative;width:44px;height:44px;">
             <div style="position:absolute;inset:-3px;border-radius:50%;background:linear-gradient(135deg,#F97316,#EC4899);animation:pulse-ring 2.5s ease-out infinite;"></div>
             <img src="${f.avatar}" style="width:44px;height:44px;border-radius:50%;object-fit:cover;border:2.5px solid white;position:relative;box-shadow:0 4px 12px rgba(0,0,0,0.25);" />
-            <div style="position:absolute;bottom:-6px;left:50%;transform:translateX(-50%);background:#1a1a1a;color:white;font-size:9px;font-weight:600;padding:2px 7px;border-radius:10px;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.3);">${f.name} · ${agoText}</div>
+            <div style="position:absolute;bottom:-6px;left:50%;transform:translateX(-50%);background:#1a1a1a;color:white;font-family:'Clarity City',sans-serif;font-size:9px;font-weight:400;padding:2px 7px;border-radius:10px;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.3);">${f.name} · ${agoText}</div>
           </div>
         `;
         const m = new mapboxgl.Marker({ element: el, anchor: "center" })
@@ -350,7 +366,7 @@ export function MapScreen({
   };
 
   // ── Физика шторки ────────────────────────────────────────────────
-  const collapsedH = 170;
+  const collapsedH = 118;
   const halfH = Math.round(containerH * 0.55);
   const fullH = containerH;
 
@@ -377,51 +393,6 @@ export function MapScreen({
     setSheet(target);
   };
 
-  // Фильтрация venues по категории (bugfix: при cat=food не показываем все venues).
-  const catVenues = venues.filter((v) => v.category === cat);
-
-  // Карточки для Cover Flow карусели (Task 2): афиша города, рестораны, заведения, автомойки
-  const coverItems: CoverFlowItem[] = [
-    ...cityEvents.map((e) => ({
-      id: e.id,
-      image: e.cover,
-      title: e.title,
-      subtitle: `${e.place} · ${e.date}`,
-      badge: e.hot ? "Хит" : e.tag,
-      meta: e.price === 0 ? "Бесплатно" : `от ${money(e.price)}`,
-      payload: { type: "event", item: e },
-    })),
-    ...restaurants.slice(0, 3).map((r) => ({
-      id: r.id,
-      image: r.cover,
-      title: r.name,
-      subtitle: `${r.cuisine} · ${r.district}`,
-      badge: "Топ",
-      meta: `от ${money(r.avgCheck)}`,
-      payload: { type: "restaurant", item: r },
-    })),
-    ...venues.slice(0, 2).map((v) => ({
-      id: v.id,
-      image: v.cover,
-      title: v.name,
-      subtitle: v.kind,
-      badge: v.badge || "Популярное",
-      meta: `от ${money(v.priceFrom)}`,
-      payload: { type: "venue", item: v },
-    })),
-    ...carWashes.slice(0, 2).map((w) => ({
-      id: w.id,
-      image: w.cover,
-      title: w.name,
-      subtitle: w.address,
-      badge: "Авто",
-      meta: `от ${money(w.priceFrom)}`,
-      payload: { type: "carwash", item: w },
-    }))
-  ];
-
-  // Перемешиваем чтобы было интересно (опционально, можно оставить как есть для фиксированного порядка)
-
   return (
     <div ref={containerRef} className="relative h-full w-full overflow-hidden bg-neutral-100">
       {/* ── Карта на весь экран ─────────────────────────────────────── */}
@@ -432,7 +403,7 @@ export function MapScreen({
         <div className="pointer-events-auto flex items-center justify-between">
           <div>
             <p className="section-subtitle">Ваша локация</p>
-            <p className="text-lg font-semibold text-neutral-900">Астана · Есиль</p>
+            <p className="text-lg font-normal text-neutral-900">Астана · Есиль</p>
           </div>
           <img
             src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=200&q=80"
@@ -512,7 +483,7 @@ export function MapScreen({
                       />
                     </span>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold text-neutral-900">{r.label}</p>
+                      <p className="truncate text-sm font-normal text-neutral-900">{r.label}</p>
                       <p className="truncate text-xs text-neutral-500">{r.sublabel}</p>
                     </div>
                     <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] font-medium text-neutral-600">
@@ -587,339 +558,67 @@ export function MapScreen({
           </div>
         </button>
 
-        {/* ── Свернутое состояние: только фильтры ─────────────────── */}
-        <div className="shrink-0 px-4 pb-2 pt-1">
-          <div className="no-scrollbar flex gap-2 overflow-x-auto">
-            {filters.map((f, i) => (
-              <button
-                key={f}
-                className={`shrink-0 rounded-full px-4 py-2 text-xs font-medium ${
-                  i === 0 ? "bg-neutral-900 text-white" : "bg-neutral-100 text-neutral-700"
-                }`}
-              >
-                {f}
-              </button>
-            ))}
-          </div>
+        <div className="shrink-0">
+          <CategoryRail value={cat} onChange={handleCategoryChange} />
         </div>
 
         {/* ── Half-состояние: горизонтальная карусель "Рядом с вами" ─ */}
         {sheet === "half" && (
-          <div className="shrink-0 pb-2">
-            <div className="flex items-center justify-between px-4 pb-2">
-              <h3 className="section-title">Ближайшие заведения</h3>
-              <span className="text-xs text-neutral-500">{restaurants.length} мест</span>
+          <div className="min-h-0 flex-1 overflow-y-auto pb-4">
+            <div className="flex items-center justify-between px-5 pb-3 pt-1">
+              <h3 className="text-[19px] font-normal tracking-[-0.02em] text-neutral-900">
+                Ближайшие заведения
+              </h3>
+              <span className="text-xs font-light text-neutral-500">{restaurants.length} мест</span>
             </div>
-            <div className="no-scrollbar flex gap-3 overflow-x-auto px-4 pb-2">
-              {restaurants.map((r) => (
-                <button
-                  key={r.id}
-                  onClick={() => onOpenRestaurant(r)}
-                  className="group w-[240px] shrink-0 overflow-hidden rounded-3xl bg-white text-left hairline"
-                >
-                  <div className="relative h-32 w-full overflow-hidden">
+            <div className="no-scrollbar touch-pan-x snap-x snap-mandatory overflow-x-auto px-5 pb-2">
+              <div className="flex w-max gap-3.5">
+                {restaurants.map((r) => (
+                  <motion.button
+                    key={r.id}
+                    whileTap={{ scale: 0.985 }}
+                    transition={{ duration: 0.1 }}
+                    onClick={() => onOpenRestaurant(r)}
+                    className="relative aspect-video w-[76vw] max-w-[300px] shrink-0 snap-start overflow-hidden rounded-[24px] bg-neutral-200 text-left shadow-soft"
+                  >
                     <img
                       src={r.cover}
-                      alt={r.name}
-                      className="h-full w-full object-cover transition group-hover:scale-105"
+                      alt=""
+                      className="absolute inset-0 h-full w-full object-cover"
                     />
-                    <div className="absolute left-3 top-3 flex items-center gap-1 rounded-full bg-black/70 px-2 py-1 text-[11px] font-semibold text-white backdrop-blur">
-                      <Star className="h-3 w-3 fill-white" /> {r.rating}
-                    </div>
-                    <div className="absolute right-3 top-3 rounded-full bg-white/90 px-2 py-1 text-[11px] font-semibold text-neutral-900 backdrop-blur">
-                      {r.distanceKm} км
-                    </div>
-                  </div>
-                  <div className="p-3">
-                    <p className="text-[15px] font-semibold text-neutral-900">{r.name}</p>
-                    <p className="text-xs text-neutral-500">
-                      {r.cuisine} · {r.district}
-                    </p>
-                    <div className="mt-2 flex items-center gap-2 text-[11px] text-neutral-600">
-                      <Clock className="h-3 w-3" />
-                      Свободно сегодня
-                      <span className="ml-auto font-semibold text-neutral-900">
-                        от {(r.avgCheck / 1000).toFixed(0)}k ₸
+                    <span className="absolute inset-0 bg-gradient-to-t from-black/75 via-transparent to-black/5" />
+                    <span className="absolute right-3 top-3 rounded-full bg-white/92 px-2.5 py-1 text-[11px] font-normal text-neutral-900 backdrop-blur-md">
+                      <Star className="mr-1 inline h-3 w-3" strokeWidth={1.5} />
+                      {r.rating}
+                    </span>
+                    <span className="absolute inset-x-4 bottom-4 text-white">
+                      <span className="block text-[17px] font-normal">{r.name}</span>
+                      <span className="mt-1 flex items-center gap-1.5 text-xs font-light text-white/75">
+                        <Clock className="h-3 w-3" strokeWidth={1.5} />
+                        {r.cuisine} · {r.distanceKm} км
                       </span>
-                    </div>
-                  </div>
-                </button>
-              ))}
+                    </span>
+                  </motion.button>
+                ))}
+              </div>
             </div>
           </div>
         )}
 
-        {/* ── Full-состояние: полный каталог (единый скролл) ──────────── */}
+        {/* ── Full-состояние: категории + три чистых блока ─────────── */}
         {sheet === "full" && (
-          <div className="flex-1 overflow-y-auto bg-gray-50 pb-[140px]">
-
-            {/* ── Категории (перемещены наверх) ────────────────────────────────────────── */}
-            <div className="no-scrollbar mt-4 flex gap-2 overflow-x-auto px-5 pb-2 pt-2">
-              {categories.map((c) => {
-                const isSelected = cat === c.key;
-                const activeColors: Record<string, string> = {
-                  food: "bg-orange-500 text-white",
-                  concerts: "bg-purple-500 text-white",
-                  beauty: "bg-pink-500 text-white",
-                  medicine: "bg-green-500 text-white",
-                  auto: "bg-blue-500 text-white",
-                };
-                return (
-                  <button
-                    key={c.key}
-                    onClick={() => handleCategoryChange(c.key)}
-                    className={`flex shrink-0 items-center gap-1.5 rounded-full py-1 pl-1 pr-3 text-[13px] font-medium transition-colors ${
-                      isSelected ? activeColors[c.key] || "bg-neutral-900 text-white" : "bg-white text-neutral-800 border border-neutral-200 shadow-soft"
-                    }`}
-                  >
-                    <span className="grid h-7 w-7 place-items-center rounded-full bg-white text-sm shadow-sm">
-                      {c.emoji}
-                    </span>
-                    <span>{c.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Cover Flow карусель (Task 2) между "Рядом" и "Городской хаб" */}
-            <div className="mt-5">
-              <div className="flex items-center justify-between px-5 pb-3">
-                <h3 className="flex items-center gap-2 text-[15px] font-semibold text-neutral-900">
-                  <Flame className="h-4 w-4 text-primary" /> Выбор дня
-                </h3>
-              </div>
-              <CoverFlowCarousel
-                items={coverItems}
-                onSelect={(it) => {
-                  if (!it.payload) return;
-                  if (it.payload.type === "event") setEvent(it.payload.item);
-                  if (it.payload.type === "restaurant") onOpenRestaurant(it.payload.item);
-                  if (it.payload.type === "venue") setVenue(it.payload.item);
-                  if (it.payload.type === "carwash") setCarWash(it.payload.item);
-                }}
-              />
-            </div>
-
-            {/* Заголовок каталога */}
-            <div className="px-5 pb-3 pt-6">
-              <p className="text-[11px] uppercase tracking-widest text-neutral-500">
-                Городской хаб
-              </p>
-              <h1 className="text-3xl font-semibold tracking-tight text-neutral-900">
-                Вся{" "}
-                <span
-                  className="text-neutral-500"
-                  style={{ fontFamily: "var(--font-display)" }}
-                >
-                  Астана
-                </span>{" "}
-                здесь
-              </h1>
-            </div>
-
-            {/* ── Истории друзей ────────────────────────────────────── */}
-            <div className="px-5 pb-1">
-              <h3 className="section-title mb-2">Истории друзей</h3>
-            </div>
-            <div className="no-scrollbar flex gap-3 overflow-x-auto px-5 pb-1 pt-1">
-              {stories.map((s) => (
-                <button
-                  key={s.id}
-                  onClick={() => setStory(s)}
-                  className="flex w-16 shrink-0 flex-col items-center gap-1"
-                >
-                  <span
-                    className={`rounded-full p-[2.5px] ${
-                      s.viewed
-                        ? "bg-neutral-200"
-                        : "bg-gradient-to-tr from-primary via-pink-500 to-amber-400"
-                    }`}
-                  >
-                    <img
-                      src={s.avatar}
-                      alt={s.name}
-                      className="h-14 w-14 rounded-full border-2 border-white object-cover"
-                    />
-                  </span>
-                  <span className="text-[10px] font-medium text-neutral-600">{s.name}</span>
-                </button>
-              ))}
-            </div>
-
-            {/* ── Афиша выходных ────────────────────────────────────── */}
-            <div className="mt-4">
-              <div className="flex items-center justify-between px-5 pb-3">
-                <h3 className="section-title flex items-center gap-2">
-                  <Ticket className="h-4 w-4 text-neutral-900" /> Афиша выходных
-                </h3>
-                <button className="text-xs font-medium text-neutral-500">Все →</button>
-              </div>
-              <div className="no-scrollbar flex gap-3 overflow-x-auto px-5 pb-2">
-                {cityEvents.map((e) => (
-                  <motion.button
-                    key={e.id}
-                    whileTap={{ scale: 0.97 }}
-                    onClick={() => setEvent(e)}
-                    className="relative h-44 w-[280px] shrink-0 overflow-hidden rounded-3xl text-left shadow-soft"
-                  >
-                    <img
-                      src={e.cover}
-                      alt=""
-                      className="absolute inset-0 h-full w-full object-cover"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/15 to-transparent" />
-                    <div className="absolute left-3 top-3 flex items-center gap-1.5">
-                      <span className="rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-bold text-neutral-900 backdrop-blur">
-                        {e.tag}
-                      </span>
-                      {e.hot && (
-                        <span className="flex items-center gap-0.5 rounded-full bg-neutral-900 px-2 py-1 text-[10px] font-bold text-white">
-                          <Flame className="h-2.5 w-2.5" /> Хит
-                        </span>
-                      )}
-                    </div>
-                    <div className="absolute inset-x-3 bottom-3 text-white">
-                      <p className="text-[15px] font-semibold leading-tight">{e.title}</p>
-                      <p className="mt-0.5 text-[11px] opacity-80">
-                        {e.place} · {e.date} · {e.time}
-                      </p>
-                      <p className="mt-1 text-xs font-bold">
-                        {e.price === 0 ? "Вход свободный" : `от ${money(e.price)}`}
-                      </p>
-                    </div>
-                  </motion.button>
-                ))}
-              </div>
-            </div>
-
-            {cat === "food" ? (
-              <>
-
-                {/* ── Сейчас популярны ────────────────────────────────── */}
-                <div className="mt-6">
-                  <div className="flex items-center justify-between px-5 pb-3">
-                    <h3 className="section-title flex items-center gap-2">
-                      <TrendingUp className="h-4 w-4 text-neutral-900" /> Сейчас популярны
-                    </h3>
-                    <button className="text-xs font-medium text-neutral-500">Все →</button>
-                  </div>
-                  <div className="no-scrollbar flex gap-3 overflow-x-auto px-5 pb-1">
-                    {restaurants.map((r) => (
-                      <button
-                        key={r.id}
-                        onClick={() => onOpenRestaurant(r)}
-                        className="w-[220px] shrink-0 overflow-hidden rounded-3xl bg-white text-left shadow-soft"
-                      >
-                        <div className="relative h-32">
-                          <img src={r.cover} alt="" className="h-full w-full object-cover" />
-                          <div className="absolute right-2 top-2 rounded-full bg-white/90 px-2 py-1 text-[11px] font-semibold backdrop-blur">
-                            <Star className="mr-0.5 -mt-0.5 inline h-3 w-3 fill-neutral-900 text-neutral-900" />
-                            {r.rating}
-                          </div>
-                        </div>
-                        <div className="p-3">
-                          <p className="text-sm font-semibold">{r.name}</p>
-                          <p className="text-xs text-neutral-500">{r.cuisine}</p>
-                          <p className="mt-1.5 text-[11px] font-semibold text-neutral-900">
-                            от {money(r.avgCheck)}
-                          </p>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* ── Все рестораны ────────────────────────────────────── */}
-                <div className="mt-6 space-y-3 px-5">
-                  <h3 className="section-title pb-1">Все рестораны</h3>
-                  {restaurants.map((r) => (
-                    <button
-                      key={r.id}
-                      onClick={() => onOpenRestaurant(r)}
-                      className="flex w-full items-center gap-3 rounded-2xl bg-white p-2 text-left shadow-soft"
-                    >
-                      <img src={r.cover} alt="" className="h-20 w-20 rounded-2xl object-cover" />
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-semibold">{r.name}</p>
-                        <p className="truncate text-xs text-neutral-500">
-                          {r.cuisine} · {r.district}
-                        </p>
-                        <div className="mt-1.5 flex gap-1">
-                          {r.tags.slice(0, 2).map((t) => (
-                            <span
-                              key={t}
-                              className="rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] font-medium text-neutral-700"
-                            >
-                              {t}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                      <div className="text-right text-[11px] text-neutral-500">
-                        <p className="flex items-center justify-end gap-0.5">
-                          <Star className="h-3 w-3 fill-neutral-900 text-neutral-900" />
-                          {r.rating}
-                        </p>
-                        <p className="mt-0.5 font-semibold text-neutral-900">
-                          ~{(r.avgCheck / 1000).toFixed(0)}k ₸
-                        </p>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </>
-            ) : (
-              /* ── Другие категории ──────────────────────────────────── */
-              <div className="mt-4 space-y-3 px-5">
-                <h3 className="section-title pb-1">
-                  {categories.find((c) => c.key === cat)?.label ?? "Заведения"}
-                </h3>
-                {catVenues.length === 0 && (
-                  <p className="py-8 text-center text-sm text-neutral-400">
-                    Пока нет заведений в этой категории
-                  </p>
-                )}
-                {catVenues.map((v) => (
-                  <motion.button
-                    key={v.id}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => openVenue(v)}
-                    className="w-full overflow-hidden rounded-3xl border border-border/50 bg-white text-left shadow-soft"
-                  >
-                    <div className="relative h-36">
-                      <img src={v.cover} alt="" className="h-full w-full object-cover" />
-                      {v.badge && (
-                        <span className="absolute left-3 top-3 rounded-full bg-neutral-900 px-2.5 py-1 text-[10px] font-bold text-white shadow-lg shadow-neutral-900/30">
-                          {v.badge}
-                        </span>
-                      )}
-                      <span className="absolute right-3 top-3 rounded-full bg-white/90 px-2 py-1 text-[11px] font-semibold backdrop-blur">
-                        <Star className="mr-0.5 -mt-0.5 inline h-3 w-3 fill-neutral-900 text-neutral-900" />
-                        {v.rating}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between p-3">
-                      <div>
-                        <p className="text-sm font-semibold">{v.name}</p>
-                        <p className="text-xs text-neutral-500">{v.kind}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-[11px] text-neutral-500">{v.distanceKm} км</p>
-                        <p className="text-xs font-semibold text-neutral-900">
-                          от {money(v.priceFrom)}
-                        </p>
-                      </div>
-                    </div>
-                  </motion.button>
-                ))}
-              </div>
-            )}
+          <div className="catalog-scroll min-h-0 flex-1 overflow-y-auto bg-[#fafafa] pb-[130px]">
+            <CatalogSections
+              category={cat}
+              onOpenRestaurant={onOpenRestaurant}
+              onOpenVenue={openVenue}
+              onOpenEvent={setEvent}
+            />
           </div>
         )}
 
         {/* Модалки каталога (переиспользуемые компоненты) */}
         <AnimatePresence>
-          {story && <StoryViewer key="story" story={story} onClose={() => setStory(null)} />}
           {venue && <VenueBookingModal key="venue" venue={venue} onClose={() => setVenue(null)} />}
           {event && <EventTicketModal key="event" event={event} onClose={() => setEvent(null)} />}
           {carWash && (
