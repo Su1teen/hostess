@@ -14,6 +14,7 @@ import {
 import { categoryToTheme, useTheme } from "@/components/hostess/ThemeProvider";
 import { EventTicketModal } from "@/components/hostess/EventTicketModal";
 import { VenueBookingModal } from "@/components/hostess/VenueBookingModal";
+import { StackedCoverFlow, type StackedCoverFlowItem } from "@/components/hostess/StackedCoverFlow";
 
 const categoryMeta: Record<string, { color: string; Icon: ComponentType<LucideProps> }> = {
   food: { color: "#f97316", Icon: Utensils },
@@ -24,16 +25,16 @@ const categoryMeta: Record<string, { color: string; Icon: ComponentType<LucidePr
 };
 
 type CategoryRailProps = {
-  value: string;
-  onChange: (category: string) => void;
+  activeValues: readonly string[];
+  onSelect: (category: string) => void;
 };
 
-export function CategoryRail({ value, onChange }: CategoryRailProps) {
+export function CategoryRail({ activeValues, onSelect }: CategoryRailProps) {
   return (
-    <div className="no-scrollbar touch-pan-x snap-x snap-mandatory overflow-x-auto px-5 py-3">
-      <div className="flex w-max gap-2.5">
+    <div className="no-scrollbar touch-pan-x snap-x snap-mandatory overflow-x-auto py-3">
+      <div className="flex w-max gap-3 px-5">
         {categories.map((category) => {
-          const isActive = category.key === value;
+          const isActive = activeValues.includes(category.key);
           const meta = categoryMeta[category.key] ?? categoryMeta.food;
           const Icon = meta.Icon;
 
@@ -43,8 +44,8 @@ export function CategoryRail({ value, onChange }: CategoryRailProps) {
               type="button"
               whileTap={{ scale: 0.97 }}
               transition={{ duration: 0.12 }}
-              onClick={() => onChange(category.key)}
-              className="flex h-14 shrink-0 snap-start items-center gap-3 rounded-full border p-1 pr-5 text-[15px] font-normal transition-[background-color,border-color,color,box-shadow] duration-150"
+              onClick={() => onSelect(category.key)}
+              className="flex h-[60px] min-w-[154px] shrink-0 snap-start items-center gap-3 rounded-[22px] border p-1 pr-5 text-[15px] font-normal transition-[background-color,border-color,color,box-shadow] duration-150"
               style={{
                 backgroundColor: isActive ? meta.color : "#ffffff",
                 borderColor: isActive ? meta.color : "rgba(17, 24, 39, 0.08)",
@@ -55,7 +56,7 @@ export function CategoryRail({ value, onChange }: CategoryRailProps) {
               }}
               aria-pressed={isActive}
             >
-              <span className="grid h-12 w-12 place-items-center rounded-full bg-white text-neutral-900 shadow-[0_3px_12px_rgba(15,23,42,0.14)]">
+              <span className="grid h-[52px] w-[52px] place-items-center rounded-[18px] bg-white text-neutral-900 shadow-[0_4px_14px_rgba(15,23,42,0.16)]">
                 <Icon className="h-5 w-5" strokeWidth={1.5} />
               </span>
               <span className="whitespace-nowrap">{category.label}</span>
@@ -99,7 +100,7 @@ function CardRail({ children }: { children: ReactNode }) {
   );
 }
 
-function CardFrame({
+function EventCard({
   image,
   title,
   subtitle,
@@ -145,46 +146,43 @@ export function CatalogSections({
   const popularRestaurants = [...restaurants].sort((a, b) => b.rating - a.rating);
   const popularVenues = [...categoryVenues].sort((a, b) => b.rating - a.rating);
 
-  const renderCategoryCards = (popular = false) => {
+  const createStackItems = (popular = false): StackedCoverFlowItem[] => {
     if (category === "food") {
       const items = popular ? popularRestaurants : restaurants;
-      return items.map((restaurant) => (
-        <CardFrame
-          key={`${popular ? "popular-" : ""}${restaurant.id}`}
-          image={restaurant.cover}
-          title={restaurant.name}
-          subtitle={`${restaurant.cuisine} · ${restaurant.distanceKm} км`}
-          meta={popular ? `${restaurant.rating} ★` : `от ${money(restaurant.avgCheck)}`}
-          onClick={() => onOpenRestaurant(restaurant)}
-        />
-      ));
+      return items.map((restaurant, index) => ({
+        id: `${popular ? "popular-" : ""}${restaurant.id}`,
+        image: restaurant.cover,
+        title: restaurant.name,
+        subtitle: `${restaurant.cuisine} · ${restaurant.distanceKm} км`,
+        meta: popular ? `${restaurant.rating} из 5` : `от ${money(restaurant.avgCheck)}`,
+        badge: index === 0 ? (popular ? "В тренде" : "Хит") : undefined,
+        onClick: () => onOpenRestaurant(restaurant),
+      }));
     }
 
     if (category === "concerts") {
       const items = popular ? cityEvents.filter((event) => event.hot) : cityEvents;
-      return items.map((event) => (
-        <CardFrame
-          key={`${popular ? "popular-" : ""}${event.id}`}
-          image={event.cover}
-          title={event.title}
-          subtitle={`${event.place} · ${event.date}`}
-          meta={event.price === 0 ? "Бесплатно" : `от ${money(event.price)}`}
-          onClick={() => onOpenEvent(event)}
-        />
-      ));
+      return items.map((event, index) => ({
+        id: `${popular ? "popular-" : ""}${event.id}`,
+        image: event.cover,
+        title: event.title,
+        subtitle: `${event.place} · ${event.date}`,
+        meta: event.price === 0 ? "Бесплатно" : `от ${money(event.price)}`,
+        badge: index === 0 ? (popular ? "В тренде" : "Хит") : undefined,
+        onClick: () => onOpenEvent(event),
+      }));
     }
 
     const items = popular ? popularVenues : categoryVenues;
-    return items.map((venue) => (
-      <CardFrame
-        key={`${popular ? "popular-" : ""}${venue.id}`}
-        image={venue.cover}
-        title={venue.name}
-        subtitle={`${venue.kind} · ${venue.distanceKm} км`}
-        meta={popular ? `${venue.rating} ★` : `от ${money(venue.priceFrom)}`}
-        onClick={() => onOpenVenue(venue)}
-      />
-    ));
+    return items.map((venue, index) => ({
+      id: `${popular ? "popular-" : ""}${venue.id}`,
+      image: venue.cover,
+      title: venue.name,
+      subtitle: `${venue.kind} · ${venue.distanceKm} км`,
+      meta: popular ? `${venue.rating} из 5` : `от ${money(venue.priceFrom)}`,
+      badge: index === 0 ? (popular ? "В тренде" : "Хит") : undefined,
+      onClick: () => onOpenVenue(venue),
+    }));
   };
 
   const hasCategoryItems =
@@ -194,7 +192,7 @@ export function CatalogSections({
     <div className="space-y-8 pb-7 pt-3">
       <Section title="Заведения">
         {hasCategoryItems ? (
-          <CardRail>{renderCategoryCards()}</CardRail>
+          <StackedCoverFlow key={`${category}-places`} items={createStackItems()} />
         ) : (
           <p className="px-5 py-8 text-sm font-light text-neutral-400">
             Пока нет заведений в этой категории
@@ -204,7 +202,7 @@ export function CatalogSections({
 
       <Section title="Сейчас популярны">
         {hasCategoryItems ? (
-          <CardRail>{renderCategoryCards(true)}</CardRail>
+          <StackedCoverFlow key={`${category}-popular`} items={createStackItems(true)} />
         ) : (
           <p className="px-5 py-8 text-sm font-light text-neutral-400">
             Скоро здесь появятся рекомендации
@@ -215,7 +213,7 @@ export function CatalogSections({
       <Section title="Афиша выходных">
         <CardRail>
           {cityEvents.map((event) => (
-            <CardFrame
+            <EventCard
               key={event.id}
               image={event.cover}
               title={event.title}
@@ -251,7 +249,7 @@ export function CatalogScreen({
   return (
     <div className="catalog-scroll h-full overflow-y-auto bg-[#fafafa] pb-[120px]">
       <div className="sticky top-0 z-10 bg-[#fafafa]/92 pt-11 backdrop-blur-xl">
-        <CategoryRail value={category} onChange={handleCategoryChange} />
+        <CategoryRail activeValues={[category]} onSelect={handleCategoryChange} />
       </div>
       <CatalogSections
         category={category}

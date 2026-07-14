@@ -18,12 +18,12 @@ import {
   MAPBOX_TOKEN,
   restaurants,
   venues,
+  cityEvents,
   mapPoints,
   friendMapLocations,
   categories,
   occupancyForId,
   carWashById,
-  carWashes,
   type Restaurant,
   type Venue,
   type CityEvent,
@@ -48,6 +48,38 @@ const catColor: Record<string, string> = {
   concerts: "#A855F7",
 };
 
+const fallbackMarkerPhoto =
+  "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=600&q=82";
+
+function mapPointToVenue(point: MapPoint): Venue {
+  const kind: Record<MapPoint["category"], string> = {
+    food: "Ресторан · Астана",
+    concerts: "Событие · Астана",
+    beauty: "Красота · Астана",
+    medicine: "Медицина · Астана",
+    auto: "Авто · Астана",
+  };
+
+  return {
+    id: point.id,
+    category: point.category,
+    name: point.name,
+    kind: kind[point.category],
+    rating: point.rating,
+    reviews: 128,
+    occupancy: 45,
+    peakHours: "18:00 – 21:00",
+    cover: point.cover,
+    priceFrom: 5000,
+    distanceKm: 2.4,
+    services: [
+      { name: "Стандартная запись", price: 5000, duration: "60 мин" },
+      { name: "Приоритетная запись", price: 8000, duration: "45 мин" },
+    ],
+    coords: point.coords,
+  };
+}
+
 // ── Состояния шторки ──────────────────────────────────────────────
 type SheetState = "collapsed" | "half" | "full";
 
@@ -64,6 +96,8 @@ export function MapScreen({
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const pointMarkersRef = useRef<mapboxgl.Marker[]>([]);
   const friendMarkersRef = useRef<mapboxgl.Marker[]>([]);
+  const renderClustersRef = useRef<() => void>(() => {});
+  const activeCategoriesRef = useRef(new Set<string>(["food"]));
   const openPointRef = useRef<(p: MapPoint) => void>(() => {});
   const sheetRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -85,6 +119,7 @@ export function MapScreen({
 
   // Каталог-стейт
   const [cat, setCat] = useState("food");
+  const [activeCategories, setActiveCategories] = useState<string[]>(["food"]);
   const [venue, setVenue] = useState<Venue | null>(null);
   const [event, setEvent] = useState<CityEvent | null>(null);
   const [carWash, setCarWash] = useState<CarWash | null>(null);
@@ -98,28 +133,45 @@ export function MapScreen({
 
   // Клик по пину на карте.
   const openPoint = (p: MapPoint) => {
-    if (p.category === "food") {
-      const rest = restaurants.find((r) => r.id === p.id);
-      if (rest) onOpenRestaurant(rest);
-    } else if (p.category === "auto") {
-      const wash = carWashById(p.id);
-      if (wash) setCarWash(wash);
-    } else {
-      const item = venues.find((venueItem) => venueItem.id === p.id);
-      if (item) setVenue(item);
-    }
+    const rest = restaurants.find((restaurant) => restaurant.id === p.id);
+    if (rest) return onOpenRestaurant(rest);
+
+    const cityEvent = cityEvents.find((item) => item.id === p.id);
+    if (cityEvent) return setEvent(cityEvent);
+
+    const wash = carWashById(p.id);
+    if (wash) return setCarWash(wash);
+
+    const item = venues.find((venueItem) => venueItem.id === p.id);
+    setVenue(item ?? mapPointToVenue(p));
   };
   openPointRef.current = openPoint;
 
   // Динамическая тема: переключается при смене категории.
   const { setTheme } = useTheme();
-  const handleCategoryChange = useCallback(
+  const handleCategorySelect = useCallback(
     (category: string) => {
-      setCat(category);
-      setTheme(categoryToTheme(category));
+      const isActive = activeCategories.includes(category);
+      if (isActive && activeCategories.length === 1) return;
+
+      const nextCategories = isActive
+        ? activeCategories.filter((item) => item !== category)
+        : [...activeCategories, category];
+      const nextCatalogCategory =
+        (isActive && cat === category ? nextCategories[nextCategories.length - 1] : category) ??
+        "food";
+
+      setActiveCategories(nextCategories);
+      setCat(nextCatalogCategory);
+      setTheme(categoryToTheme(nextCatalogCategory));
     },
-    [setTheme],
+    [activeCategories, cat, setTheme],
   );
+
+  useEffect(() => {
+    activeCategoriesRef.current = new Set(activeCategories);
+    renderClustersRef.current();
+  }, [activeCategories]);
 
   // Высота контейнера (для расчёта позиций шторки).
   useEffect(() => {
@@ -184,15 +236,17 @@ export function MapScreen({
 
       type Cell = { points: MapPoint[]; sx: number; sy: number };
       const cells = new Map<string, Cell>();
-      mapPoints.forEach((p) => {
-        const px = map.project([p.coords.lng, p.coords.lat]);
-        const key = `${Math.floor(px.x / CELL)}:${Math.floor(px.y / CELL)}`;
-        const cell = cells.get(key) ?? { points: [], sx: 0, sy: 0 };
-        cell.points.push(p);
-        cell.sx += p.coords.lng;
-        cell.sy += p.coords.lat;
-        cells.set(key, cell);
-      });
+      mapPoints
+        .filter((point) => activeCategoriesRef.current.has(point.category))
+        .forEach((p) => {
+          const px = map.project([p.coords.lng, p.coords.lat]);
+          const key = `${Math.floor(px.x / CELL)}:${Math.floor(px.y / CELL)}`;
+          const cell = cells.get(key) ?? { points: [], sx: 0, sy: 0 };
+          cell.points.push(p);
+          cell.sx += p.coords.lng;
+          cell.sy += p.coords.lat;
+          cells.set(key, cell);
+        });
 
       cells.forEach((cell) => {
         if (cell.points.length > 1) {
@@ -227,18 +281,9 @@ export function MapScreen({
           pointMarkersRef.current.push(m);
         } else {
           const p = cell.points[0];
-          const color = catColor[p.category] ?? "#64748B";
           const occStatus = occupancyForId(p.id);
           const ringColor =
             occStatus === "busy" ? "#ef4444" : occStatus === "moderate" ? "#f97316" : "#22c55e";
-
-          let coverImg = "";
-          const rest = restaurants.find((restaurant) => restaurant.id === p.id);
-          const venue = venues.find((item) => item.id === p.id);
-          const wash = carWashes.find((item) => item.id === p.id);
-          if (rest) coverImg = rest.cover;
-          else if (venue) coverImg = venue.cover;
-          else if (wash) coverImg = wash.cover;
 
           const isLarge = map.getZoom() >= 14 || occStatus === "busy";
           const markerWidth = isLarge ? 84 : 66;
@@ -261,30 +306,21 @@ export function MapScreen({
             padding: "2px",
           });
 
-          if (coverImg) {
-            const image = document.createElement("img");
-            image.src = coverImg;
-            image.alt = "";
-            Object.assign(image.style, {
-              display: "block",
-              width: "100%",
-              height: "100%",
-              objectFit: "cover",
-              borderRadius: isLarge ? "17px" : "13px",
-            });
-            frame.appendChild(image);
-          } else {
-            Object.assign(frame.style, {
-              display: "grid",
-              placeItems: "center",
-              background: color,
-              color: "#ffffff",
-              fontFamily: "Clarity City, sans-serif",
-              fontSize: "18px",
-              fontWeight: "400",
-            });
-            frame.textContent = p.name.slice(0, 1);
-          }
+          const image = document.createElement("img");
+          image.src = p.cover || fallbackMarkerPhoto;
+          image.alt = "";
+          image.onerror = () => {
+            image.onerror = null;
+            image.src = fallbackMarkerPhoto;
+          };
+          Object.assign(image.style, {
+            display: "block",
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+            borderRadius: isLarge ? "17px" : "13px",
+          });
+          frame.appendChild(image);
 
           const label = document.createElement("span");
           label.textContent = p.name;
@@ -310,6 +346,7 @@ export function MapScreen({
         }
       });
     };
+    renderClustersRef.current = renderClusters;
 
     map.on("load", () => {
       map.resize();
@@ -347,6 +384,7 @@ export function MapScreen({
       friendMarkersRef.current = [];
       map.remove();
       mapRef.current = null;
+      renderClustersRef.current = () => {};
     };
   }, []); // Пустой deps — карта создаётся один раз (bugfix)
 
@@ -399,106 +437,114 @@ export function MapScreen({
       {/* ── Карта на весь экран ─────────────────────────────────────── */}
       <div ref={mapNode} className="absolute inset-0 h-full w-full" />
 
-      {/* ── Верхний оверлей: локация + поиск ────────────────────────── */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex flex-col gap-3 p-4 pt-14">
-        <div className="pointer-events-auto flex items-center justify-between">
-          <div>
-            <p className="section-subtitle">Ваша локация</p>
-            <p className="text-lg font-normal text-neutral-900">Астана · Есиль</p>
-          </div>
-          <img
-            src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=200&q=80"
-            alt=""
-            className="h-10 w-10 rounded-full object-cover ring-2 ring-white shadow-md"
-          />
-        </div>
+      {/* ── Верхний оверлей: поиск + профиль ─────────────────────────── */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-10 px-4 pt-[calc(env(safe-area-inset-top)+12px)]">
+        <div className="flex items-start gap-3">
+          {/* Живой поиск */}
+          <div className="pointer-events-auto relative min-w-0 flex-1">
+            <div className="flex min-h-12 items-center gap-3 rounded-[20px] bg-white/96 px-4 shadow-float backdrop-blur-xl">
+              <Search className="h-5 w-5 shrink-0 text-neutral-500" strokeWidth={1.5} />
+              <input
+                value={query}
+                onChange={(e) => {
+                  setQuery(e.target.value);
+                  setShowResults(true);
+                }}
+                onFocus={() => setShowResults(true)}
+                placeholder="Найти место, ресторан…"
+                className="min-w-0 flex-1 bg-transparent text-sm font-normal text-neutral-900 outline-none placeholder:text-neutral-400"
+              />
+              {loading ? (
+                <Loader2 className="h-4 w-4 shrink-0 animate-spin text-neutral-900" />
+              ) : query ? (
+                <button
+                  type="button"
+                  onClick={() => setQuery("")}
+                  className="grid h-10 w-10 shrink-0 place-items-center"
+                  aria-label="Очистить"
+                >
+                  <X className="h-4 w-4 text-neutral-400" strokeWidth={1.5} />
+                </button>
+              ) : (
+                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[14px] bg-neutral-100">
+                  <SlidersHorizontal className="h-4 w-4 text-neutral-700" strokeWidth={1.5} />
+                </span>
+              )}
+            </div>
 
-        {/* Живой поиск */}
-        <div className="pointer-events-auto relative">
-          <div className="flex items-center gap-3 rounded-2xl bg-white px-4 py-3 shadow-float">
-            <Search className="h-5 w-5 text-neutral-500" />
-            <input
-              value={query}
-              onChange={(e) => {
-                setQuery(e.target.value);
-                setShowResults(true);
-              }}
-              onFocus={() => setShowResults(true)}
-              placeholder="Найти место, ресторан, блюдо…"
-              className="flex-1 bg-transparent text-sm text-neutral-900 outline-none placeholder:text-neutral-400"
-            />
-            {loading ? (
-              <Loader2 className="h-4 w-4 animate-spin text-neutral-900" />
-            ) : query ? (
-              <button onClick={() => setQuery("")} aria-label="Очистить">
-                <X className="h-4 w-4 text-neutral-400" />
-              </button>
-            ) : (
-              <span className="grid h-8 w-8 place-items-center rounded-xl bg-neutral-100">
-                <SlidersHorizontal className="h-4 w-4 text-neutral-700" />
-              </span>
-            )}
-          </div>
-
-          <AnimatePresence>
-            {showResults && (query || loading) && (
-              <motion.div
-                initial={{ opacity: 0, y: -8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                className="absolute inset-x-0 top-full mt-2 max-h-80 overflow-y-auto rounded-2xl bg-white p-1.5 shadow-float"
-              >
-                {loading && results.length === 0 && (
-                  <div className="flex items-center gap-3 p-3 text-sm text-neutral-500">
-                    <Loader2 className="h-4 w-4 animate-spin text-neutral-900" />
-                    Ищем через Positionstack…
-                  </div>
-                )}
-                {!loading && results.length === 0 && (
-                  <div className="p-3 text-sm text-neutral-500">Ничего не найдено</div>
-                )}
-                {results.map((r) => (
-                  <button
-                    key={r.id}
-                    onClick={() => flyTo(r)}
-                    className="flex w-full items-center gap-3 rounded-xl p-2.5 text-left hover:bg-neutral-50"
-                  >
-                    <span
-                      className="grid h-9 w-9 shrink-0 place-items-center rounded-xl"
-                      style={{
-                        background: `${catColor[r.kind === "restaurant" ? "food" : r.kind === "venue" ? "beauty" : "concerts"]}1A`,
-                      }}
-                    >
-                      <MapPin
-                        className="h-4 w-4"
-                        style={{
-                          color:
-                            catColor[
-                              r.kind === "restaurant"
-                                ? "food"
-                                : r.kind === "venue"
-                                  ? "beauty"
-                                  : "concerts"
-                            ],
-                        }}
-                      />
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-normal text-neutral-900">{r.label}</p>
-                      <p className="truncate text-xs text-neutral-500">{r.sublabel}</p>
+            <AnimatePresence>
+              {showResults && (query || loading) && (
+                <motion.div
+                  initial={{ opacity: 0, y: -8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  className="absolute inset-x-0 top-full mt-2 max-h-80 overflow-y-auto rounded-[20px] bg-white p-1.5 shadow-float"
+                >
+                  {loading && results.length === 0 && (
+                    <div className="flex items-center gap-3 p-3 text-sm text-neutral-500">
+                      <Loader2 className="h-4 w-4 animate-spin text-neutral-900" />
+                      Ищем через Positionstack…
                     </div>
-                    <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] font-medium text-neutral-600">
-                      {r.kind === "restaurant"
-                        ? "Ресторан"
-                        : r.kind === "venue"
-                          ? "Заведение"
-                          : "Место"}
-                    </span>
-                  </button>
-                ))}
-              </motion.div>
-            )}
-          </AnimatePresence>
+                  )}
+                  {!loading && results.length === 0 && (
+                    <div className="p-3 text-sm text-neutral-500">Ничего не найдено</div>
+                  )}
+                  {results.map((r) => (
+                    <button
+                      key={r.id}
+                      onClick={() => flyTo(r)}
+                      className="flex min-h-12 w-full items-center gap-3 rounded-xl p-2.5 text-left hover:bg-neutral-50"
+                    >
+                      <span
+                        className="grid h-9 w-9 shrink-0 place-items-center rounded-xl"
+                        style={{
+                          background: `${catColor[r.kind === "restaurant" ? "food" : r.kind === "venue" ? "beauty" : "concerts"]}1A`,
+                        }}
+                      >
+                        <MapPin
+                          className="h-4 w-4"
+                          strokeWidth={1.5}
+                          style={{
+                            color:
+                              catColor[
+                                r.kind === "restaurant"
+                                  ? "food"
+                                  : r.kind === "venue"
+                                    ? "beauty"
+                                    : "concerts"
+                              ],
+                          }}
+                        />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-normal text-neutral-900">{r.label}</p>
+                        <p className="truncate text-xs font-light text-neutral-500">{r.sublabel}</p>
+                      </div>
+                      <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] font-normal text-neutral-600">
+                        {r.kind === "restaurant"
+                          ? "Ресторан"
+                          : r.kind === "venue"
+                            ? "Заведение"
+                            : "Место"}
+                      </span>
+                    </button>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          <button
+            type="button"
+            className="pointer-events-auto grid h-12 w-12 shrink-0 place-items-center rounded-full bg-white/96 shadow-float backdrop-blur-xl"
+            aria-label="Открыть профиль"
+          >
+            <img
+              src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=200&q=80"
+              alt=""
+              className="h-10 w-10 rounded-full object-cover"
+            />
+          </button>
         </div>
       </div>
 
@@ -509,14 +555,14 @@ export function MapScreen({
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -20 }}
-            className="pointer-events-none absolute left-4 top-44 z-10 flex flex-col gap-1.5"
+            className="pointer-events-none absolute left-4 top-20 z-10 flex flex-col gap-1.5"
           >
             {categories
-              .filter((c) => c.key !== "concerts")
+              .filter((category) => activeCategories.includes(category.key))
               .map((c) => (
                 <div
                   key={c.key}
-                  className="pointer-events-auto flex items-center gap-1.5 rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-medium text-neutral-700 shadow-soft backdrop-blur"
+                  className="pointer-events-auto flex items-center gap-1.5 rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-normal text-neutral-700 shadow-soft backdrop-blur"
                 >
                   <span
                     className="h-2 w-2 rounded-full"
@@ -564,7 +610,7 @@ export function MapScreen({
         </button>
 
         <div className="shrink-0">
-          <CategoryRail value={cat} onChange={handleCategoryChange} />
+          <CategoryRail activeValues={activeCategories} onSelect={handleCategorySelect} />
         </div>
 
         {/* ── Half-состояние: горизонтальная карусель "Рядом с вами" ─ */}
