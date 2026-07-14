@@ -14,28 +14,38 @@ export type CoverFlowItem = {
 
 /*
  * ── Layout constants ───────────────────────────────────────────
- * CARD_W  — visual width of the card (~86 vw, large & prominent).
- * ITEM_W  — width of the flex scroll-item; determines the scroll
- *           step and therefore how tightly cards stack. Smaller
- *           value → cards overlap more → tighter stack.
- * STEP    — how many px of scroll correspond to one card change.
+ * CARD_W  — visual width of the card (15 % narrower than 345 → ~293 px).
+ * ITEM_W  — width of the flex scroll-item.  Controls scroll speed:
+ *           larger = more px needed per card switch = slower, smoother.
+ * PULL    — how many px to translate each side-card inward so they
+ *           stack tightly behind the active card.
+ *
+ * Visual peek of side card ≈ ITEM_W − PULL − (CARD_W × (1−SCALE))/2
+ *   140 − 100 − (293×0.06)/2 ≈ 31 px  → tight stack ✓
  */
-const CARD_W = 345;
-const ITEM_W = 50;
-const STEP = ITEM_W;
+const CARD_W = 293;
+const CARD_H = Math.round(CARD_W * (5 / 4)); // 366
+const ITEM_W = 140;
+const PULL = 100; // translateX pull per normalised step
 
 /**
  * Stacked card carousel with native horizontal scroll.
  *
- * Cards are visually large (CARD_W) but sit inside narrow flex items
- * (ITEM_W), so they naturally overlap and create a tight "stacked"
- * look. A per-frame `paint` pass applies 3-D transforms (scale,
- * rotateY, translateZ) to the cards based on their distance from
- * the scroll-viewport center, producing the classic Cover Flow
- * depth effect. Haptic feedback fires on each card change.
+ * Flex items are ITEM_W wide; the visual card inside each is CARD_W
+ * wide (overflows its parent). A per-frame `paint` pass applies:
+ *   • translateX  — pulls side cards inward (tight stacking)
+ *   • scale       — side cards shrink slightly
+ *   • rotateY     — 3-D tilt
+ *   • translateZ  — depth
+ *   • opacity     — fade
  *
- * Infinite scroll is achieved by tripling the list and silently
- * re-centering after scroll settles.
+ * Because ITEM_W is large (140 px), the user needs a meaningful
+ * swipe to change cards — no more "too fast" scroll.  The visual
+ * stacking is entirely controlled by translateX in the paint pass.
+ *
+ * `scroll-snap-stop: always` prevents overshooting on iOS.
+ * Infinite scroll via tripled list + silent re-center.
+ * Haptic tick on every card change.
  */
 export function CoverFlowCarousel({
   items,
@@ -50,11 +60,11 @@ export function CoverFlowCarousel({
   const activeRef = useRef<number>(items.length);
   const [active, setActive] = useState<number>(0);
 
-  // Triple the list for infinite scroll illusion.
+  // Triple list for infinite scroll.
   const loop = [...items, ...items, ...items];
   const mid = items.length;
 
-  // ── Paint: apply 3-D transforms every scroll frame ──────────
+  // ── Paint: per-frame 3-D transforms ─────────────────────────
   const paint = useCallback(() => {
     const el = scrollerRef.current;
     if (!el) return;
@@ -66,30 +76,35 @@ export function CoverFlowCarousel({
       if (!card) return;
       const cardCenter = card.offsetLeft + card.offsetWidth / 2;
       const dist = cardCenter - center;
-      const norm = Math.max(-3, Math.min(3, dist / STEP));
+      const norm = dist / ITEM_W; // continuous, not clamped
       const abs = Math.abs(norm);
 
-      // Scale: center = 1, side = 0.86, clamp at 2 steps
-      const scale = 1 - Math.min(abs, 2) * 0.07;
+      // Clamp influence at ±2.5 steps (beyond that cards are hidden)
+      const cAbs = Math.min(abs, 2.5);
+      const cNorm = Math.sign(norm) * cAbs;
 
-      // Opacity: center = 1, side fades
-      const opacity = 1 - Math.min(abs, 2) * 0.25;
+      // ── translateX: pull side cards toward center ──
+      const tx = cNorm * -PULL;
 
-      // Rotate for 3-D depth
-      const rotateY = norm * -12;
+      // ── scale: center 1 → ±1 step 0.94 → ±2 steps 0.88 ──
+      const scale = 1 - cAbs * 0.06;
 
-      // Push side cards back in Z
-      const translateZ = -Math.min(abs, 2) * 50;
+      // ── opacity: center 1 → ±2 steps 0.5 ──
+      const opacity = Math.max(0.3, 1 - cAbs * 0.22);
 
-      // Slight vertical offset for depth feel
-      const translateY = Math.min(abs, 1.5) * 8;
+      // ── rotateY: gentle 3-D tilt ──
+      const ry = cNorm * -8;
+
+      // ── translateZ: push side cards back ──
+      const tz = -cAbs * 35;
+
+      // ── translateY: tiny vertical shift for depth ──
+      const ty = Math.min(cAbs, 1) * 5;
 
       card.style.transform =
-        `perspective(1200px) translateY(${translateY}px) translateZ(${translateZ}px) rotateY(${rotateY}deg) scale(${scale})`;
-      card.style.opacity = String(Math.max(0.25, opacity));
-      card.style.zIndex = String(100 - Math.round(abs * 10));
-      // Apply transition only when not actively scrolling (snap settling)
-      card.style.transition = "opacity 0.15s ease";
+        `perspective(1200px) translateX(${tx}px) translateY(${ty}px) translateZ(${tz}px) rotateY(${ry}deg) scale(${scale})`;
+      card.style.opacity = String(opacity);
+      card.style.zIndex = String(100 - Math.round(cAbs * 10));
 
       if (Math.abs(dist) < nearestDist) {
         nearestDist = Math.abs(dist);
@@ -143,7 +158,7 @@ export function CoverFlowCarousel({
     let settle: ReturnType<typeof setTimeout>;
     const handler = () => {
       clearTimeout(settle);
-      settle = setTimeout(recenter, 150);
+      settle = setTimeout(recenter, 180);
     };
     el.addEventListener("scroll", handler);
     return () => {
@@ -152,7 +167,7 @@ export function CoverFlowCarousel({
     };
   }, [recenter]);
 
-  // Snap-scroll to a specific card.
+  // Smooth-scroll to a specific card.
   const scrollToCard = (i: number) => {
     const el = scrollerRef.current;
     const card = cardsRef.current[i];
@@ -174,9 +189,8 @@ export function CoverFlowCarousel({
         style={{
           paddingLeft: `calc(50% - ${ITEM_W / 2}px)`,
           paddingRight: `calc(50% - ${ITEM_W / 2}px)`,
-          /* extra vertical padding so rotated/scaled cards aren't clipped */
-          paddingTop: 10,
-          paddingBottom: 16,
+          paddingTop: 12,
+          paddingBottom: 18,
         }}
       >
         {loop.map((item, i) => (
@@ -185,25 +199,23 @@ export function CoverFlowCarousel({
             ref={(node) => {
               cardsRef.current[i] = node;
             }}
-            className="relative shrink-0 snap-center"
+            className="relative shrink-0 snap-center will-change-transform"
             style={{
               width: ITEM_W,
-              /* The visual card overflows this narrow item.
-                 We need a fixed height so the flex row has height. */
-              height: CARD_W * (5 / 4),
+              height: CARD_H,
+              scrollSnapStop: "always", // prevent skipping cards on fast flick
             }}
           >
-            {/* Visual card — wider than the flex item, centered via
-                absolute + left:50% + negative margin */}
+            {/* Visual card — wider than the flex item, centered */}
             <button
               onClick={() => {
                 if (i === activeRef.current) onSelect?.(item);
                 else scrollToCard(i);
               }}
-              className="absolute top-0 overflow-hidden rounded-[24px] text-left shadow-float will-change-transform"
+              className="absolute top-0 overflow-hidden rounded-[24px] text-left shadow-float"
               style={{
                 width: CARD_W,
-                height: CARD_W * (5 / 4),
+                height: CARD_H,
                 left: "50%",
                 marginLeft: -(CARD_W / 2),
               }}
