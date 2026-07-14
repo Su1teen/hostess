@@ -1075,15 +1075,14 @@ export const restaurants: Restaurant[] = [
 export type Category = {
   key: string;
   label: string;
-  emoji: string;
 };
 
 export const categories: Category[] = [
-  { key: "food", label: "Рестораны", emoji: "🍽" },
-  { key: "concerts", label: "Концерты", emoji: "🎤" },
-  { key: "beauty", label: "Красота", emoji: "💈" },
-  { key: "medicine", label: "Медицина", emoji: "🦷" },
-  { key: "auto", label: "Авто", emoji: "🚗" },
+  { key: "food", label: "Рестораны" },
+  { key: "concerts", label: "Концерты" },
+  { key: "beauty", label: "Красота" },
+  { key: "medicine", label: "Медицина" },
+  { key: "auto", label: "Авто" },
 ];
 
 export type Venue = {

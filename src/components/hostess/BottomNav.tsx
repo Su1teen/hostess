@@ -1,61 +1,48 @@
 import { motion } from "framer-motion";
-import { Map, UtensilsCrossed, Sparkles, Calendar, User } from "lucide-react";
+import { CalendarDays, Map, Sparkles, Store, UserRound } from "lucide-react";
 import type { Screen } from "./types";
 
 const items: { key: Screen; label: string; Icon: typeof Map }[] = [
   { key: "map", label: "Карта", Icon: Map },
-  { key: "catalog", label: "Места", Icon: UtensilsCrossed },
+  { key: "catalog", label: "Места", Icon: Store },
   { key: "ai", label: "AI", Icon: Sparkles },
-  { key: "calendar", label: "Календарь", Icon: Calendar },
-  { key: "profile", label: "Профиль", Icon: User },
+  { key: "calendar", label: "Календарь", Icon: CalendarDays },
+  { key: "profile", label: "Профиль", Icon: UserRound },
 ];
 
-/**
- * iOS-style bottom navigation с 5 вкладками.
- * Активная вкладка подсвечивается pill-анимацией (shared layout).
- * AI-кнопка по центру — выделена акцентным цветом.
- * Теперь с текстовыми подписями для лучшей навигации.
- */
 export function BottomNav({ active, onChange }: { active: Screen; onChange: (s: Screen) => void }) {
   return (
-    <div className="pointer-events-none absolute inset-x-0 bottom-0 z-50 flex justify-center pb-5">
+    <div className="pointer-events-none absolute inset-x-0 bottom-0 z-50 flex justify-center px-4 pb-5">
       <motion.nav
-        initial={{ y: 60, opacity: 0 }}
+        initial={{ y: 24, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
-        transition={{ type: "spring", stiffness: 260, damping: 26 }}
-        className="glass-frosted pointer-events-auto flex items-center gap-0.5 rounded-full px-2 py-2 backdrop-blur-xl"
+        transition={{ type: "spring", stiffness: 340, damping: 32 }}
+        className="glass-frosted pointer-events-auto grid w-full max-w-[360px] grid-cols-5 rounded-[28px] p-1.5 backdrop-blur-xl"
       >
         {items.map(({ key, label, Icon }) => {
           const isActive = active === key;
-          const isCenter = key === "ai";
           return (
             <button
               key={key}
+              type="button"
               onClick={() => onChange(key)}
-              className="relative flex flex-col items-center justify-center px-3 py-1"
+              className="relative grid min-h-12 min-w-12 place-items-center rounded-[22px] text-neutral-500 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-neutral-900/20"
               aria-label={label}
+              aria-current={isActive ? "page" : undefined}
             >
-              {isActive && !isCenter && (
+              {isActive && (
                 <motion.span
-                  layoutId="nav-pill"
-                  className="absolute inset-0 rounded-full bg-neutral-200"
-                  transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                  layoutId="nav-selection"
+                  className="absolute inset-0 rounded-[22px] bg-neutral-900 shadow-[0_8px_20px_-12px_rgba(0,0,0,0.7)]"
+                  transition={{ type: "spring", stiffness: 420, damping: 34 }}
                 />
               )}
-              {isCenter ? (
-                <span className="relative -my-2 flex h-12 w-12 items-center justify-center rounded-full bg-neutral-900 text-white shadow-lg shadow-neutral-900/30">
-                  <Icon className="h-5 w-5" strokeWidth={2.2} />
-                </span>
-              ) : (
-                <span
-                  className={`relative flex flex-col items-center gap-0.5 transition-colors ${
-                    isActive ? "text-neutral-900" : "text-neutral-500"
-                  }`}
-                >
-                  <Icon className="h-[18px] w-[18px]" strokeWidth={isActive ? 2 : 1.6} />
-                  <span className="text-[9px] font-medium leading-tight">{label}</span>
-                </span>
-              )}
+              <Icon
+                className={`relative h-[21px] w-[21px] transition-colors ${
+                  isActive ? "text-white" : "text-neutral-500"
+                }`}
+                strokeWidth={1.5}
+              />
             </button>
           );
         })}
