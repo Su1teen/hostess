@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
-import { motion, AnimatePresence, type PanInfo } from "framer-motion";
+import { motion, AnimatePresence, useDragControls, type PanInfo } from "framer-motion";
 import {
   Search,
   SlidersHorizontal,
@@ -67,6 +67,7 @@ export function MapScreen({
   const openPointRef = useRef<(p: MapPoint) => void>(() => {});
   const sheetRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const dragControls = useDragControls();
   const [containerH, setContainerH] = useState(800);
 
   const [query, setQuery] = useState("");
@@ -532,6 +533,8 @@ export function MapScreen({
       <motion.div
         ref={sheetRef}
         drag="y"
+        dragControls={dragControls}
+        dragListener={false}
         dragConstraints={{ top: 0, bottom: 0 }}
         dragElastic={0.12}
         dragMomentum={false}
@@ -542,10 +545,12 @@ export function MapScreen({
       >
         {/* Грань для перетаскивания */}
         <button
+          type="button"
+          onPointerDown={(event) => dragControls.start(event)}
           onClick={() =>
             setSheet(sheet === "collapsed" ? "half" : sheet === "half" ? "full" : "collapsed")
           }
-          className="flex w-full shrink-0 flex-col items-center gap-1 pt-2.5 pb-1"
+          className="flex w-full shrink-0 touch-none flex-col items-center gap-1 pt-2.5 pb-1"
           aria-label="Переключить шторку"
         >
           <div className="h-1.5 w-10 rounded-full bg-neutral-300" />
