@@ -6,6 +6,7 @@ import { AIScreen } from "./screens/AIScreen";
 import { CalendarScreen } from "./screens/CalendarScreen";
 import { ProfileScreen } from "./screens/ProfileScreen";
 import { RestaurantSheet } from "./RestaurantSheet";
+import { XoxoBarSheet } from "./XoxoBarSheet";
 import { PaymentSheet } from "./PaymentSheet";
 import { WaitlistProvider, useWaitlist } from "./waitlist/WaitlistProvider";
 import { ActiveWaitlistWidget } from "./waitlist/ActiveWaitlistWidget";
@@ -93,14 +94,20 @@ export function B2CApp({ onLogout }: { onLogout: () => void }) {
         </AnimatePresence>
 
         <AnimatePresence>
-          {restaurant && (
+          {restaurant && restaurant.id === "xoxo" ? (
+            <XoxoBarSheet
+              key="xoxo"
+              r={restaurant}
+              onClose={() => setRestaurant(null)}
+            />
+          ) : restaurant ? (
             <RestaurantSheet
               key="rest"
               r={restaurant}
               onClose={() => setRestaurant(null)}
               onProceed={(b) => setPayment(b)}
             />
-          )}
+          ) : null}
           {payment && (
             <PaymentSheet
               key="payment"

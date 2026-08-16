@@ -1072,6 +1072,180 @@ export const restaurants: Restaurant[] = [
       },
     ],
   },
+  {
+    id: "xoxo",
+    name: "XOXO SPORTS & LOUNGE",
+    cuisine: "Sports Bar · Lounge",
+    district: "Астана",
+    avgCheck: 5000,
+    rating: 4.7,
+    reviews: 320,
+    distanceKm: 2.1,
+    occupancy: 65,
+    peakHours: "22:00 – 01:00",
+    cover: "/image/xobar1.png",
+    gallery: ["/image/xobar1.png", "/image/xobar2.png", "/image/xobar3.png"],
+    coords: { lng: 71.4308, lat: 51.1284 },
+    description:
+      "Спорт-бар и лаунж с широким выбором напитков, коктейлей и закусок. Трансляции матчей, живая атмосфера.",
+    tags: ["Sports Bar", "Лаунж", "Коктейли"],
+    menu: [
+      {
+        section: "Джин",
+        items: [
+          { id: "xo1", name: "Beefeater", desc: "Классический лондонский сухой джин", price: 2000, weight: 0, kcal: 0, tags: ["джин"], image: img("photo-1514362545857-3bc16c4c7d1b") },
+        ],
+      },
+      {
+        section: "Ром & Ликеры",
+        items: [
+          { id: "xo2", name: "Bacardi black", desc: "Тёмный ром с карамельными нотами", price: 1600, weight: 0, kcal: 0, tags: ["ром"], image: img("photo-1572490122747-3968b75cc699") },
+          { id: "xo3", name: "Oakheart", desc: "Пряный ром с нотами дуба и ванили", price: 2000, weight: 0, kcal: 0, tags: ["ром"], image: img("photo-1572490122747-3968b75cc699") },
+          { id: "xo4", name: "Captain Morgan", desc: "Золотистый пряный ром", price: 1600, weight: 0, kcal: 0, tags: ["ром"], image: img("photo-1572490122747-3968b75cc699") },
+          { id: "xo5", name: "Jaggermeister", desc: "Травяной ликёр, 56 ингредиентов", price: 2000, weight: 0, kcal: 0, tags: ["ликёр"], image: img("photo-1572490122747-3968b75cc699") },
+        ],
+      },
+      {
+        section: "Виски",
+        items: [
+          { id: "xo6", name: "Monkey Shoulder", desc: "Купажированный шотландский виски", price: 3500, weight: 0, kcal: 0, tags: ["виски", "хит 🔥"], image: img("photo-1527281400683-1aae777175f8") },
+          { id: "xo7", name: "Jack Daniels", desc: "Теннессийский виски, фильтрация через уголь", price: 3000, weight: 0, kcal: 0, tags: ["виски"], image: img("photo-1527281400683-1aae777175f8") },
+          { id: "xo8", name: "Chivas", desc: "Купажированный шотландский виски 12 лет", price: 3000, weight: 0, kcal: 0, tags: ["виски"], image: img("photo-1527281400683-1aae777175f8") },
+          { id: "xo9", name: "Jameson", desc: "Ирландский тройной дистилляции", price: 2000, weight: 0, kcal: 0, tags: ["виски"], image: img("photo-1527281400683-1aae777175f8") },
+          { id: "xo10", name: "Ballantines", desc: "Лёгкий купажированный скотч", price: 2000, weight: 0, kcal: 0, tags: ["виски"], image: img("photo-1527281400683-1aae777175f8") },
+        ],
+      },
+      {
+        section: "Водка",
+        items: [
+          { id: "xo11", name: "Absolut", desc: "Шведская пшеничная водка", price: 1450, weight: 0, kcal: 0, tags: ["водка"], image: img("photo-1607622750671-6cd9a99eabd1") },
+          { id: "xo12", name: "Nemiroff", desc: "Украинская премиальная водка", price: 1300, weight: 0, kcal: 0, tags: ["водка"], image: img("photo-1607622750671-6cd9a99eabd1") },
+          { id: "xo13", name: "Хортица ICE", desc: "Мягкая ледяная водка", price: 890, weight: 0, kcal: 0, tags: ["водка"], image: img("photo-1607622750671-6cd9a99eabd1") },
+          { id: "xo14", name: "Кызылжар черный", desc: "Казахстанская водка", price: 790, weight: 0, kcal: 0, tags: ["водка"], image: img("photo-1607622750671-6cd9a99eabd1") },
+        ],
+      },
+      {
+        section: "Пиво бутылочное",
+        items: [
+          { id: "xo15", name: "Holsten", desc: "Классический немецкий лагер", price: 1400, weight: 0, kcal: 0, tags: ["пиво"], image: img("photo-1535958636474-b021ee887b13") },
+          { id: "xo16", name: "Blanc", desc: "Пшеничное нефильтрованное", price: 1700, weight: 0, kcal: 0, tags: ["пиво"], image: img("photo-1535958636474-b021ee887b13") },
+          { id: "xo17", name: "Carlsberg", desc: "Датский лагер", price: 1500, weight: 0, kcal: 0, tags: ["пиво"], image: img("photo-1535958636474-b021ee887b13") },
+          { id: "xo18", name: "Efes", desc: "Турецкий светлый лагер", price: 1500, weight: 0, kcal: 0, tags: ["пиво"], image: img("photo-1535958636474-b021ee887b13") },
+          { id: "xo19", name: "Miller", desc: "Американский лёгкий лагер", price: 1650, weight: 0, kcal: 0, tags: ["пиво"], image: img("photo-1535958636474-b021ee887b13") },
+          { id: "xo20", name: "BUD", desc: "Американский лагер", price: 2190, weight: 0, kcal: 0, tags: ["пиво"], image: img("photo-1535958636474-b021ee887b13") },
+          { id: "xo21", name: "Heineken", desc: "Голландский премиум лагер", price: 2990, weight: 0, kcal: 0, tags: ["пиво", "хит 🔥"], image: img("photo-1535958636474-b021ee887b13") },
+          { id: "xo22", name: "Corona Extra", desc: "Мексиканский лагер с лаймом", price: 2500, weight: 0, kcal: 0, tags: ["пиво"], image: img("photo-1535958636474-b021ee887b13") },
+          { id: "xo23", name: "Stella Artois", desc: "Бельгийский пилснер", price: 2500, weight: 0, kcal: 0, tags: ["пиво"], image: img("photo-1535958636474-b021ee887b13") },
+          { id: "xo24", name: "Hacker Pschorr Munchner Gold", desc: "Баварское золотое пиво", price: 2500, weight: 0, kcal: 0, tags: ["пиво"], image: img("photo-1535958636474-b021ee887b13") },
+          { id: "xo25", name: "Paulaner Wiessbier", desc: "Баварское пшеничное", price: 2500, weight: 0, kcal: 0, tags: ["пиво"], image: img("photo-1535958636474-b021ee887b13") },
+          { id: "xo26", name: "Paulaner Munchner Hell", desc: "Мюнхенский светлый лагер", price: 2500, weight: 0, kcal: 0, tags: ["пиво"], image: img("photo-1535958636474-b021ee887b13") },
+          { id: "xo27", name: "Staropramen", desc: "Чешский лагер из Праги", price: 2500, weight: 0, kcal: 0, tags: ["пиво"], image: img("photo-1535958636474-b021ee887b13") },
+          { id: "xo28", name: "Безалкогольное Tsingtao", desc: "Китайское безалкогольное пиво", price: 2500, weight: 0, kcal: 0, tags: ["пиво", "безалкогольное"], image: img("photo-1535958636474-b021ee887b13") },
+          { id: "xo29", name: "Hoegaarden", desc: "Бельгийское белое пшеничное", price: 2500, weight: 0, kcal: 0, tags: ["пиво"], image: img("photo-1535958636474-b021ee887b13") },
+        ],
+      },
+      {
+        section: "Пивные напитки",
+        items: [
+          { id: "xo30", name: "Garage", desc: "Пивной напиток со вкусом лимона", price: 1500, weight: 0, kcal: 0, tags: ["пивной напиток"], image: img("photo-1558642452-9d2a7deb7f62") },
+          { id: "xo31", name: "Lab Rioni", desc: "Грузинский пивной напиток", price: 1500, weight: 0, kcal: 0, tags: ["пивной напиток"], image: img("photo-1558642452-9d2a7deb7f62") },
+          { id: "xo32", name: "Somersby", desc: "Яблочный сидр", price: 1500, weight: 0, kcal: 0, tags: ["сидр"], image: img("photo-1558642452-9d2a7deb7f62") },
+          { id: "xo33", name: "Chester", desc: "Английский пивной напиток", price: 2500, weight: 0, kcal: 0, tags: ["пивной напиток"], image: img("photo-1558642452-9d2a7deb7f62") },
+        ],
+      },
+      {
+        section: "Закуски",
+        items: [
+          { id: "xo34", name: "Соленый арахис", desc: "Классическая барная закуска", price: 1500, weight: 0, kcal: 0, tags: ["закуска"], image: img("photo-1621939514649-280e2ee25f60") },
+          { id: "xo35", name: "Миндаль", desc: "Жареный солёный миндаль", price: 1500, weight: 0, kcal: 0, tags: ["закуска"], image: img("photo-1621939514649-280e2ee25f60") },
+          { id: "xo36", name: "Фисташки", desc: "Солёные фисташки в скорлупе", price: 1800, weight: 0, kcal: 0, tags: ["закуска", "хит 🔥"], image: img("photo-1621939514649-280e2ee25f60") },
+          { id: "xo37", name: "Чечил", desc: "Копчёный сыр косичкой", price: 1500, weight: 0, kcal: 0, tags: ["закуска"], image: img("photo-1621939514649-280e2ee25f60") },
+          { id: "xo38", name: "Сухарики", desc: "Ржаные сухарики с чесноком", price: 1500, weight: 0, kcal: 0, tags: ["закуска"], image: img("photo-1621939514649-280e2ee25f60") },
+          { id: "xo39", name: "Чипсы Lays", desc: "Картофельные чипсы", price: 1500, weight: 0, kcal: 0, tags: ["закуска"], image: img("photo-1621939514649-280e2ee25f60") },
+        ],
+      },
+      {
+        section: "Безалкогольные напитки",
+        items: [
+          { id: "xo40", name: "Coca-Cola", desc: "250мл / 500мл / 1Л / 1.5Л / 2Л — 1 100 / 1 000 / 1 500 / 1 800 / 2 300 ₸", price: 1000, weight: 0, kcal: 0, tags: ["газировка"], image: img("photo-1622483767028-3f66f32aef97") },
+          { id: "xo41", name: "Fanta", desc: "250мл / 500мл / 1Л / 1.5Л / 2Л — 1 100 / 1 000 / 1 500 / 1 800 / 2 300 ₸", price: 1000, weight: 0, kcal: 0, tags: ["газировка"], image: img("photo-1622483767028-3f66f32aef97") },
+          { id: "xo42", name: "Sprite", desc: "250мл / 500мл / 1Л / 1.5Л / 2Л — 1 100 / 1 000 / 1 500 / 1 800 / 2 300 ₸", price: 1000, weight: 0, kcal: 0, tags: ["газировка"], image: img("photo-1622483767028-3f66f32aef97") },
+          { id: "xo43", name: "Fuse Tea", desc: "Холодный чай, 500 мл", price: 1500, weight: 0, kcal: 0, tags: ["чай"], image: img("photo-1622483767028-3f66f32aef97") },
+        ],
+      },
+      {
+        section: "Коктейли",
+        items: [
+          { id: "xo44", name: "RED BULL VODKA", desc: "Водка с энергетиком Red Bull", price: 3200, weight: 0, kcal: 0, tags: ["коктейль"], image: img("photo-1514362545857-3bc16c4c7d1b") },
+          { id: "xo45", name: "RED BULL JAGER", desc: "Jägermeister с Red Bull", price: 3200, weight: 0, kcal: 0, tags: ["коктейль"], image: img("photo-1514362545857-3bc16c4c7d1b") },
+          { id: "xo46", name: "GIN TONIC", desc: "Классический джин-тоник", price: 3200, weight: 0, kcal: 0, tags: ["коктейль"], image: img("photo-1514362545857-3bc16c4c7d1b") },
+          { id: "xo47", name: "RED BULL WHISKY", desc: "Виски с Red Bull", price: 3200, weight: 0, kcal: 0, tags: ["коктейль"], image: img("photo-1514362545857-3bc16c4c7d1b") },
+          { id: "xo48", name: "Mojito", desc: "Классический мохито с мятой и лаймом", price: 2800, weight: 0, kcal: 0, tags: ["коктейль", "хит 🔥"], image: img("photo-1514362545857-3bc16c4c7d1b") },
+          { id: "xo49", name: "Long Island", desc: "Лонг Айленд Айс Ти", price: 3500, weight: 0, kcal: 0, tags: ["коктейль"], image: img("photo-1514362545857-3bc16c4c7d1b") },
+          { id: "xo50", name: "Whisky Sour", desc: "Виски, лимонный сок, сахарный сироп", price: 3200, weight: 0, kcal: 0, tags: ["коктейль"], image: img("photo-1514362545857-3bc16c4c7d1b") },
+        ],
+      },
+      {
+        section: "Разливные напитки",
+        items: [
+          { id: "xo51", name: "Квас", desc: "Домашний квас", price: 890, weight: 0, kcal: 0, tags: ["разливное"], image: img("photo-1535958636474-b021ee887b13") },
+          { id: "xo52", name: "Лимонад", desc: "Свежий домашний лимонад", price: 890, weight: 0, kcal: 0, tags: ["разливное"], image: img("photo-1535958636474-b021ee887b13") },
+          { id: "xo53", name: "Немецкое", desc: "500 мл / 3 Л — 1 190 / 6 000 ₸", price: 1190, weight: 0, kcal: 0, tags: ["пиво", "разливное"], image: img("photo-1535958636474-b021ee887b13") },
+          { id: "xo54", name: "Carlsberg", desc: "Разливное, 500 мл / 3 Л — 1 500 / 8 500 ₸", price: 1500, weight: 0, kcal: 0, tags: ["пиво", "разливное"], image: img("photo-1535958636474-b021ee887b13") },
+        ],
+      },
+      {
+        section: "Энергетики и Соки",
+        items: [
+          { id: "xo55", name: "Maxi Чай", desc: "Холодный чай Maxi", price: 1500, weight: 0, kcal: 0, tags: ["чай"], image: img("photo-1622483767028-3f66f32aef97") },
+          { id: "xo56", name: "Натуральный сок", desc: "Свежевыжатый натуральный сок", price: 2500, weight: 0, kcal: 0, tags: ["сок"], image: img("photo-1622483767028-3f66f32aef97") },
+          { id: "xo57", name: "Gorilla", desc: "Энергетический напиток", price: 1500, weight: 0, kcal: 0, tags: ["энергетик"], image: img("photo-1622483767028-3f66f32aef97") },
+          { id: "xo58", name: "Dizzy", desc: "Энергетический напиток", price: 1500, weight: 0, kcal: 0, tags: ["энергетик"], image: img("photo-1622483767028-3f66f32aef97") },
+          { id: "xo59", name: "Red bull", desc: "Энергетический напиток 250 мл", price: 2000, weight: 0, kcal: 0, tags: ["энергетик"], image: img("photo-1622483767028-3f66f32aef97") },
+        ],
+      },
+      {
+        section: "Минеральная вода",
+        items: [
+          { id: "xo60", name: "Borjomi", desc: "Грузинская минеральная вода", price: 2000, weight: 0, kcal: 0, tags: ["вода"], image: img("photo-1548839140-29a749e1cf4d") },
+          { id: "xo61", name: "Tassay", desc: "250мл стекло / 500мл стекло / 500мл / 1Л — 900 / 1 000 / 900 / 1 500 ₸", price: 900, weight: 0, kcal: 0, tags: ["вода"], image: img("photo-1548839140-29a749e1cf4d") },
+          { id: "xo62", name: "Сарыагаш", desc: "Казахстанская минеральная вода", price: 1000, weight: 0, kcal: 0, tags: ["вода"], image: img("photo-1548839140-29a749e1cf4d") },
+        ],
+      },
+      {
+        section: "Лимонады",
+        items: [
+          { id: "xo63", name: "Ягодный", desc: "Домашний ягодный лимонад", price: 2490, weight: 0, kcal: 0, tags: ["лимонад"], image: img("photo-1513558161293-cdaf765ed514") },
+          { id: "xo64", name: "Апельсин", desc: "Свежий апельсиновый лимонад", price: 2490, weight: 0, kcal: 0, tags: ["лимонад"], image: img("photo-1513558161293-cdaf765ed514") },
+          { id: "xo65", name: "Манго маракуйя", desc: "Тропический лимонад манго-маракуйя", price: 2490, weight: 0, kcal: 0, tags: ["лимонад"], image: img("photo-1513558161293-cdaf765ed514") },
+          { id: "xo66", name: "Киви лайм", desc: "Освежающий лимонад киви-лайм", price: 2490, weight: 0, kcal: 0, tags: ["лимонад"], image: img("photo-1513558161293-cdaf765ed514") },
+          { id: "xo67", name: "Мохито", desc: "Безалкогольный мохито-лимонад", price: 2490, weight: 0, kcal: 0, tags: ["лимонад"], image: img("photo-1513558161293-cdaf765ed514") },
+        ],
+      },
+      {
+        section: "Горячие напитки",
+        items: [
+          { id: "xo68", name: "Ташкентский чай", desc: "Классический узбекский зелёный чай с лимоном", price: 2590, weight: 0, kcal: 0, tags: ["чай", "горячее"], image: img("photo-1544787219-7f47ccb76574") },
+          { id: "xo69", name: "Облепиховый чай", desc: "Горячий чай с облепихой и мёдом", price: 2590, weight: 0, kcal: 0, tags: ["чай", "горячее"], image: img("photo-1544787219-7f47ccb76574") },
+          { id: "xo70", name: "Малиновый чай", desc: "Ягодный чай с малиной", price: 2590, weight: 0, kcal: 0, tags: ["чай", "горячее"], image: img("photo-1544787219-7f47ccb76574") },
+          { id: "xo71", name: "Смородиновый чай", desc: "Чай с чёрной смородиной", price: 2590, weight: 0, kcal: 0, tags: ["чай", "горячее"], image: img("photo-1544787219-7f47ccb76574") },
+        ],
+      },
+    ],
+    specials: [
+      {
+        id: "xo_sp1",
+        name: "Game Night Combo",
+        desc: "2 пива + закуска на выбор",
+        price: 3500,
+        weight: 0,
+        kcal: 0,
+        tags: ["комбо"],
+        image: "/image/xobar2.png",
+        special: "−25%",
+      },
+    ],
+  },
 ];
 
 /* ── Lifestyle-хаб: категории, заведения, афиша, сторис ───────────── */
