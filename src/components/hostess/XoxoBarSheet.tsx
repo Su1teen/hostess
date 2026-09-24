@@ -11,8 +11,10 @@ import {
   ChevronDown,
   Check,
   ShoppingBag,
+  UserRound,
 } from "lucide-react";
 import { money, type Restaurant, type Dish } from "@/data/hostess";
+import { addXoxoOrder, addXoxoVisit, readXoxoAccount, xoxoCashback } from "@/lib/xoxo-loyalty";
 import { DishModal } from "./DishModal";
 import type { PreorderItem } from "./types";
 import { toast } from "sonner";
@@ -96,11 +98,13 @@ export function XoxoBarSheet({
       ? r.menu
       : r.menu.filter((sec) => sec.section === activeCategory);
 
-  const previewItems = r.menu.flatMap((sec) => sec.items).slice(0, 4);
+  const previewItems = r.menu.filter((sec) => ["Коктейли", "Лимонады", "Горячие напитки"].includes(sec.section)).flatMap((sec) => sec.items).slice(0, 4);
 
   /* ── Preorder ── */
   const [preorder, setPreorder] = useState<PreorderItem[]>([]);
   const [preorderEnabled, setPreorderEnabled] = useState(false);
+  const [account, setAccount] = useState(readXoxoAccount);
+  const [accountOpen, setAccountOpen] = useState(false);
 
   const addToPreorder = useCallback((d: Dish, qty: number) => {
     setPreorder((prev) => {
@@ -128,6 +132,15 @@ export function XoxoBarSheet({
     (s, p) => s + p.dish.price * p.qty,
     0,
   );
+  const orderItems = () => preorder.map(({ dish, qty }) => ({ name: dish.name, quantity: qty, price: dish.price }));
+
+  const purchaseNow = () => {
+    if (!preorder.length) return;
+    setAccount(addXoxoOrder("Покупка", orderItems()));
+    setPreorder([]);
+    setPreorderEnabled(false);
+    toast.success(`Покупка записана · кэшбэк ${money(Math.round(preorderTotal * 0.05))}`);
+  };
 
   /* ── Booking form ── */
   const [name, setName] = useState("Султан");
@@ -172,6 +185,9 @@ export function XoxoBarSheet({
     }
     if (hasError) return;
 
+    let next = addXoxoVisit(guests, time);
+    if (preorderEnabled && preorder.length) next = addXoxoOrder("Предзаказ", orderItems());
+    setAccount(next);
     setBooked(true);
     toast.success("Бронь подтверждена!");
   };
@@ -234,6 +250,13 @@ export function XoxoBarSheet({
             className="absolute left-4 top-14 grid h-10 w-10 place-items-center rounded-full bg-white/90 backdrop-blur shadow-soft"
           >
             <X className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => setAccountOpen(true)}
+            className="absolute right-4 top-14 flex h-10 items-center gap-2 rounded-full bg-white/95 px-3 text-xs font-semibold text-neutral-900 shadow-soft"
+          >
+            <UserRound className="h-4 w-4" /> Кабинет
           </button>
 
           {/* Dot indicators */}
@@ -303,7 +326,7 @@ export function XoxoBarSheet({
               {["Все", ...r.menu.map((s) => s.section)].map((cat) => (
                 <button
                   key={cat}
-                  onClick={() => setActiveCategory(cat)}
+                  onClick={() => { setActiveCategory(cat); setMenuExpanded(true); }}
                   className={`shrink-0 rounded-2xl px-3.5 py-2.5 text-xs font-medium transition-colors ${
                     activeCategory === cat
                       ? "bg-neutral-900 text-white"
@@ -628,6 +651,8 @@ export function XoxoBarSheet({
                             {money(preorderTotal)}
                           </p>
                         </div>
+                        <p className="mt-2 text-xs font-medium text-emerald-700">Вернём {money(Math.round(preorderTotal * 0.05))} · 5%</p>
+                        <button type="button" onClick={purchaseNow} className="mt-3 min-h-11 w-full rounded-xl bg-emerald-700 px-4 text-sm font-semibold text-white">Оплатить покупку · {money(preorderTotal)}</button>
                       </>
                     )}
                   </div>
@@ -649,6 +674,18 @@ export function XoxoBarSheet({
 
       {/* ── DishModal drill-down ─────────────────────────────────── */}
       <AnimatePresence>
+        {accountOpen && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 z-[150] bg-black/50" onClick={() => setAccountOpen(false)}>
+            <motion.section initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} transition={{ type: "spring", stiffness: 280, damping: 30 }} onClick={(event) => event.stopPropagation()} className="absolute inset-x-0 bottom-0 max-h-[88%] overflow-y-auto rounded-t-[32px] bg-[#f7f5f0] px-5 pb-[calc(24px+env(safe-area-inset-bottom))] pt-5 text-neutral-950">
+              <div className="mb-5 flex items-center justify-between"><div><p className="text-xs font-semibold uppercase tracking-[.2em] text-emerald-700">XOXO · мой кабинет</p><h2 className="mt-1 text-2xl font-semibold">Советов Султан</h2></div><button type="button" onClick={() => setAccountOpen(false)} className="grid h-10 w-10 place-items-center rounded-full bg-white" aria-label="Закрыть кабинет"><X className="h-5 w-5" /></button></div>
+              <div className="rounded-[28px] bg-[#142a25] p-5 text-white"><p className="text-sm text-emerald-200">Кэшбэк · 5% с заказа</p><p className="mt-4 text-4xl font-semibold tabular-nums">{money(xoxoCashback(account))}</p><p className="mt-2 text-xs text-white/65">Начисляется после оформления предзаказа или покупки в демо</p></div>
+              <h3 className="mb-3 mt-6 text-lg font-semibold">Заказы</h3>
+              <div className="space-y-2">{account.orders.map((order) => <div key={order.id} className="rounded-2xl bg-white p-4"><div className="flex justify-between gap-3"><div><p className="font-semibold">{order.kind}</p><p className="mt-1 text-xs text-neutral-500">{new Date(order.date).toLocaleDateString("ru-RU")} · {order.items.map((item) => `${item.name} ×${item.quantity}`).join(", ")}</p></div><div className="shrink-0 text-right"><p className="font-semibold">{money(order.total)}</p><p className="mt-1 text-xs font-semibold text-emerald-700">+{money(order.cashback)}</p></div></div></div>)}</div>
+              <h3 className="mb-3 mt-6 text-lg font-semibold">Посещения XOXO</h3>
+              <div className="space-y-2">{account.visits.map((visit) => <div key={visit.id} className="flex justify-between rounded-2xl bg-white p-4 text-sm"><span>{new Date(visit.date).toLocaleDateString("ru-RU")} · {visit.time}</span><span className="font-semibold">{guestLabel(visit.guests)}</span></div>)}</div>
+            </motion.section>
+          </motion.div>
+        )}
         {dish && (
           <DishModal
             dish={dish}

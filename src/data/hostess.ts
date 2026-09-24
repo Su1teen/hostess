@@ -1167,9 +1167,10 @@ export const restaurants: Restaurant[] = [
       {
         section: "Безалкогольные напитки",
         items: [
-          { id: "xo40", name: "Coca-Cola", desc: "250мл / 500мл / 1Л / 1.5Л / 2Л — 1 100 / 1 000 / 1 500 / 1 800 / 2 300 ₸", price: 1000, weight: 0, kcal: 0, tags: ["газировка"], image: img("photo-1622483767028-3f66f32aef97") },
-          { id: "xo41", name: "Fanta", desc: "250мл / 500мл / 1Л / 1.5Л / 2Л — 1 100 / 1 000 / 1 500 / 1 800 / 2 300 ₸", price: 1000, weight: 0, kcal: 0, tags: ["газировка"], image: img("photo-1622483767028-3f66f32aef97") },
-          { id: "xo42", name: "Sprite", desc: "250мл / 500мл / 1Л / 1.5Л / 2Л — 1 100 / 1 000 / 1 500 / 1 800 / 2 300 ₸", price: 1000, weight: 0, kcal: 0, tags: ["газировка"], image: img("photo-1622483767028-3f66f32aef97") },
+          ...["Coca-Cola", "Fanta", "Sprite"].flatMap((name, brand) => [
+            { volume: "250 мл · стекло", price: 1100 }, { volume: "500 мл", price: 1000 },
+            { volume: "1 л", price: 1500 }, { volume: "1,5 л", price: 1800 }, { volume: "2 л", price: 2300 },
+          ].map((variant, size) => ({ id: `xo-soda-${brand}-${size}`, name: `${name} · ${variant.volume}`, desc: "Газированный напиток", price: variant.price, weight: 0, kcal: 0, tags: ["газировка"], image: img("photo-1622483767028-3f66f32aef97") }))),
           { id: "xo43", name: "Fuse Tea", desc: "Холодный чай, 500 мл", price: 1500, weight: 0, kcal: 0, tags: ["чай"], image: img("photo-1622483767028-3f66f32aef97") },
         ],
       },
@@ -1190,8 +1191,10 @@ export const restaurants: Restaurant[] = [
         items: [
           { id: "xo51", name: "Квас", desc: "Домашний квас", price: 890, weight: 0, kcal: 0, tags: ["разливное"], image: img("photo-1535958636474-b021ee887b13") },
           { id: "xo52", name: "Лимонад", desc: "Свежий домашний лимонад", price: 890, weight: 0, kcal: 0, tags: ["разливное"], image: img("photo-1535958636474-b021ee887b13") },
-          { id: "xo53", name: "Немецкое", desc: "500 мл / 3 Л — 1 190 / 6 000 ₸", price: 1190, weight: 0, kcal: 0, tags: ["пиво", "разливное"], image: img("photo-1535958636474-b021ee887b13") },
-          { id: "xo54", name: "Carlsberg", desc: "Разливное, 500 мл / 3 Л — 1 500 / 8 500 ₸", price: 1500, weight: 0, kcal: 0, tags: ["пиво", "разливное"], image: img("photo-1535958636474-b021ee887b13") },
+          { id: "xo53", name: "Немецкое · 500 мл", desc: "Разливное пиво", price: 1190, weight: 0, kcal: 0, tags: ["пиво", "разливное"], image: img("photo-1535958636474-b021ee887b13") },
+          { id: "xo53-3l", name: "Немецкое · 3 л", desc: "Разливное пиво", price: 6000, weight: 0, kcal: 0, tags: ["пиво", "разливное"], image: img("photo-1535958636474-b021ee887b13") },
+          { id: "xo54", name: "Carlsberg · 500 мл", desc: "Разливное пиво", price: 1500, weight: 0, kcal: 0, tags: ["пиво", "разливное"], image: img("photo-1535958636474-b021ee887b13") },
+          { id: "xo54-3l", name: "Carlsberg · 3 л", desc: "Разливное пиво", price: 8500, weight: 0, kcal: 0, tags: ["пиво", "разливное"], image: img("photo-1535958636474-b021ee887b13") },
         ],
       },
       {
@@ -1208,7 +1211,7 @@ export const restaurants: Restaurant[] = [
         section: "Минеральная вода",
         items: [
           { id: "xo60", name: "Borjomi", desc: "Грузинская минеральная вода", price: 2000, weight: 0, kcal: 0, tags: ["вода"], image: img("photo-1548839140-29a749e1cf4d") },
-          { id: "xo61", name: "Tassay", desc: "250мл стекло / 500мл стекло / 500мл / 1Л — 900 / 1 000 / 900 / 1 500 ₸", price: 900, weight: 0, kcal: 0, tags: ["вода"], image: img("photo-1548839140-29a749e1cf4d") },
+          ...[{ name: "Tassay · 250 мл стекло", price: 900 }, { name: "Tassay · 500 мл стекло", price: 1000 }, { name: "Tassay · 500 мл", price: 900 }, { name: "Tassay · 1 л", price: 1500 }, { name: "Tassay газ · 500 мл", price: 900 }].map((variant, index) => ({ id: `xo-water-${index}`, name: variant.name, desc: "Минеральная вода", price: variant.price, weight: 0, kcal: 0, tags: ["вода"], image: img("photo-1548839140-29a749e1cf4d") })),
           { id: "xo62", name: "Сарыагаш", desc: "Казахстанская минеральная вода", price: 1000, weight: 0, kcal: 0, tags: ["вода"], image: img("photo-1548839140-29a749e1cf4d") },
         ],
       },
@@ -1216,7 +1219,7 @@ export const restaurants: Restaurant[] = [
         section: "Лимонады",
         items: [
           { id: "xo63", name: "Ягодный", desc: "Домашний ягодный лимонад", price: 2490, weight: 0, kcal: 0, tags: ["лимонад"], image: img("photo-1513558161293-cdaf765ed514") },
-          { id: "xo64", name: "Апельсин", desc: "Свежий апельсиновый лимонад", price: 2490, weight: 0, kcal: 0, tags: ["лимонад"], image: img("photo-1513558161293-cdaf765ed514") },
+          { id: "xo64", name: "Арбузный", desc: "Домашний арбузный лимонад", price: 2490, weight: 0, kcal: 0, tags: ["лимонад"], image: img("photo-1513558161293-cdaf765ed514") },
           { id: "xo65", name: "Манго маракуйя", desc: "Тропический лимонад манго-маракуйя", price: 2490, weight: 0, kcal: 0, tags: ["лимонад"], image: img("photo-1513558161293-cdaf765ed514") },
           { id: "xo66", name: "Киви лайм", desc: "Освежающий лимонад киви-лайм", price: 2490, weight: 0, kcal: 0, tags: ["лимонад"], image: img("photo-1513558161293-cdaf765ed514") },
           { id: "xo67", name: "Мохито", desc: "Безалкогольный мохито-лимонад", price: 2490, weight: 0, kcal: 0, tags: ["лимонад"], image: img("photo-1513558161293-cdaf765ed514") },
@@ -1225,7 +1228,7 @@ export const restaurants: Restaurant[] = [
       {
         section: "Горячие напитки",
         items: [
-          { id: "xo68", name: "Ташкентский чай", desc: "Классический узбекский зелёный чай с лимоном", price: 2590, weight: 0, kcal: 0, tags: ["чай", "горячее"], image: img("photo-1544787219-7f47ccb76574") },
+          { id: "xo68", name: "Тамерланский чай", desc: "Горячий чай", price: 2590, weight: 0, kcal: 0, tags: ["чай", "горячее"], image: img("photo-1544787219-7f47ccb76574") },
           { id: "xo69", name: "Облепиховый чай", desc: "Горячий чай с облепихой и мёдом", price: 2590, weight: 0, kcal: 0, tags: ["чай", "горячее"], image: img("photo-1544787219-7f47ccb76574") },
           { id: "xo70", name: "Малиновый чай", desc: "Ягодный чай с малиной", price: 2590, weight: 0, kcal: 0, tags: ["чай", "горячее"], image: img("photo-1544787219-7f47ccb76574") },
           { id: "xo71", name: "Смородиновый чай", desc: "Чай с чёрной смородиной", price: 2590, weight: 0, kcal: 0, tags: ["чай", "горячее"], image: img("photo-1544787219-7f47ccb76574") },
