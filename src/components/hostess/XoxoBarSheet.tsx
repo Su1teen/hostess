@@ -18,6 +18,7 @@ import { addXoxoOrder, addXoxoVisit, readXoxoAccount, xoxoCashback } from "@/lib
 import { DishModal } from "./DishModal";
 import type { PreorderItem } from "./types";
 import { toast } from "sonner";
+import { findXoxoExchangeProduct, useXoxoExchange } from "@/hooks/useXoxoExchange";
 
 /* ── Helpers ──────────────────────────────────────────────────────── */
 
@@ -92,6 +93,10 @@ export function XoxoBarSheet({
   const [dish, setDish] = useState<Dish | null>(null);
   const [menuExpanded, setMenuExpanded] = useState(false);
   const menuCount = totalMenuItems(r.menu);
+  const exchange = useXoxoExchange();
+  const liveProduct = (item: Dish) => findXoxoExchangeProduct(item.name, exchange.products);
+  const priceOf = (item: Dish) => liveProduct(item)?.price ?? item.price;
+  const selectDish = (item: Dish) => setDish({ ...item, price: priceOf(item) });
 
   const filteredSections =
     activeCategory === "Все"
@@ -128,11 +133,8 @@ export function XoxoBarSheet({
     }
   };
 
-  const preorderTotal = preorder.reduce(
-    (s, p) => s + p.dish.price * p.qty,
-    0,
-  );
-  const orderItems = () => preorder.map(({ dish, qty }) => ({ name: dish.name, quantity: qty, price: dish.price }));
+  const preorderTotal = preorder.reduce((s, p) => s + priceOf(p.dish) * p.qty, 0);
+  const orderItems = () => preorder.map(({ dish: item, qty }) => ({ name: item.name, quantity: qty, price: priceOf(item) }));
 
   const purchaseNow = () => {
     if (!preorder.length) return;
@@ -320,6 +322,16 @@ export function XoxoBarSheet({
                 {menuCount} позиций
               </span>
             </h3>
+            <div className="mb-3 flex items-center justify-between rounded-2xl bg-[#171a1d] px-3.5 py-3 text-white">
+              <div className="flex min-w-0 items-center gap-2.5">
+                <span className={`h-2 w-2 shrink-0 rounded-full ${exchange.connected ? "bg-emerald-400" : "bg-amber-400"}`} />
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold">Биржа {exchange.connected ? "в эфире" : "ожидает соединения"}</p>
+                  <p className="mt-0.5 truncate text-[10px] text-white/55">{exchange.roundKey ? `Раунд ${exchange.roundKey}` : "Цены меню доступны"}{exchange.updatedAt ? ` · ${new Date(exchange.updatedAt).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}` : ""}</p>
+                </div>
+              </div>
+              <span className="shrink-0 text-[10px] text-white/45">авто · 30 сек</span>
+            </div>
 
             {/* Category tabs */}
             <div className="no-scrollbar -mx-5 flex gap-2 overflow-x-auto px-5 pb-3">
@@ -345,7 +357,7 @@ export function XoxoBarSheet({
                   <motion.button
                     key={d.id}
                     whileTap={{ scale: 0.98 }}
-                    onClick={() => setDish(d)}
+                    onClick={() => selectDish(d)}
                     className="flex w-full items-center gap-3 rounded-2xl bg-white p-3 text-left shadow-soft"
                   >
                     <img
@@ -362,7 +374,7 @@ export function XoxoBarSheet({
                       </p>
                     </div>
                     <p className="text-[13px] font-semibold text-primary">
-                      {money(d.price)}
+                      <span className="text-right">{money(priceOf(d))}{liveProduct(d) && <span className={`mt-1 block text-[10px] ${liveProduct(d)!.changePercent > 0 ? "text-rose-600" : liveProduct(d)!.changePercent < 0 ? "text-emerald-700" : "text-neutral-400"}`}>{liveProduct(d)!.changePercent > 0 ? "↗" : liveProduct(d)!.changePercent < 0 ? "↘" : "→"} {Math.abs(liveProduct(d)!.changePercent).toFixed(1)}% · мин. {money(liveProduct(d)!.minPrice)} · меню {money(liveProduct(d)!.originalPrice)}</span>}</span>
                     </p>
                   </motion.button>
                 ))}
@@ -410,7 +422,7 @@ export function XoxoBarSheet({
                             <motion.button
                               key={d.id}
                               whileTap={{ scale: 0.98 }}
-                              onClick={() => setDish(d)}
+                              onClick={() => selectDish(d)}
                               className="flex w-full items-center gap-3 rounded-2xl bg-white p-3 text-left shadow-soft"
                             >
                               <img
@@ -427,7 +439,7 @@ export function XoxoBarSheet({
                                 </p>
                               </div>
                               <p className="shrink-0 text-[13px] font-semibold text-primary">
-                                {money(d.price)}
+                                <span className="text-right">{money(priceOf(d))}{liveProduct(d) && <span className={`mt-1 block text-[10px] ${liveProduct(d)!.changePercent > 0 ? "text-rose-600" : liveProduct(d)!.changePercent < 0 ? "text-emerald-700" : "text-neutral-400"}`}>{liveProduct(d)!.changePercent > 0 ? "↗" : liveProduct(d)!.changePercent < 0 ? "↘" : "→"} {Math.abs(liveProduct(d)!.changePercent).toFixed(1)}% · мин. {money(liveProduct(d)!.minPrice)} · меню {money(liveProduct(d)!.originalPrice)}</span>}</span>
                               </p>
                             </motion.button>
                           ))}
@@ -615,7 +627,7 @@ export function XoxoBarSheet({
                                   {p.dish.name}
                                 </p>
                                 <p className="text-[10px] text-neutral-500">
-                                  {money(p.dish.price)} × {p.qty}
+                                  {money(priceOf(p.dish))} × {p.qty}
                                 </p>
                               </div>
                               <div className="flex items-center gap-1.5">
@@ -640,7 +652,7 @@ export function XoxoBarSheet({
                                 </button>
                               </div>
                               <p className="w-20 text-right text-xs font-semibold">
-                                {money(p.dish.price * p.qty)}
+                                {money(priceOf(p.dish) * p.qty)}
                               </p>
                             </div>
                           ))}
@@ -688,7 +700,7 @@ export function XoxoBarSheet({
         )}
         {dish && (
           <DishModal
-            dish={dish}
+            dish={{ ...dish, price: priceOf(dish) }}
             onClose={() => setDish(null)}
             onAdd={addToPreorder}
           />
