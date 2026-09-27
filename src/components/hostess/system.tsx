@@ -26,7 +26,7 @@ type ButtonVariant = "primary" | "secondary" | "outline" | "ghost" | "light";
 type ButtonSize = "lg" | "md" | "sm";
 
 const buttonVariant: Record<ButtonVariant, string> = {
-  primary: "bg-ink text-white shadow-[0_10px_24px_-12px_rgb(23_21_15/0.55)]",
+  primary: "bg-ink text-white",
   secondary: "bg-stone text-ink",
   outline: "bg-transparent text-ink shadow-[inset_0_0_0_1px_var(--hs-line-strong)]",
   ghost: "bg-transparent text-ink",
@@ -34,9 +34,9 @@ const buttonVariant: Record<ButtonVariant, string> = {
 };
 
 const buttonSize: Record<ButtonSize, string> = {
-  lg: "h-14 rounded-btn px-6 text-[16px]",
-  md: "h-12 rounded-[18px] px-5 text-[15px]",
-  sm: "h-9 rounded-[14px] px-3.5 text-[13px]",
+  lg: "h-[54px] rounded-btn px-6 text-[16px]",
+  md: "h-12 rounded-[14px] px-5 text-[15px]",
+  sm: "h-9 rounded-[12px] px-3.5 text-[13px]",
 };
 
 export function Button({
@@ -70,7 +70,7 @@ type IconButtonVariant = "surface" | "photo" | "stone" | "plain" | "ink";
 
 const iconButtonVariant: Record<IconButtonVariant, string> = {
   surface: "bg-white text-ink shadow-soft",
-  photo: "frost-photo text-ink shadow-[0_4px_14px_-6px_rgb(0_0_0/0.3)]",
+  photo: "frost-photo text-ink shadow-[0_2px_10px_-4px_rgb(0_0_0/0.25)]",
   stone: "bg-stone text-ink",
   plain: "text-ink",
   ink: "bg-ink text-white",
@@ -293,23 +293,27 @@ export function LiveDot({
   tone,
   pulse = false,
   size = 7,
+  hollow = false,
 }: {
   tone: LiveTone;
   pulse?: boolean;
   size?: number;
+  /** Estimated (not verified) data is drawn as an outline. */
+  hollow?: boolean;
 }) {
+  const color = toneColor[tone];
   return (
     <span className="relative inline-flex shrink-0" style={{ width: size, height: size }}>
-      {pulse && (
+      {pulse && !hollow && (
         <span
           className="absolute inset-0 rounded-full"
-          style={{
-            background: toneColor[tone],
-            animation: "hs-live-pulse 1.8s var(--ease-out-quint) infinite",
-          }}
+          style={{ background: color, animation: "hs-live-pulse 2.2s var(--ease-out-quint) infinite" }}
         />
       )}
-      <span className="relative h-full w-full rounded-full" style={{ background: toneColor[tone] }} />
+      <span
+        className="relative h-full w-full rounded-full"
+        style={hollow ? { boxShadow: `inset 0 0 0 1.5px ${color}` } : { background: color }}
+      />
     </span>
   );
 }
@@ -319,28 +323,79 @@ export function LiveStatus({
   className,
   light,
   showPercent = true,
+  label: labelOverride,
+  estimated = false,
 }: {
   occupancy: number;
   className?: string;
   light?: boolean;
   showPercent?: boolean;
+  label?: string;
+  estimated?: boolean;
 }) {
   const { tone, label } = occupancyLevel(occupancy);
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 text-[12.5px] font-medium",
+        "inline-flex min-w-0 items-center gap-1.5 text-[12.5px] font-medium",
         light ? "text-white" : "text-ink",
         className,
       )}
     >
-      <LiveDot tone={tone} pulse={tone === "live"} />
-      {label}
-      {showPercent && (
-        <span className={cn("t-num font-normal", light ? "text-white/65" : "text-ink-3")}>
+      <LiveDot tone={tone} pulse={tone === "live" && !estimated} hollow={estimated} />
+      <span className="truncate">{labelOverride ?? label}</span>
+      {showPercent && !estimated && (
+        <span className={cn("t-num shrink-0 font-normal", light ? "text-white/65" : "text-ink-3")}>
           · {occupancy}%
         </span>
       )}
+    </span>
+  );
+}
+
+/**
+ * Thin occupancy arc (Flighty-precise). Verified = solid arc proportional
+ * to load; estimated = dashed ring in the state colour, no exact value.
+ */
+export function OccupancyRing({
+  value,
+  size = 36,
+  stroke = 2.5,
+  estimated = false,
+  track = "rgb(17 18 20 / 0.08)",
+  children,
+  className,
+}: {
+  value: number;
+  size?: number;
+  stroke?: number;
+  estimated?: boolean;
+  track?: string;
+  children?: ReactNode;
+  className?: string;
+}) {
+  const r = (size - stroke) / 2;
+  const c = 2 * Math.PI * r;
+  const { tone } = occupancyLevel(value);
+  return (
+    <span className={cn("relative inline-grid shrink-0 place-items-center", className)} style={{ width: size, height: size }}>
+      <svg width={size} height={size} className="absolute inset-0 -rotate-90">
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={track} strokeWidth={stroke} />
+        <motion.circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          fill="none"
+          stroke={toneColor[tone]}
+          strokeWidth={stroke}
+          strokeLinecap="round"
+          strokeDasharray={estimated ? "2 3.2" : c}
+          initial={estimated ? false : { strokeDashoffset: c }}
+          animate={estimated ? undefined : { strokeDashoffset: c * (1 - Math.min(100, value) / 100) }}
+          transition={{ type: "spring", stiffness: 90, damping: 20 }}
+        />
+      </svg>
+      <span className="relative">{children}</span>
     </span>
   );
 }
@@ -573,7 +628,7 @@ export function BottomSheet({
         type="button"
         aria-label="Закрыть"
         onClick={onClose}
-        className="absolute inset-0 bg-[rgb(23_21_15/0.32)]"
+        className="absolute inset-0 bg-[rgb(17_18_20/0.28)]"
       />
       <motion.div
         role="dialog"
@@ -600,7 +655,7 @@ export function BottomSheet({
           onPointerDown={(e) => controls.start(e)}
           className="absolute inset-x-0 top-0 z-30 flex h-6 touch-none justify-center pt-2"
         >
-          <span className="h-[5px] w-9 rounded-full bg-[rgb(23_21_15/0.18)]" />
+          <span className="h-[5px] w-9 rounded-full bg-[rgb(17_18_20/0.18)]" />
         </div>
         {header && (
           <div onPointerDown={(e) => controls.start(e)} className="shrink-0 touch-none">
@@ -620,7 +675,7 @@ export function Dock({ children, className }: { children: ReactNode; className?:
   return (
     <div
       className={cn(
-        "relative z-20 shrink-0 border-t border-line bg-[color-mix(in_oklab,var(--hs-canvas)_92%,transparent)] px-5 pt-3 backdrop-blur-xl pb-safe",
+        "relative z-20 shrink-0 border-t border-line bg-white/95 px-5 pt-3 backdrop-blur-md pb-safe",
         className,
       )}
     >

@@ -52,7 +52,7 @@ export function WalletStack() {
           animate={{ y: expanded ? i * SPREAD : i * PEEK }}
           whileTap={{ scale: 0.985 }}
           transition={{ type: "spring", stiffness: 320, damping: 34 }}
-          className={`absolute inset-x-0 overflow-hidden rounded-card bg-gradient-to-br ${c.gradient} px-5 py-4 text-left text-white shadow-[0_-1px_0_rgb(255_255_255/0.08)_inset,0_14px_30px_-18px_rgb(23_21_15/0.6)]`}
+          className={`absolute inset-x-0 overflow-hidden rounded-card bg-gradient-to-br ${c.gradient} px-5 py-4 text-left text-white shadow-[0_-1px_0_rgb(255_255_255/0.08)_inset,0_14px_30px_-18px_rgb(17_18_20/0.6)]`}
           style={{ height: CARD_H, zIndex: i + 1 }}
           aria-label={`${c.name}, ${c.tier}`}
         >

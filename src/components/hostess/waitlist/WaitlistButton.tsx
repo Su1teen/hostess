@@ -13,9 +13,11 @@ import type { JoinWaitlistInput } from "./types";
 export function WaitlistButton({
   input,
   className,
+  label = "Встать в лист ожидания",
 }: {
   input: JoinWaitlistInput;
   className?: string;
+  label?: string;
 }) {
   const { join, isQueued } = useWaitlist();
   const [open, setOpen] = useState(false);
@@ -37,7 +39,7 @@ export function WaitlistButton({
           </>
         ) : (
           <>
-            <ListPlus className="h-4 w-4" strokeWidth={1.6} /> Встать в лист ожидания
+            <ListPlus className="h-4 w-4" strokeWidth={1.6} /> {label}
           </>
         )}
       </Button>

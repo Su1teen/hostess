@@ -15,7 +15,14 @@ import { VenueBookingModal } from "@/components/hostess/VenueBookingModal";
 import { StackedCoverFlow, type StackedCoverFlowItem } from "@/components/hostess/StackedCoverFlow";
 import { EditorialCard, EventCard, SlotChips, VenueRow } from "@/components/hostess/cards";
 import { Chip, SectionHeader } from "@/components/hostess/system";
-import { categoryMeta, curatedRestaurants, occupancyOf, slotsFor } from "@/components/hostess/venue";
+import {
+  categoryMeta,
+  curatedRestaurants,
+  liveSignal,
+  occupancyOf,
+  slotsFor,
+  statusText,
+} from "@/components/hostess/venue";
 
 /* ── Category filter row ─────────────────────────────────────────── */
 
@@ -96,8 +103,9 @@ export function CatalogSections({
       title: r.name,
       subtitle: `${r.district} · ${r.distanceKm} км`,
       meta: `~${money(r.avgCheck)}`,
-      occupancy: r.occupancy,
+      occupancy: occupancyOf(r.id),
       rating: r.rating,
+      live: r.live,
       badge: index === 0 ? "Выбор недели" : r.id === "xoxo" ? "Сегодня трансляция" : undefined,
       onClick: () => onOpenRestaurant(r),
     }));
@@ -113,17 +121,21 @@ export function CatalogSections({
       onClick: () => onOpenEvent(e),
     }));
   } else {
-    stackItems = categoryVenues.map((v) => ({
-      id: v.id,
-      image: v.cover,
-      eyebrow: v.kind.split(" · ")[0],
-      title: v.name,
-      subtitle: `${v.kind.split(" · ")[1] ?? "Астана"} · ${v.distanceKm} км`,
-      meta: `от ${money(v.priceFrom)}`,
-      occupancy: v.occupancy,
-      rating: v.rating,
-      onClick: () => onOpenVenue(v),
-    }));
+    stackItems = categoryVenues.map((v) => {
+      const signal = liveSignal(v.id);
+      return {
+        id: v.id,
+        image: v.cover,
+        eyebrow: v.kind.split(" · ")[0],
+        title: v.name,
+        subtitle: `${v.kind.split(" · ")[1] ?? "Астана"} · ${v.distanceKm} км`,
+        meta: `от ${money(v.priceFrom)}`,
+        occupancy: signal.occupancy,
+        status: signal.capacity ? statusText(signal) : undefined,
+        rating: v.rating,
+        onClick: () => onOpenVenue(v),
+      };
+    });
   }
 
   const stackTitle =
@@ -193,18 +205,22 @@ export function CatalogSections({
         <Section>
           <SectionHeader title="Все места" />
           <div className="space-y-5">
-            {categoryVenues.map((v) => (
-              <VenueRow
-                key={v.id}
-                image={v.cover}
-                title={v.name}
-                subtitle={v.kind}
-                occupancy={occupancyOf(v.id)}
-                rating={v.rating}
-                meta={`от ${money(v.priceFrom)}`}
-                onClick={() => onOpenVenue(v)}
-              />
-            ))}
+            {categoryVenues.map((v) => {
+              const signal = liveSignal(v.id);
+              return (
+                <VenueRow
+                  key={v.id}
+                  image={v.cover}
+                  title={v.name}
+                  subtitle={v.kind}
+                  occupancy={signal.occupancy}
+                  status={signal.capacity ? statusText(signal) : undefined}
+                  rating={v.rating}
+                  meta={`от ${money(v.priceFrom)}`}
+                  onClick={() => onOpenVenue(v)}
+                />
+              );
+            })}
           </div>
         </Section>
       )}

@@ -117,18 +117,18 @@ const plans: Record<string, Plan> = {
     ],
     decor: (
       <>
-        <div className="absolute inset-3 rounded-2xl border-2 border-amber-200/80 bg-amber-50/30" />
-        <span className="absolute left-9 top-[18px] text-[9px] font-medium text-amber-700/70">
+        <div className="absolute inset-3 rounded-2xl border-2 border-neutral-200/80 bg-neutral-50/30" />
+        <span className="absolute left-9 top-[18px] text-[9px] font-medium text-neutral-700/70">
           Вход
         </span>
-        <div className="absolute left-8 top-[6px] h-[14px] w-16 rounded-b-md bg-amber-50/60" />
-        <Label className="left-[120px] top-[14px] h-[30px] w-[110px] border border-amber-200 bg-amber-50/50 text-amber-700/70">
+        <div className="absolute left-8 top-[6px] h-[14px] w-16 rounded-b-md bg-neutral-50/60" />
+        <Label className="left-[120px] top-[14px] h-[30px] w-[110px] border border-neutral-200 bg-neutral-50/50 text-neutral-700/70">
           Лаунж-зона
         </Label>
-        <div className="absolute right-[20px] top-[14px] flex h-[34px] w-[90px] items-center justify-center rounded-md bg-amber-900/90 text-[10px] font-semibold text-amber-50">
+        <div className="absolute right-[20px] top-[14px] flex h-[34px] w-[90px] items-center justify-center rounded-md bg-neutral-900/90 text-[10px] font-semibold text-white">
           Дегустационный
         </div>
-        <div className="absolute bottom-[16px] left-1/2 flex -translate-x-1/2 gap-6 text-[9px] text-amber-700/50">
+        <div className="absolute bottom-[16px] left-1/2 flex -translate-x-1/2 gap-6 text-[9px] text-neutral-700/50">
           <span>✦</span>
           <span>✦</span>
           <span>✦</span>
@@ -157,10 +157,10 @@ const plans: Record<string, Plan> = {
     decor: (
       <>
         <Walls dashed />
-        <span className="absolute left-9 top-[18px] text-[9px] font-medium text-emerald-700/70">
+        <span className="absolute left-9 top-[18px] text-[9px] font-medium text-neutral-700/70">
           Выход
         </span>
-        <div className="absolute left-8 top-[6px] h-[14px] w-16 rounded-b-md bg-emerald-50/60" />
+        <div className="absolute left-8 top-[6px] h-[14px] w-16 rounded-b-md bg-neutral-50/60" />
         {/* Зонтики над столами */}
         {[
           { x: 68, y: 54 },
@@ -190,10 +190,10 @@ const plans: Record<string, Plan> = {
             className="absolute text-[12px] leading-none"
             style={{ left: p.x, top: p.y, transform: "translate(-50%,-50%)" }}
           >
-            🌿
+            
           </span>
         ))}
-        <Label className="bottom-[14px] left-[20px] h-[26px] w-[70px] border border-emerald-200 bg-emerald-50/50 text-emerald-700/70">
+        <Label className="bottom-[14px] left-[20px] h-[26px] w-[70px] border border-neutral-200 bg-neutral-50/50 text-neutral-700/70">
           Бар-терраса
         </Label>
       </>
@@ -354,7 +354,7 @@ function TableFootprint({
   const chairColor = selected
     ? "bg-primary/60"
     : status === "reserved"
-      ? "bg-amber-300"
+      ? "bg-reserved/60"
       : status === "occupied"
         ? "bg-neutral-400"
         : "bg-neutral-300";
@@ -398,7 +398,7 @@ function TableFootprint({
     : status === "occupied"
       ? "bg-neutral-300 text-neutral-500"
       : status === "reserved"
-        ? "bg-amber-100 text-amber-700 ring-2 ring-amber-300"
+        ? "bg-reserved-soft text-reserved ring-2 ring-reserved/40"
         : "bg-white text-primary ring-2 ring-primary/70";
 
   const statusLabel =
@@ -531,7 +531,7 @@ export function FloorPlan({
           </span>
           {mode === "manage" && (
             <span className="flex items-center gap-1">
-              <span className="h-2.5 w-2.5 rounded-full bg-amber-200 ring-2 ring-amber-300" />
+              <span className="h-2.5 w-2.5 rounded-full bg-reserved-soft ring-2 ring-reserved/40" />
               Забронирован
             </span>
           )}

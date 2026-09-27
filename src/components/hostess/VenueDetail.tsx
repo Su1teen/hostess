@@ -1,9 +1,11 @@
 import { useRef, useState, type ReactNode, type RefObject } from "react";
-import { motion, useScroll, useTransform } from "framer-motion";
+import { motion, useMotionValueEvent, useScroll, useTransform } from "framer-motion";
 import { ChevronDown, Heart, Share } from "lucide-react";
 import { toast } from "sonner";
+import type { LiveMedia } from "@/data/hostess";
 import { hapticSelect } from "@/lib/haptics";
 import { cn } from "@/lib/utils";
+import { AmbienceVideo, LiveBadge, MuteToggle, useClaimMediaFocus } from "./LiveMedia";
 import { Dock, IconButton, Photo, sheetSpring } from "./system";
 
 /**
@@ -21,6 +23,7 @@ export function VenueDetailShell({
   children,
   heroShade = "light",
   scrollRef: externalRef,
+  live,
 }: {
   name: string;
   images: string[];
@@ -31,7 +34,10 @@ export function VenueDetailShell({
   children: ReactNode;
   heroShade?: "light" | "mood";
   scrollRef?: RefObject<HTMLDivElement | null>;
+  /** Live ambience — becomes the first hero slide (video → gallery). */
+  live?: LiveMedia;
 }) {
+  useClaimMediaFocus();
   const localRef = useRef<HTMLDivElement>(null);
   const scrollRef = externalRef ?? localRef;
   const { scrollY } = useScroll({ container: scrollRef });
@@ -40,6 +46,11 @@ export function VenueDetailShell({
   const barOpacity = useTransform(scrollY, [300, 380], [0, 1]);
   const [page, setPage] = useState(0);
   const [saved, setSaved] = useState(false);
+  const [muted, setMuted] = useState(true);
+  const [videoOn, setVideoOn] = useState(false);
+  const [heroVisible, setHeroVisible] = useState(true);
+  useMotionValueEvent(scrollY, "change", (v) => setHeroVisible(v < 360));
+  const slides = live ? images.length + 1 : images.length;
 
   const share = async () => {
     hapticSelect();
@@ -114,8 +125,18 @@ export function VenueDetailShell({
                 setPage(Math.round(el.scrollLeft / el.clientWidth));
               }}
             >
+              {live && (
+                <AmbienceVideo
+                  media={live}
+                  active={page === 0 && heroVisible}
+                  muted={muted}
+                  eagerPoster
+                  onPlaying={setVideoOn}
+                  className="h-full w-full shrink-0 snap-center"
+                />
+              )}
               {images.map((src, i) => (
-                <Photo key={src + i} src={src} eager={i === 0} className="h-full w-full shrink-0 snap-center" />
+                <Photo key={src + i} src={src} eager={i === 0 && !live} className="h-full w-full shrink-0 snap-center" />
               ))}
             </div>
           </motion.div>
@@ -127,19 +148,36 @@ export function VenueDetailShell({
                 : "bg-gradient-to-b from-black/30 via-transparent to-black/25",
             )}
           />
-          {images.length > 1 && (
-            <div className="pointer-events-none absolute inset-x-0 bottom-12 flex justify-center gap-1.5">
-              {images.map((_, i) => (
+          {slides > 1 && (
+            <div className="pointer-events-none absolute inset-x-0 bottom-[46px] flex justify-center gap-1.5">
+              {Array.from({ length: slides }, (_, i) => (
                 <motion.span
                   key={i}
-                  animate={{ width: i === page ? 18 : 6, opacity: i === page ? 1 : 0.55 }}
+                  animate={{ width: i === page ? 16 : 5, opacity: i === page ? 1 : 0.5 }}
                   transition={{ type: "spring", stiffness: 500, damping: 36 }}
-                  className="h-[5px] rounded-full bg-white"
+                  className="h-1 rounded-full bg-white"
                 />
               ))}
             </div>
           )}
-          {heroOverlay && <div className="pointer-events-none absolute inset-x-0 bottom-14">{heroOverlay}</div>}
+          {live && page === 0 && (
+            <div className="pointer-events-none absolute inset-x-4 bottom-10 flex items-center justify-between">
+              <span className="flex items-center gap-2">
+                <LiveBadge media={live} playing={videoOn} />
+                {live.source && <span className="text-[11.5px] font-medium text-white/80">{live.source}</span>}
+              </span>
+              {videoOn && (
+                <span className="pointer-events-auto">
+                  <MuteToggle muted={muted} onToggle={() => setMuted((m) => !m)} />
+                </span>
+              )}
+            </div>
+          )}
+          {heroOverlay && (
+            <div className={cn("pointer-events-none absolute inset-x-0", live ? "bottom-[84px]" : "bottom-14")}>
+              {heroOverlay}
+            </div>
+          )}
         </div>
 
         <div className="relative z-10 -mt-8 min-h-[60vh] rounded-t-hero bg-canvas pb-12 pt-7">

@@ -6,7 +6,8 @@
 /* ──────────────────────────────────────────────────────────────────────
    Hostess Design System
    Editorial Hospitality × Native iOS × Realtime Intelligence
-   Light-first, warm ivory canvas, graphite ink, one restrained accent.
+   Bright, gallery-white chrome. Warmth comes from photography only.
+   Colour is semantic: status signals + one restrained cobalt accent.
    ────────────────────────────────────────────────────────────────────── */
 
 @font-face {
@@ -44,19 +45,19 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-  /* Radius scale */
-  --radius-sm: 10px;
-  --radius-md: 14px;
-  --radius-lg: 18px;
-  --radius-xl: 22px;
-  --radius-2xl: 26px;
-  --radius-3xl: 30px;
-  --radius-thumb: 14px;
-  --radius-chip: 16px;
-  --radius-row: 18px;
-  --radius-btn: 20px;
-  --radius-card: 22px;
-  --radius-hero: 30px;
+  /* Radius scale — soft, never cartoonish */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-2xl: 24px;
+  --radius-3xl: 28px;
+  --radius-thumb: 12px;
+  --radius-chip: 12px;
+  --radius-row: 16px;
+  --radius-btn: 16px;
+  --radius-card: 20px;
+  --radius-hero: 28px;
 
   /* shadcn semantic bridge */
   --color-background: var(--background);
@@ -91,8 +92,12 @@
   --color-ink-soft: var(--hs-ink-2);
   --color-line: var(--hs-line);
   --color-line-strong: var(--hs-line-strong);
-  --color-brass: var(--hs-brass);
-  --color-brass-soft: var(--hs-brass-soft);
+  --color-brass: var(--hs-accent);
+  --color-brass-soft: var(--hs-accent-soft);
+  --color-accent-ink: var(--hs-accent);
+  --color-accent-soft: var(--hs-accent-soft);
+  --color-reserved: var(--hs-reserved);
+  --color-reserved-soft: var(--hs-reserved-soft);
   --color-live: var(--hs-live);
   --color-live-soft: var(--hs-live-soft);
   --color-warn: var(--hs-warn);
@@ -100,11 +105,11 @@
   --color-busy: var(--hs-busy);
   --color-busy-soft: var(--hs-busy-soft);
 
-  /* Elevation — few, soft, ambient */
+  /* Elevation — hairlines first, ambient depth only for floating objects */
   --shadow-hairline: 0 0 0 1px var(--hs-line);
-  --shadow-soft: 0 1px 2px rgb(23 21 15 / 0.04), 0 8px 24px -12px rgb(23 21 15 / 0.14);
-  --shadow-float: 0 2px 8px -2px rgb(23 21 15 / 0.06), 0 18px 44px -16px rgb(23 21 15 / 0.22);
-  --shadow-sheet: 0 -10px 40px -16px rgb(23 21 15 / 0.2);
+  --shadow-soft: 0 0 0 1px rgb(17 18 20 / 0.05), 0 4px 14px -8px rgb(17 18 20 / 0.12);
+  --shadow-float: 0 0 0 1px rgb(17 18 20 / 0.04), 0 12px 32px -14px rgb(17 18 20 / 0.2);
+  --shadow-sheet: 0 -1px 0 rgb(17 18 20 / 0.05), 0 -12px 32px -20px rgb(17 18 20 / 0.18);
 
   --font-display: "Clarity City", ui-sans-serif, system-ui, sans-serif;
   --font-sans: "Clarity City", ui-sans-serif, system-ui, sans-serif;
@@ -113,25 +118,27 @@
 }
 
 :root {
-  --radius: 18px;
+  --radius: 16px;
 
-  --hs-canvas: #f7f5f0;
+  --hs-canvas: #ffffff;
   --hs-surface: #ffffff;
-  --hs-stone: #efece6;
-  --hs-stone-2: #e5e1d9;
-  --hs-ink: #17150f;
-  --hs-ink-2: #5d584f;
-  --hs-ink-3: #8f897e;
-  --hs-line: rgb(23 21 15 / 0.08);
-  --hs-line-strong: rgb(23 21 15 / 0.14);
-  --hs-brass: #9a6b3f;
-  --hs-brass-soft: #f3ebe1;
-  --hs-live: #2f8a58;
-  --hs-live-soft: #e6f2ea;
-  --hs-warn: #b87a14;
-  --hs-warn-soft: #f7eedd;
-  --hs-busy: #bd3f2c;
-  --hs-busy-soft: #f8e6e2;
+  --hs-stone: #f5f6f8;
+  --hs-stone-2: #eceef1;
+  --hs-ink: #111214;
+  --hs-ink-2: #686b72;
+  --hs-ink-3: #9599a1;
+  --hs-line: #e9ebef;
+  --hs-line-strong: #d8dbe1;
+  --hs-accent: #2f5be0;
+  --hs-accent-soft: #edf1fd;
+  --hs-live: #0e9f5f;
+  --hs-live-soft: #e8f7ef;
+  --hs-warn: #e8860c;
+  --hs-warn-soft: #fdf3e4;
+  --hs-busy: #d92d20;
+  --hs-busy-soft: #fdecea;
+  --hs-reserved: #5b5bd6;
+  --hs-reserved-soft: #eff0fc;
 
   --background: var(--hs-canvas);
   --foreground: var(--hs-ink);
@@ -153,9 +160,9 @@
   --input: var(--hs-line-strong);
   --ring: var(--hs-ink);
 
-  /* Layout constants */
-  --nav-h: 64px;
-  --nav-gap: 12px;
+  /* Layout constants — docked tab bar, safe area added separately */
+  --nav-h: 56px;
+  --nav-gap: 0px;
   --sat: env(safe-area-inset-top, 0px);
   --sab: env(safe-area-inset-bottom, 0px);
 }
@@ -303,7 +310,7 @@
 }
 
 @utility frost-dark {
-  background: color-mix(in oklab, #17150f 42%, transparent);
+  background: color-mix(in oklab, #111214 42%, transparent);
   backdrop-filter: saturate(160%) blur(16px);
   -webkit-backdrop-filter: saturate(160%) blur(16px);
 }
@@ -468,13 +475,15 @@
   transform-origin: bottom left;
 }
 
-.hs-pin {
+/* Venue marker: compact Booking-style value pill + thin occupancy ring.
+   Verified load = solid arc; estimated = dashed ring (never shown as exact). */
+.hs-mk {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 6px;
-  height: 30px;
-  padding: 0 10px;
+  gap: 5px;
+  height: 28px;
+  padding: 0 9px 0 5px;
   border-radius: 10px;
   background: #ffffff;
   color: var(--hs-ink);
@@ -485,79 +494,118 @@
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
   box-shadow:
-    0 0 0 1px rgb(23 21 15 / 0.06),
-    0 6px 16px -6px rgb(23 21 15 / 0.32);
-  transform-origin: 50% calc(100% + 6px);
+    0 0 0 1px rgb(17 18 20 / 0.07),
+    0 4px 12px -5px rgb(17 18 20 / 0.28);
+  transform-origin: 50% calc(100% + 5px);
   transition:
-    transform 240ms var(--ease-out-quint),
-    background-color 200ms ease,
-    color 200ms ease,
-    box-shadow 200ms ease;
+    transform 420ms cubic-bezier(0.34, 1.4, 0.64, 1),
+    background-color 220ms ease,
+    color 220ms ease,
+    box-shadow 260ms ease;
   cursor: pointer;
 }
 
-.hs-pin::after {
+.hs-mk::after {
   content: "";
   position: absolute;
   left: 50%;
-  bottom: -4px;
-  width: 9px;
-  height: 9px;
+  bottom: -3.5px;
+  width: 8px;
+  height: 8px;
   background: inherit;
-  border-radius: 2px;
+  border-radius: 1.5px;
   transform: translateX(-50%) rotate(45deg);
-  box-shadow: 2px 2px 3px -1px rgb(23 21 15 / 0.12);
+  box-shadow: 1.5px 1.5px 2px -1px rgb(17 18 20 / 0.14);
   z-index: -1;
 }
 
-.hs-pin:active {
-  transform: scale(0.94);
+.hs-mk:active {
+  transform: scale(0.93);
 }
 
-.hs-pin__dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 999px;
+.hs-mk__ring {
+  display: block;
+  width: 18px;
+  height: 18px;
   flex: none;
+  transform: rotate(-90deg);
 }
 
-.hs-pin__name {
-  display: none;
-  max-width: 140px;
+.hs-mk__ring circle {
+  transition: stroke 220ms ease;
+}
+
+.hs-mk__name,
+.hs-mk__sep {
+  display: block;
+  max-width: 0;
+  opacity: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+  transition:
+    max-width 380ms var(--ease-out-quint),
+    opacity 220ms ease,
+    margin 380ms var(--ease-out-quint);
+}
+
+.hs-mk__name {
   font-weight: 500;
 }
 
-.hs-pin__sep {
-  display: none;
+.hs-mk__sep {
   width: 1px;
   height: 12px;
   background: currentColor;
-  opacity: 0.25;
 }
 
-.hs-pin--selected {
+.hs-mk--sel {
   background: var(--hs-ink);
   color: #ffffff;
-  transform: scale(1.08);
-  box-shadow: 0 10px 24px -8px rgb(23 21 15 / 0.5);
+  transform: translateY(-3px) scale(1.08);
+  box-shadow: 0 14px 28px -10px rgb(17 18 20 / 0.5);
 }
 
-.hs-pin--selected .hs-pin__name,
-.hs-pin--selected .hs-pin__sep {
-  display: block;
+.hs-mk--sel .hs-mk__name {
+  max-width: 150px;
+  opacity: 1;
 }
 
-.hs-pin-wrap--selected {
+.hs-mk--sel .hs-mk__sep {
+  max-width: 1px;
+  opacity: 0.3;
+}
+
+.hs-mk--sel .hs-mk__track {
+  stroke: rgb(255 255 255 / 0.22);
+}
+
+.hs-mk-wrap--sel {
   z-index: 5;
 }
 
-.hs-cluster {
+/* Cluster: count + a thin aggregate ring (share free / moderate / busy). */
+.hs-cl {
   display: grid;
   place-items: center;
-  width: 38px;
-  height: 38px;
+  width: 40px;
+  height: 40px;
+  padding: 2.5px;
+  border-radius: 999px;
+  background: conic-gradient(
+    var(--hs-live) 0 var(--g),
+    var(--hs-warn) var(--g) var(--a),
+    var(--hs-busy) var(--a) 100%
+  );
+  box-shadow: 0 6px 16px -8px rgb(17 18 20 / 0.4);
+  transition: transform 220ms var(--ease-out-quint);
+  cursor: pointer;
+}
+
+.hs-cl > span {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
   border-radius: 999px;
   background: #ffffff;
   color: var(--hs-ink);
@@ -565,14 +613,9 @@
   font-size: 13px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
-  box-shadow:
-    0 0 0 5px rgb(255 255 255 / 0.55),
-    0 8px 20px -8px rgb(23 21 15 / 0.35);
-  transition: transform 200ms var(--ease-out-quint);
-  cursor: pointer;
 }
 
-.hs-cluster:active {
+.hs-cl:active {
   transform: scale(0.92);
 }
 
@@ -589,7 +632,7 @@
   border-radius: 999px;
   object-fit: cover;
   border: 2px solid #ffffff;
-  box-shadow: 0 4px 12px -4px rgb(23 21 15 / 0.4);
+  box-shadow: 0 4px 12px -4px rgb(17 18 20 / 0.4);
 }
 
 .hs-friend__fallback {
@@ -617,9 +660,11 @@
   width: 18px;
   height: 18px;
   border-radius: 999px;
-  background: var(--hs-ink);
+  background: var(--hs-accent);
   border: 3px solid #ffffff;
-  box-shadow: 0 0 0 8px rgb(23 21 15 / 0.08);
+  box-shadow:
+    0 0 0 9px rgb(47 91 224 / 0.12),
+    0 2px 6px rgb(17 18 20 / 0.25);
 }
 
 /* ── Sonner toasts ───────────────────────────────────────────────── */

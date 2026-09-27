@@ -3,6 +3,17 @@ export const MAPBOX_TOKEN =
 
 export const ASTANA = { lng: 71.4491, lat: 51.1694 };
 
+/** Demo user location (Left Bank). All distances derive from it. */
+export const USER_LOCATION = { lng: 71.4232, lat: 51.1226 };
+
+export function distanceKm(c: { lng: number; lat: number }, from = USER_LOCATION): number {
+  const rad = Math.PI / 180;
+  const dLat = (c.lat - from.lat) * rad;
+  const dLng = (c.lng - from.lng) * rad;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(from.lat * rad) * Math.cos(c.lat * rad) * Math.sin(dLng / 2) ** 2;
+  return Math.round(6371 * 2 * Math.asin(Math.sqrt(a)) * 10) / 10;
+}
+
 export type Dish = {
   id: string;
   name: string;
@@ -17,6 +28,20 @@ export type Dish = {
   protein?: number;
   fat?: number;
   carbs?: number;
+};
+
+/**
+ * Live / "now" ambience media (Atmosfy-style). Not CCTV — a short muted
+ * ambience clip or stream from the venue. `isLive` = continuous stream;
+ * otherwise it's a recent clip and the UI shows its age instead of LIVE.
+ */
+export type LiveMedia = {
+  src: string;
+  poster: string;
+  isLive: boolean;
+  /** Minutes since the feed/clip was last updated. */
+  updatedMin: number;
+  source?: string;
 };
 
 export type Restaurant = {
@@ -39,6 +64,7 @@ export type Restaurant = {
   tags: string[];
   menu: { section: string; items: Dish[] }[];
   specials: Dish[];
+  live?: LiveMedia;
 };
 
 const img = (id: string, w = 1200) =>
@@ -1282,6 +1308,25 @@ export const restaurants: Restaurant[] = [
   },
 ];
 
+/* ── Live ambience (short muted clips, SD ≤ 2.5 MB, poster = cover) ── */
+
+const pexels = (path: string) => `https://videos.pexels.com/video-files/${path}.mp4`;
+
+const liveFeeds: Record<string, Omit<LiveMedia, "poster">> = {
+  sadu: { src: pexels("8051348/8051348-sd_540_960_24fps"), isLive: true, updatedMin: 0, source: "Открытая кухня" },
+  kinza: { src: pexels("5102309/5102309-sd_960_540_25fps"), isLive: false, updatedMin: 6, source: "Главный зал" },
+  marrakesh: { src: pexels("16696554/16696554-sd_960_402_24fps"), isLive: true, updatedMin: 0, source: "Бар" },
+  auyl: { src: pexels("16478422/16478422-sd_960_540_24fps"), isLive: false, updatedMin: 12, source: "Зал" },
+  nedelka: { src: pexels("19377318/19377318-sd_540_960_30fps"), isLive: false, updatedMin: 4, source: "Винная комната" },
+  line: { src: pexels("10374972/10374972-sd_960_540_30fps"), isLive: true, updatedMin: 0, source: "Барная стойка" },
+  xoxo: { src: pexels("12188721/12188721-sd_960_540_25fps"), isLive: true, updatedMin: 0, source: "Спорт-бар" },
+};
+
+restaurants.forEach((r) => {
+  const feed = liveFeeds[r.id];
+  if (feed) r.live = { ...feed, poster: r.cover };
+});
+
 /* ── Lifestyle-хаб: категории, заведения, афиша, сторис ───────────── */
 
 export type Category = {
@@ -1359,20 +1404,20 @@ export const venues: Venue[] = [
     id: "v3",
     category: "auto",
     name: "Details Detailing",
-    kind: "Автомойка · Left Bank",
+    kind: "Детейлинг · Кабанбай батыра",
     rating: 4.7,
     reviews: 210,
     occupancy: 95,
     peakHours: "12:00 – 16:00",
     cover: img("photo-1607860108855-64acf2078ed9"),
     priceFrom: 5000,
-    distanceKm: 3.4,
+    distanceKm: 0.9,
     services: [
       { name: "Комплекс мойка", price: 5000, duration: "40 мин" },
       { name: "Химчистка салона", price: 35000, duration: "4 часа" },
       { name: "Керамика кузова", price: 180000, duration: "2 дня" },
     ],
-    coords: { lng: 71.46, lat: 51.15 },
+    coords: { lng: 71.4218, lat: 51.1215 },
   },
   {
     id: "v4",
@@ -1623,29 +1668,29 @@ export const loyaltyCards = [
     name: "Qazaq Gourmet",
     tier: "Gold",
     points: 12480,
-    gradient: "from-[#2B2621] to-[#51453A]",
+    gradient: "from-[#17181B] to-[#3A3C42]",
   },
   {
     id: "c2",
     name: "Line Brew",
     tier: "Silver",
     points: 4210,
-    gradient: "from-[#6B6257] to-[#948B80]",
+    gradient: "from-[#4A5160] to-[#7D8595]",
   },
-  { id: "c3", name: "Selfie", tier: "Black", points: 890, gradient: "from-[#161514] to-[#34312D]" },
+  { id: "c3", name: "Selfie", tier: "Black", points: 890, gradient: "from-[#0B0B0C] to-[#2A2B2F]" },
   {
     id: "c4",
     name: "MILA Beauty Lab",
     tier: "VIP",
     points: 3500,
-    gradient: "from-[#A88B78] to-[#CBB3A2]",
+    gradient: "from-[#7E7A8C] to-[#AAA6B8]",
   },
   {
     id: "c5",
     name: "Lou Lou",
     tier: "Silver",
     points: 1200,
-    gradient: "from-[#243B2C] to-[#40604A]",
+    gradient: "from-[#1D3A30] to-[#3B6352]",
   },
 ];
 
@@ -1680,7 +1725,7 @@ export const history: VisitEntry[] = [
     place: "Selfie",
     when: "12 мая",
     sum: 24500,
-    color: "bg-rose-100 text-rose-500",
+    color: "bg-stone text-ink-2",
     items: [
       { name: "Дим-самы с креветкой", qty: 2, price: 4200 },
       { name: "Утка по-пекински", qty: 1, price: 6800 },
@@ -1695,7 +1740,7 @@ export const history: VisitEntry[] = [
     place: "Line Brew",
     when: "3 мая",
     sum: 41200,
-    color: "bg-orange-100 text-orange-500",
+    color: "bg-stone text-ink-2",
     items: [
       { name: "Рибай Dry Aged 45 дней", qty: 1, price: 21500 },
       { name: "Крафтовое пиво (0.5)", qty: 3, price: 3200 },
@@ -1710,7 +1755,7 @@ export const history: VisitEntry[] = [
     place: "Eva Wine Cafe",
     when: "28 апр",
     sum: 9800,
-    color: "bg-emerald-100 text-emerald-500",
+    color: "bg-stone text-ink-2",
     items: [{ name: "Эгг Бенедикт с лососем", qty: 2, price: 4900 }],
     companions: ["Мадина"],
     tips: 1000,
@@ -1721,7 +1766,7 @@ export const history: VisitEntry[] = [
     place: "Qazaq Gourmet",
     when: "20 апр",
     sum: 36800,
-    color: "bg-violet-100 text-violet-500",
+    color: "bg-stone text-ink-2",
     items: [
       { name: "Тартар из говядины «Актобе»", qty: 1, price: 6900 },
       { name: "Бешбармак из ягнёнка", qty: 2, price: 12400 },
@@ -1736,7 +1781,7 @@ export const history: VisitEntry[] = [
     place: "Lou Lou",
     when: "14 апр",
     sum: 18300,
-    color: "bg-amber-100 text-amber-500",
+    color: "bg-stone text-ink-2",
     items: [
       { name: "Стейк из тунца", qty: 2, price: 3500 },
       { name: "Хлеб Lou Lou", qty: 1, price: 2400 },
@@ -1751,7 +1796,7 @@ export const history: VisitEntry[] = [
     place: "Barbershop TOMB",
     when: "5 апр",
     sum: 9000,
-    color: "bg-sky-100 text-sky-500",
+    color: "bg-stone text-ink-2",
     items: [{ name: "Стрижка + укладка", qty: 1, price: 9000 }],
     companions: [],
     tips: 1000,
@@ -1890,17 +1935,79 @@ export type WashService = {
   name: string;
   price: number;
   duration: string;
+  /** Duration in minutes — used for bay scheduling. */
+  minutes: number;
 };
 
+/**
+ * A physical wash bay. State is derived from absolute timestamps so every
+ * screen (map marker, sheet, bay board) computes the same answer for "now".
+ * - `session`  → a car is being washed until `endsAt`
+ * - `hold`     → a reservation starts at `startsAt` (bay is held / reserved
+ *                once it is within the hold window)
+ */
 export type WashBox = {
   id: string;
   label: string;
-  status: Occupancy;
-  /** Время освобождения, напр. "14:30" — только для занятых боксов. */
-  freeAt?: string;
-  /** Прогресс текущей мойки 0..1 — сколько времени прошло. */
-  progress?: number;
+  session?: { service: string; startedAt: number; endsAt: number };
+  hold?: { startsAt: number };
 };
+
+export type BayState = "free" | "reserved" | "in_use";
+
+export type BayStatus = {
+  state: BayState;
+  /** in_use: minutes left, reserved: minutes until reservation */
+  minutes: number;
+  /** in_use: 0..1 progress of the running wash */
+  progress: number;
+  /** HH:MM of the next relevant moment (end of wash / reservation start) */
+  at?: string;
+  service?: string;
+};
+
+/** Reservations closer than this hold the bay. */
+const HOLD_WINDOW_MIN = 20;
+
+export const hhmm = (t: number) => {
+  const d = new Date(t);
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+};
+
+export function bayStatus(box: WashBox, now = Date.now()): BayStatus {
+  const s = box.session;
+  if (s && now < s.endsAt) {
+    return {
+      state: "in_use",
+      minutes: Math.max(1, Math.ceil((s.endsAt - now) / 60000)),
+      progress: Math.min(1, Math.max(0, (now - s.startedAt) / (s.endsAt - s.startedAt))),
+      at: hhmm(s.endsAt),
+      service: s.service,
+    };
+  }
+  const h = box.hold;
+  if (h && h.startsAt > now) {
+    const minutes = Math.ceil((h.startsAt - now) / 60000);
+    return { state: minutes <= HOLD_WINDOW_MIN ? "reserved" : "free", minutes, progress: 0, at: hhmm(h.startsAt) };
+  }
+  return { state: "free", minutes: 0, progress: 0 };
+}
+
+export type WashAvailability = { free: number; total: number; nextFreeMin: number | null; occupancy: number };
+
+/** Single selector for bay capacity — map, list and sheet all read this. */
+export function washAvailability(wash: { boxes: WashBox[] }, now = Date.now()): WashAvailability {
+  const states = wash.boxes.map((b) => bayStatus(b, now));
+  const free = states.filter((s) => s.state === "free").length;
+  const busy = states.filter((s) => s.state === "in_use").map((s) => s.minutes);
+  const total = wash.boxes.length;
+  return {
+    free,
+    total,
+    nextFreeMin: free > 0 ? 0 : busy.length ? Math.min(...busy) : null,
+    occupancy: Math.round(((total - free) / total) * 100),
+  };
+}
 
 export type CarWash = {
   id: string;
@@ -1917,46 +2024,62 @@ export type CarWash = {
 };
 
 const washServices: WashService[] = [
-  { id: "ws1", name: "Комплексная мойка кузова", price: 5000, duration: "40 мин" },
-  { id: "ws2", name: "Химчистка салона", price: 35000, duration: "4 часа" },
-  { id: "ws3", name: "Чернение шин", price: 2000, duration: "15 мин" },
-  { id: "ws4", name: "Полировка кузова", price: 25000, duration: "3 часа" },
-  { id: "ws5", name: "Озонирование", price: 8000, duration: "30 мин" },
-  { id: "ws6", name: "Нанокерамика", price: 180000, duration: "2 дня" },
+  { id: "ws1", name: "Комплексная мойка кузова", price: 5000, duration: "40 мин", minutes: 40 },
+  { id: "ws3", name: "Чернение шин", price: 2000, duration: "15 мин", minutes: 15 },
+  { id: "ws5", name: "Озонирование", price: 8000, duration: "30 мин", minutes: 30 },
+  { id: "ws2", name: "Химчистка салона", price: 35000, duration: "4 часа", minutes: 240 },
+  { id: "ws4", name: "Полировка кузова", price: 25000, duration: "3 часа", minutes: 180 },
+  { id: "ws6", name: "Нанокерамика", price: 180000, duration: "2 дня", minutes: 2880 },
 ];
 
-const makeBoxes = (seed: string): WashBox[] =>
-  Array.from({ length: 6 }, (_, i) => {
-    const id = `${seed}-box${i + 1}`;
-    const status = occupancyForId(id);
-    const busy = status !== "available";
-    const progress = status === "busy" ? 0.25 + (i % 3) * 0.15 : status === "moderate" ? 0.7 : 0;
-    const freeMin = status === "busy" ? 25 + i * 6 : status === "moderate" ? 8 + i * 2 : 0;
-    const free = new Date(Date.now() + freeMin * 60000);
-    return {
-      id,
-      label: `Бокс ${i + 1}`,
-      status,
-      progress: busy ? progress : undefined,
-      freeAt: busy
-        ? `${String(free.getHours()).padStart(2, "0")}:${String(free.getMinutes()).padStart(2, "0")}`
-        : undefined,
-    };
+const T0 = Date.now();
+const min = (m: number) => T0 + m * 60000;
+
+/**
+ * Compact bay schedule: "u:<left>:<total>:<service>" = in use,
+ * "r:<in>" = reservation starts in N min, "f" = free.
+ */
+function bays(seed: string, plan: string[]): WashBox[] {
+  return plan.map((p, i) => {
+    const [kind, a, b, service] = p.split(":");
+    const box: WashBox = { id: `${seed}-box${i + 1}`, label: `Бокс ${i + 1}` };
+    if (kind === "u") {
+      const left = Number(a);
+      const total = Number(b);
+      box.session = { service, startedAt: min(left - total), endsAt: min(left) };
+    }
+    if (kind === "r") box.hold = { startsAt: min(Number(a)) };
+    if (kind === "f" && a) box.hold = { startsAt: min(Number(a)) };
+    return box;
   });
+}
 
 export const carWashes: CarWash[] = [
   {
     id: "v3",
     name: "Details Detailing",
-    address: "Автомойка · Left Bank",
+    address: "Детейлинг · Кабанбай батыра, 58",
     rating: 4.7,
     reviews: 210,
     cover: img("photo-1607860108855-64acf2078ed9"),
     priceFrom: 5000,
-    distanceKm: 3.4,
-    coords: { lng: 71.46, lat: 51.15 },
+    distanceKm: 0.9,
+    coords: { lng: 71.4218, lat: 51.1215 },
     services: washServices,
-    boxes: makeBoxes("details"),
+    boxes: bays("details", ["u:12:40:Комплекс", "f", "r:14", "u:31:60:Полировка", "f:55", "u:4:15:Шины"]),
+  },
+  {
+    id: "mp12",
+    name: "Aqua Box",
+    address: "Автомойка · Туран, 24",
+    rating: 4.6,
+    reviews: 164,
+    cover: img("photo-1520340356584-f9917d1eea6f", 1000),
+    priceFrom: 4000,
+    distanceKm: 0.6,
+    coords: { lng: 71.4385, lat: 51.1312 },
+    services: washServices,
+    boxes: bays("aquabox", ["f", "u:22:40:Комплекс", "f", "r:9"]),
   },
   {
     id: "mp10",
@@ -1969,7 +2092,7 @@ export const carWashes: CarWash[] = [
     distanceKm: 2.9,
     coords: { lng: 71.465, lat: 51.158 },
     services: washServices,
-    boxes: makeBoxes("shine"),
+    boxes: bays("shine", ["u:9:40:Комплекс", "u:26:40:Комплекс", "r:6", "u:17:30:Озонирование", "u:38:60:Химчистка", "r:12"]),
   },
   {
     id: "mp11",
@@ -1982,7 +2105,7 @@ export const carWashes: CarWash[] = [
     distanceKm: 4.1,
     coords: { lng: 71.472, lat: 51.162 },
     services: washServices,
-    boxes: makeBoxes("autospa"),
+    boxes: bays("autospa", ["f", "f", "u:18:40:Комплекс", "f:40", "u:7:15:Шины", "f"]),
   },
 ];
 
@@ -1997,6 +2120,8 @@ export type MapPoint = {
   rating: number;
   cover: string;
   coords: { lng: number; lat: number };
+  /** Short cuisine / kind line for map-only points. */
+  kind?: string;
 };
 
 /**
@@ -2040,6 +2165,7 @@ export const mapPoints: MapPoint[] = [
     id: "mp1",
     name: "Sandyq",
     category: "food",
+    kind: "Казахская · Левый берег",
     rating: 4.8,
     cover: img("photo-1569058242253-92a9c755a0ec"),
     coords: { lng: 71.43, lat: 51.1608 },
@@ -2048,6 +2174,7 @@ export const mapPoints: MapPoint[] = [
     id: "mp2",
     name: "Navat",
     category: "food",
+    kind: "Чайхана · Левый берег",
     rating: 4.5,
     cover: img("photo-1515003197210-e0cd71810b5f"),
     coords: { lng: 71.415, lat: 51.1505 },
@@ -2056,6 +2183,7 @@ export const mapPoints: MapPoint[] = [
     id: "mp3",
     name: "Black Duck",
     category: "food",
+    kind: "Авторская кухня · Туран",
     rating: 4.6,
     cover: img("photo-1517248135467-4c7edcad34c4"),
     coords: { lng: 71.455, lat: 51.132 },
@@ -2064,6 +2192,7 @@ export const mapPoints: MapPoint[] = [
     id: "mp4",
     name: "The Barley",
     category: "food",
+    kind: "Паб · крафт",
     rating: 4.7,
     cover: img("photo-1541544741938-0af808871cc0"),
     coords: { lng: 71.426, lat: 51.1395 },
@@ -2072,6 +2201,7 @@ export const mapPoints: MapPoint[] = [
     id: "mp5",
     name: "Coffee Boom",
     category: "food",
+    kind: "Кофейня · завтраки",
     rating: 4.9,
     cover: img("photo-1501339847302-ac426a4a7cbb"),
     coords: { lng: 71.438, lat: 51.127 },
@@ -2081,6 +2211,7 @@ export const mapPoints: MapPoint[] = [
     id: "mp6",
     name: "Gentlemen's Club",
     category: "beauty",
+    kind: "Барбершоп",
     rating: 4.8,
     cover: img("photo-1503951914875-452162b0f3f1"),
     coords: { lng: 71.421, lat: 51.1362 },
@@ -2089,6 +2220,7 @@ export const mapPoints: MapPoint[] = [
     id: "mp7",
     name: "Lash Bar",
     category: "beauty",
+    kind: "Ресницы и брови",
     rating: 4.9,
     cover: img("photo-1522337660859-02fbefca4702"),
     coords: { lng: 71.448, lat: 51.1418 },
@@ -2098,6 +2230,7 @@ export const mapPoints: MapPoint[] = [
     id: "mp8",
     name: "Dent Studio",
     category: "medicine",
+    kind: "Стоматология",
     rating: 4.7,
     cover: img("photo-1629909613654-28e377c37b09"),
     coords: { lng: 71.433, lat: 51.1512 },
@@ -2106,28 +2239,28 @@ export const mapPoints: MapPoint[] = [
     id: "mp9",
     name: "Medilux",
     category: "medicine",
+    kind: "Клиника",
     rating: 4.6,
     cover: img("photo-1519494026892-80bbd2d6fd0d"),
     coords: { lng: 71.419, lat: 51.1438 },
   },
-  // Дополнительные — автомойки / авто
-  {
-    id: "mp10",
-    name: "Shine Car Wash",
-    category: "auto",
-    rating: 4.5,
-    cover: img("photo-1520340356584-f9917d1eea6f"),
-    coords: { lng: 71.465, lat: 51.158 },
-  },
-  {
-    id: "mp11",
-    name: "Auto Spa Astana",
-    category: "auto",
-    rating: 4.8,
-    cover: img("photo-1552930294-6b595f4c2974"),
-    coords: { lng: 71.472, lat: 51.162 },
-  },
+  // Автомойки — из единого источника боксов
+  ...carWashes
+    .filter((w) => !venues.some((v) => v.id === w.id))
+    .map((w) => ({ id: w.id, name: w.name, category: "auto" as const, rating: w.rating, cover: w.cover, coords: w.coords })),
+  // Реальные заведения Астаны рядом с пользователем (загрузка — оценка)
+  { id: "mp13", name: "Del Papa", category: "food", kind: "Итальянская · Кабанбай батыра", rating: 4.7, cover: img("photo-1555396273-367ea4eb4db5"), coords: { lng: 71.4262, lat: 51.1236 } },
+  { id: "mp14", name: "Rumi", category: "food", kind: "Восточная · Левый берег", rating: 4.8, cover: img("photo-1552566626-52f8b828add9"), coords: { lng: 71.4351, lat: 51.1248 } },
+  { id: "mp15", name: "Kishlak", category: "food", kind: "Узбекская · Левый берег", rating: 4.6, cover: img("photo-1590846406792-0adc7f938f1d"), coords: { lng: 71.4198, lat: 51.1301 } },
+  { id: "mp16", name: "Mad Murphy's", category: "food", kind: "Ирландский паб · Левый берег", rating: 4.5, cover: img("photo-1514933651103-005eec06c04b"), coords: { lng: 71.4412, lat: 51.1284 } },
+  { id: "mp17", name: "Chocolatte", category: "food", kind: "Кофейня · десерты", rating: 4.6, cover: img("photo-1554118811-1e0d58224f24"), coords: { lng: 71.4288, lat: 51.1329 } },
+  { id: "mp18", name: "Barashek", category: "food", kind: "Казахская · мясо", rating: 4.7, cover: img("photo-1559339352-11d035aa65de"), coords: { lng: 71.4156, lat: 51.1244 } },
 ];
+
+// Distances are derived from coordinates, never hand-typed.
+[...restaurants, ...venues, ...carWashes].forEach((x) => {
+  x.distanceKm = Math.max(0.1, distanceKm(x.coords));
+});
 
 export type FriendMapLocation = {
   id: string;
@@ -2193,7 +2326,7 @@ export const friendMapLocations: FriendMapLocation[] = [
   {
     id: "fm8",
     name: "Нурлан",
-    avatar: img("photo-1506794778202-cad84cf4531c", 200),
+    avatar: img("photo-1519085360753-af0119f7cbe7", 200),
     coords: { lng: 71.425, lat: 51.145 },
     minutesAgo: 60,
   },

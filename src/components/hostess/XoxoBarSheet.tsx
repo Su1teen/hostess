@@ -8,7 +8,8 @@ import { findXoxoExchangeProduct, useXoxoExchange } from "@/hooks/useXoxoExchang
 import { hapticSuccess } from "@/lib/haptics";
 import { Switch } from "@/components/ui/switch";
 import { DishModal } from "./DishModal";
-import { VenueStats } from "./VenueStats";
+import { LiveNow } from "./VenueStats";
+import { occupancyOf } from "./venue";
 import { FactsRow, VenueDetailShell } from "./VenueDetail";
 import { CartLine, CartSheet, MenuSections, SignatureDishes, addPreorder, setPreorderQty } from "./menu";
 import {
@@ -191,6 +192,7 @@ export function XoxoBarSheet({ r, onClose }: { r: Restaurant; onClose: () => voi
         onClose={onClose}
         scrollRef={scrollRef}
         heroShade="mood"
+        live={r.live}
         topRight={
           <IconButton
             icon={UserRound}
@@ -261,25 +263,23 @@ export function XoxoBarSheet({ r, onClose }: { r: Restaurant; onClose: () => voi
         </div>
 
         {/* Live drinks exchange — realtime intelligence, stated calmly */}
-        <div className="mt-6 space-y-3 px-5">
-          <div className="rounded-card bg-surface p-4 shadow-hairline">
-            <div className="flex items-center justify-between gap-3">
-              <p className="t-micro">Биржа напитков</p>
-              <span className="t-num text-[11.5px] text-ink-3">авто · 30 сек</span>
-            </div>
-            <div className="mt-2.5 flex items-center gap-2">
-              <LiveDot tone={exchange.connected ? "live" : "warn"} pulse={exchange.connected} size={8} />
-              <p className="text-[15px] font-medium">
-                {exchange.connected ? "В эфире" : "Ожидает соединения"}
-                {exchange.roundKey && <span className="text-ink-3"> · раунд {exchange.roundKey}</span>}
-              </p>
-            </div>
-            <p className="t-caption mt-1.5">
-              Цены на напитки меняются вместе со спросом в зале
-              {updated ? ` · обновлено в ${updated}` : ". Сейчас действуют цены меню."}
+        <LiveNow id={r.id} occupancy={occupancyOf(r.id)} peakHours={r.peakHours} className="mx-5 border-t-0" />
+        <div className="mx-5 border-b border-line py-4">
+          <div className="flex items-center justify-between gap-3">
+            <p className="t-micro">Биржа напитков</p>
+            <span className="t-num text-[11.5px] text-ink-3">авто · 30 сек</span>
+          </div>
+          <div className="mt-2.5 flex items-center gap-2">
+            <LiveDot tone={exchange.connected ? "live" : "warn"} pulse={exchange.connected} size={8} />
+            <p className="text-[15px] font-medium">
+              {exchange.connected ? "В эфире" : "Ожидает соединения"}
+              {exchange.roundKey && <span className="text-ink-3"> · раунд {exchange.roundKey}</span>}
             </p>
           </div>
-          <VenueStats occupancy={r.occupancy} peakHours={r.peakHours} title="В зале сейчас" />
+          <p className="t-caption mt-1.5">
+            Цены на напитки меняются вместе со спросом в зале
+            {updated ? ` · обновлено в ${updated}` : ". Сейчас действуют цены меню."}
+          </p>
         </div>
 
         <div ref={tabsRef} className="sticky top-[calc(var(--sat)+58px)] z-10 mt-8 bg-canvas pt-1">
@@ -465,12 +465,12 @@ export function XoxoBarSheet({ r, onClose }: { r: Restaurant; onClose: () => voi
             }
           >
             <div className="px-5 pb-8">
-              <div className="relative overflow-hidden rounded-hero bg-[#17150f] p-5 text-white shadow-float">
+              <div className="relative overflow-hidden rounded-hero bg-[#111214] p-5 text-white shadow-float">
                 <img src={r.gallery[1] ?? r.cover} alt="" className="absolute inset-0 h-full w-full object-cover opacity-25" />
-                <div className="absolute inset-0 bg-gradient-to-br from-[#17150f]/40 to-[#17150f]/90" />
+                <div className="absolute inset-0 bg-gradient-to-br from-[#111214]/40 to-[#111214]/90" />
                 <div className="relative">
                   <div className="flex items-center justify-between">
-                    <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-[#d8b58a]">XOXO Member</p>
+                    <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-white/60">XOXO Member</p>
                     <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-white/50">5% кэшбэк</p>
                   </div>
                   <p className="mt-8 text-[13px] text-white/60">Накоплено кэшбэка</p>

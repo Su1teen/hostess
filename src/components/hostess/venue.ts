@@ -3,14 +3,18 @@ import type { ComponentType } from "react";
 import {
   carWashById,
   cityEvents,
+  distanceKm,
   mapPoints,
   money,
   occupancyForId,
   restaurants,
   venues,
+  washAvailability,
   type MapPoint,
   type Restaurant,
+  type WashAvailability,
 } from "@/data/hostess";
+import { occupancyLevel } from "./system";
 
 /** Category metadata — icons only; colour lives in the shared neutral system. */
 export const categoryMeta: Record<string, { label: string; Icon: ComponentType<LucideProps> }> = {
@@ -31,28 +35,92 @@ export const curatedRestaurants = (): Restaurant[] =>
     return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
   });
 
-const occupancyValue = { available: 38, moderate: 68, busy: 92 } as const;
+/* ──────────────────────────────────────────────────────────────────────
+   Realtime selectors — the ONLY place occupancy / capacity is derived.
+   Stacked cards, map markers, the selected map card, lists and venue
+   detail all read from here, so they can never contradict each other.
+   ────────────────────────────────────────────────────────────────────── */
 
-/** Numeric live occupancy for any point on the map. */
-export function occupancyOf(id: string): number {
+const occupancyValue = { available: 38, moderate: 68, busy: 92 } as const;
+/** FNV-1a — well-distributed, deterministic between renders. */
+const hashOf = (s: string) => {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return h >>> 0;
+};
+
+/**
+ * `verified` = reported by the venue (Hostess partner, POS/table system,
+ * bay sensors). `estimated` = modelled from time of day & popularity —
+ * the UI must never present it as exact live truth.
+ */
+export type OccupancySource = "verified" | "estimated";
+
+export type LiveSignal = {
+  occupancy: number;
+  source: OccupancySource;
+  /** Minutes since the last update (verified sources only). */
+  updatedMin: number | null;
+  /** Physical-resource capacity (car-wash bays). */
+  capacity?: WashAvailability;
+};
+
+export function liveSignal(id: string, now = Date.now()): LiveSignal {
+  const wash = carWashById(id);
+  if (wash) {
+    const capacity = washAvailability(wash, now);
+    return { occupancy: capacity.occupancy, source: "verified", updatedMin: 0, capacity };
+  }
   const r = restaurants.find((x) => x.id === id);
-  if (r) return r.occupancy;
+  if (r) return { occupancy: r.occupancy, source: "verified", updatedMin: r.live?.isLive ? 0 : (hashOf(id) % 4) + 1 };
   const v = venues.find((x) => x.id === id);
-  if (v) return v.occupancy;
-  return occupancyValue[occupancyForId(id)];
+  if (v) return { occupancy: v.occupancy, source: "verified", updatedMin: (hashOf(id) % 6) + 1 };
+  return { occupancy: occupancyValue[occupancyForId(id)], source: "estimated", updatedMin: null };
 }
 
-const allSlots = ["18:30", "19:00", "19:30", "20:00", "20:30", "21:00", "21:30", "22:00"];
+/** Numeric occupancy for any point. */
+export const occupancyOf = (id: string) => liveSignal(id).occupancy;
 
-/** Deterministic next available tables — stable between renders. */
+/** One human status line for any signal (bays speak in bays, venues in load). */
+export function statusText(signal: LiveSignal): string {
+  const c = signal.capacity;
+  if (c) return c.free > 0 ? `${c.free} из ${c.total} свободно` : `Все заняты · ≈${c.nextFreeMin} мин`;
+  const { label } = occupancyLevel(signal.occupancy);
+  return signal.source === "estimated" ? `${label} · оценка` : label;
+}
+
+/** Freshness caption: "Обновлено 2 мин назад" / "Оценка по времени суток". */
+export function freshness(signal: LiveSignal): string {
+  if (signal.source === "estimated") return "Оценка по времени суток";
+  if (!signal.updatedMin) return "Обновлено только что";
+  return `Обновлено ${signal.updatedMin} мин назад`;
+}
+
+/* ── Table availability (one grid for map chips and the venue sheet) ── */
+
+export const TABLE_TIMES = ["18:00", "18:30", "19:00", "19:30", "20:00", "20:30", "21:00", "21:30", "22:00"];
+
+export type TableSlot = { time: string; taken: boolean };
+
+/** Deterministic table availability for a day (0 = today, driven by live load). */
+export function tableSlots(id: string, occupancy: number, dayIdx = 0): TableSlot[] {
+  const load = dayIdx === 0 ? occupancy : 30 + (hashOf(`${id}-${dayIdx}`) % 70);
+  if (load >= 98) return TABLE_TIMES.map((time) => ({ time, taken: true }));
+  return TABLE_TIMES.map((time) => ({
+    time,
+    taken: hashOf(`${id}${time}${dayIdx}`) % 100 < Math.max(0, load - 25),
+  }));
+}
+
+/** Next free table times for today — same grid the venue sheet renders. */
 export function slotsFor(id: string, occupancy: number, count = 3): string[] {
-  if (occupancy >= 98) return [];
-  const hash = [...id].reduce((acc, c) => acc + c.charCodeAt(0), 0);
-  const start = hash % 3;
-  const step = occupancy >= 80 ? 2 : 1;
-  const out: string[] = [];
-  for (let i = start; out.length < count && i < allSlots.length; i += step) out.push(allSlots[i]);
-  return out;
+  return tableSlots(id, occupancy)
+    .filter((s) => !s.taken)
+    .slice(0, count)
+    .map((s) => s.time);
 }
 
 export type NearbyItem = {
@@ -65,16 +133,19 @@ export type NearbyItem = {
   occupancy: number;
   distanceKm: number;
   price?: string;
+  signal: LiveSignal;
+  status: string;
 };
 
 /** Unified, enriched list of everything on the map for the sheet / cards. */
-export function nearbyItem(p: MapPoint): NearbyItem {
+export function nearbyItem(p: MapPoint, now = Date.now()): NearbyItem {
   const r = restaurants.find((x) => x.id === p.id);
   const v = venues.find((x) => x.id === p.id);
   const e = cityEvents.find((x) => x.id === p.id);
   const w = carWashById(p.id);
-  const hash = [...p.id].reduce((acc, c) => acc + c.charCodeAt(0), 0);
-  const fallbackKm = Math.round(((hash % 40) / 10 + 0.6) * 10) / 10;
+  const signal = liveSignal(p.id, now);
+  const live = { signal, status: statusText(signal), occupancy: signal.occupancy };
+  const fallbackKm = Math.max(0.1, distanceKm(p.coords));
   if (r)
     return {
       id: p.id,
@@ -83,9 +154,9 @@ export function nearbyItem(p: MapPoint): NearbyItem {
       subtitle: `${r.cuisine} · ${r.district}`,
       cover: r.cover,
       rating: r.rating,
-      occupancy: r.occupancy,
       distanceKm: r.distanceKm,
       price: `~${money(r.avgCheck)}`,
+      ...live,
     };
   if (e)
     return {
@@ -95,9 +166,9 @@ export function nearbyItem(p: MapPoint): NearbyItem {
       subtitle: `${e.place} · ${e.date}, ${e.time}`,
       cover: e.cover,
       rating: p.rating,
-      occupancy: occupancyOf(p.id),
       distanceKm: fallbackKm,
       price: e.price === 0 ? "Бесплатно" : `от ${money(e.price)}`,
+      ...live,
     };
   if (w)
     return {
@@ -107,9 +178,9 @@ export function nearbyItem(p: MapPoint): NearbyItem {
       subtitle: w.address,
       cover: w.cover,
       rating: w.rating,
-      occupancy: occupancyOf(p.id),
       distanceKm: w.distanceKm,
       price: `от ${money(w.priceFrom)}`,
+      ...live,
     };
   if (v)
     return {
@@ -119,26 +190,26 @@ export function nearbyItem(p: MapPoint): NearbyItem {
       subtitle: v.kind,
       cover: v.cover,
       rating: v.rating,
-      occupancy: v.occupancy,
       distanceKm: v.distanceKm,
       price: `от ${money(v.priceFrom)}`,
+      ...live,
     };
   return {
     id: p.id,
     name: p.name,
     category: p.category,
-    subtitle: `${categoryMeta[p.category]?.label ?? "Место"} · Астана`,
+    subtitle: p.kind ?? `${categoryMeta[p.category]?.label ?? "Место"} · Астана`,
     cover: p.cover,
     rating: p.rating,
-    occupancy: occupancyOf(p.id),
     distanceKm: fallbackKm,
+    ...live,
   };
 }
 
-export const nearbyFor = (categories: readonly string[]) =>
+export const nearbyFor = (categories: readonly string[], now = Date.now()) =>
   mapPoints
     .filter((p) => categories.includes(p.category))
-    .map(nearbyItem)
+    .map((p) => nearbyItem(p, now))
     .sort((a, b) => a.distanceKm - b.distanceKm);
 
 /** Hourly load curve (12:00 → 02:00) shaped around the venue's peak window. */

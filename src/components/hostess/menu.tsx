@@ -1,9 +1,9 @@
 import type { ReactNode } from "react";
 import { motion } from "framer-motion";
-import { Plus, ShoppingBag } from "lucide-react";
+import { ChevronRight, Plus, ShoppingBag } from "lucide-react";
 import { money, type Dish } from "@/data/hostess";
 import { cn } from "@/lib/utils";
-import { BottomSheet, EmptyState, IconButton, Photo, Stepper, Ticker, tapSpring } from "./system";
+import { BottomSheet, Button, EmptyState, IconButton, Photo, Stepper, Ticker, tapSpring } from "./system";
 import type { PreorderItem } from "./types";
 
 /* ──────────────────────────────────────────────────────────────────────
@@ -87,7 +87,7 @@ export function MenuRow({
           <span className="flex items-center gap-2">
             <span className="truncate text-[15.5px] font-medium tracking-[-0.012em] text-ink">{dish.name}</span>
             {hl && (
-              <span className="shrink-0 text-[10.5px] font-medium uppercase tracking-[0.1em] text-brass">{hl}</span>
+              <span className="shrink-0 text-[10.5px] font-semibold uppercase tracking-[0.1em] text-accent-ink">{hl}</span>
             )}
           </span>
           <span className="mt-1 line-clamp-2 text-[13px] leading-snug text-ink-3">{dish.desc}</span>
@@ -119,6 +119,7 @@ export function MenuSections({
   onQty,
   priceOf = (d) => d.price,
   priceMeta,
+  idPrefix,
 }: {
   sections: { section: string; items: Dish[] }[];
   qtyOf: (d: Dish) => number;
@@ -126,11 +127,16 @@ export function MenuSections({
   onQty: (d: Dish, qty: number) => void;
   priceOf?: (d: Dish) => number;
   priceMeta?: (d: Dish) => ReactNode;
+  idPrefix?: string;
 }) {
   return (
     <div>
-      {sections.map((sec) => (
-        <section key={sec.section} className="px-5 pt-6">
+      {sections.map((sec, i) => (
+        <section
+          key={sec.section}
+          id={idPrefix ? `${idPrefix}-${i}` : undefined}
+          className="scroll-mt-2 px-5 pt-6"
+        >
           <div className="flex items-baseline justify-between border-b border-line pb-2.5">
             <h3 className="text-[17px] font-semibold tracking-[-0.015em]">{sec.section}</h3>
             <span className="t-num text-[12px] text-ink-3">{sec.items.length}</span>
@@ -151,6 +157,138 @@ export function MenuSections({
         </section>
       ))}
     </div>
+  );
+}
+
+/**
+ * Collapsed menu (progressive disclosure): count, starting price and three
+ * signature previews. The full menu only renders once the guest asks.
+ */
+export function MenuTeaser({
+  count,
+  fromPrice,
+  dishes,
+  onOpen,
+  className,
+}: {
+  count: number;
+  fromPrice: number;
+  dishes: Dish[];
+  onOpen: () => void;
+  className?: string;
+}) {
+  return (
+    <div className={cn("px-5", className)}>
+      <button type="button" onClick={onOpen} className="flex w-full items-end justify-between gap-4 text-left">
+        <span>
+          <span className="t-headline block">Меню</span>
+          <span className="t-num mt-1 block text-[13px] text-ink-3">
+            {count} {plural(count, "позиция", "позиции", "позиций")} · от {money(fromPrice)}
+          </span>
+        </span>
+        <ChevronRight className="mb-1 h-5 w-5 shrink-0 text-ink-3" strokeWidth={1.6} />
+      </button>
+      <div className="mt-4 grid grid-cols-3 gap-2.5">
+        {dishes.slice(0, 3).map((d) => (
+          <motion.button
+            key={d.id}
+            type="button"
+            whileTap={{ scale: 0.97 }}
+            transition={tapSpring}
+            onClick={onOpen}
+            className="min-w-0 text-left"
+          >
+            <Photo src={d.image} className="aspect-square w-full rounded-[14px]" />
+            <span className="mt-2 block truncate text-[13px] font-medium tracking-[-0.01em]">{d.name}</span>
+            <span className="t-num block text-[12px] text-ink-3">{money(d.price)}</span>
+          </motion.button>
+        ))}
+      </div>
+      <Button variant="outline" block className="mt-5" onClick={onOpen}>
+        Открыть меню
+      </Button>
+    </div>
+  );
+}
+
+const plural = (n: number, one: string, few: string, many: string) => {
+  const m10 = n % 10;
+  const m100 = n % 100;
+  if (m10 === 1 && m100 !== 11) return one;
+  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few;
+  return many;
+};
+
+/** Full menu in its own sheet: signatures → section jumps → quiet list. */
+export function MenuSheet({
+  title,
+  sections,
+  signatures,
+  qtyOf,
+  onOpenDish,
+  onQty,
+  cartCount,
+  cartTotal,
+  onClose,
+}: {
+  title: string;
+  sections: { section: string; items: Dish[] }[];
+  signatures: Dish[];
+  qtyOf: (d: Dish) => number;
+  onOpenDish: (d: Dish) => void;
+  onQty: (d: Dish, qty: number) => void;
+  cartCount: number;
+  cartTotal: number;
+  onClose: () => void;
+}) {
+  const jump = (i: number) => document.getElementById(`menu-sec-${i}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  return (
+    <BottomSheet
+      onClose={onClose}
+      maxHeight="94%"
+      header={
+        <div className="border-b border-line pb-3 pt-7">
+          <div className="px-5">
+            <p className="t-micro">{title}</p>
+            <h2 className="t-title mt-1">Меню</h2>
+          </div>
+          <div className="rail mt-3 gap-2" onPointerDown={(e) => e.stopPropagation()}>
+            {sections.map((s, i) => (
+              <button
+                key={s.section}
+                type="button"
+                onClick={() => jump(i)}
+                className="press h-8 shrink-0 snap-start rounded-[10px] bg-stone px-3 text-[13px] font-medium"
+              >
+                {s.section}
+              </button>
+            ))}
+          </div>
+        </div>
+      }
+      footer={
+        <div className="flex items-center gap-4">
+          <div className="min-w-0 flex-1">
+            <p className="t-num text-[12.5px] text-ink-3">
+              {cartCount ? `${cartCount} ${plural(cartCount, "позиция", "позиции", "позиций")} к столу` : "Предзаказ к вашему приходу"}
+            </p>
+            <Ticker value={money(cartTotal)} className="text-[16px] font-semibold tracking-[-0.015em]" />
+          </div>
+          <Button size="lg" className="px-7" onClick={onClose}>
+            {cartCount ? "Готово" : "Закрыть"}
+          </Button>
+        </div>
+      }
+    >
+      {signatures.length > 0 && (
+        <div className="pt-5">
+          <p className="t-micro px-5 pb-3">От шефа</p>
+          <SignatureDishes dishes={signatures} onOpen={onOpenDish} />
+        </div>
+      )}
+      <MenuSections sections={sections} qtyOf={qtyOf} onOpen={onOpenDish} onQty={onQty} idPrefix="menu-sec" />
+      <p className="t-caption px-5 pb-6 pt-6">Предзаказ подадут к вашему приходу. Оплата — вместе с бронью.</p>
+    </BottomSheet>
   );
 }
 

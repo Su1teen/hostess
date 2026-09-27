@@ -26,6 +26,8 @@ export function VenueRow({
   occupancy,
   rating,
   meta,
+  status,
+  estimated,
   onClick,
   footer,
   className,
@@ -36,6 +38,8 @@ export function VenueRow({
   occupancy?: number;
   rating?: number;
   meta?: string;
+  status?: string;
+  estimated?: boolean;
   onClick?: () => void;
   footer?: ReactNode;
   className?: string;
@@ -49,7 +53,7 @@ export function VenueRow({
         onClick={onClick}
         className="flex w-full items-start gap-4 text-left"
       >
-        <Photo src={image} className="h-[76px] w-[76px] shrink-0 rounded-[16px]" />
+        <Photo src={image} className="h-[76px] w-[76px] shrink-0 rounded-[14px]" />
         <span className="min-w-0 flex-1 pt-0.5">
           <span className="flex items-start justify-between gap-3">
             <span className="block truncate text-[16px] font-semibold tracking-[-0.015em] text-ink">
@@ -59,7 +63,9 @@ export function VenueRow({
           </span>
           <span className="mt-0.5 block truncate text-[13px] text-ink-2">{subtitle}</span>
           <span className="mt-2 flex items-center gap-2">
-            {occupancy != null && <LiveStatus occupancy={occupancy} showPercent={false} />}
+            {occupancy != null && (
+              <LiveStatus occupancy={occupancy} label={status} estimated={estimated} showPercent={false} />
+            )}
             {meta && <span className="t-num truncate text-[12.5px] text-ink-3">· {meta}</span>}
           </span>
         </span>
@@ -120,6 +126,8 @@ export function CompactVenueCard({
   subtitle,
   occupancy,
   rating,
+  status,
+  estimated,
   onClick,
   className,
 }: {
@@ -128,6 +136,8 @@ export function CompactVenueCard({
   subtitle: string;
   occupancy: number;
   rating: number;
+  status?: string;
+  estimated?: boolean;
   onClick: () => void;
   className?: string;
 }) {
@@ -149,7 +159,7 @@ export function CompactVenueCard({
           <Rating value={rating} className="shrink-0" />
         </span>
         <span className="mt-0.5 block truncate text-[12.5px] text-ink-2">{subtitle}</span>
-        <LiveStatus occupancy={occupancy} className="mt-1.5" showPercent={false} />
+        <LiveStatus occupancy={occupancy} label={status} estimated={estimated} className="mt-1.5" showPercent={false} />
       </span>
     </motion.button>
   );

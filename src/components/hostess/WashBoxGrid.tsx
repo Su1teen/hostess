@@ -1,59 +1,125 @@
 import { motion } from "framer-motion";
-import { type WashBox } from "@/data/hostess";
-import { LiveDot, tapSpring, type LiveTone } from "./system";
+import { Check } from "lucide-react";
+import { bayStatus, type BayStatus, type WashBox } from "@/data/hostess";
+import { cn } from "@/lib/utils";
+import { tapSpring } from "./system";
 
-const tone: Record<WashBox["status"], LiveTone> = { available: "live", moderate: "warn", busy: "busy" };
+const stateMeta: Record<BayStatus["state"], { label: string; dot: string }> = {
+  free: { label: "Свободен", dot: "var(--hs-live)" },
+  reserved: { label: "Бронь", dot: "var(--hs-reserved)" },
+  in_use: { label: "Идёт мойка", dot: "var(--hs-ink-3)" },
+};
 
 /**
- * Car-wash bays as a live board: status dot, one line of state,
- * a thin progress line for bays in use. Selection = ink tile.
+ * Realtime bay board (Supercharger-stall logic): each tile is a physical
+ * bay — number, state, the next relevant time, and nothing else.
+ * In-use bays carry a hairline progress bar and an estimate, never a loud
+ * countdown.
  */
 export function WashBoxGrid({
   boxes,
+  now,
   selected,
   onSelect,
 }: {
   boxes: WashBox[];
+  now: number;
   selected: string | null;
   onSelect: (box: WashBox) => void;
 }) {
+  const cols = boxes.length % 3 === 0 ? "grid-cols-3" : "grid-cols-2";
   return (
-    <div className="grid grid-cols-2 gap-2.5">
-      {boxes.map((b) => {
-        const free = b.status === "available";
-        const on = selected === b.id;
+    <div className={cn("grid gap-2", cols)}>
+      {boxes.map((b, i) => {
+        const s = bayStatus(b, now);
+        const free = s.state === "free";
+        const on = selected === b.id && free;
+        const meta = stateMeta[s.state];
+        const title =
+          s.state === "in_use" ? (s.service ?? meta.label) : s.state === "reserved" ? `Бронь · ${s.at}` : meta.label;
+        const sub =
+          s.state === "in_use"
+            ? `≈ ${s.minutes} мин`
+            : s.state === "reserved"
+              ? `через ${s.minutes} мин`
+              : s.at
+                ? `до ${s.at}`
+                : "Сейчас";
         return (
           <motion.button
             key={b.id}
             type="button"
             disabled={!free}
-            whileTap={free ? { scale: 0.96 } : undefined}
+            whileTap={free ? { scale: 0.95 } : undefined}
             transition={tapSpring}
             onClick={() => onSelect(b)}
-            className={`relative h-[88px] overflow-hidden rounded-row p-3.5 text-left transition-colors ${
-              on ? "bg-ink text-white" : free ? "bg-surface shadow-hairline" : "bg-stone/70"
-            }`}
+            aria-pressed={on}
+            aria-label={`${b.label}: ${title}, ${sub}`}
+            className={cn(
+              "relative flex h-[108px] flex-col overflow-hidden rounded-[16px] px-3 pb-3 pt-2.5 text-left transition-colors duration-200",
+              on
+                ? "bg-ink text-white"
+                : free
+                  ? "bg-white shadow-[inset_0_0_0_1px_var(--hs-line-strong)]"
+                  : "bg-stone text-ink",
+            )}
           >
-            <div className="flex items-center justify-between">
-              <span className="text-[15px] font-semibold tracking-[-0.01em]">{b.label}</span>
-              <LiveDot tone={tone[b.status]} pulse={free && !on} />
-            </div>
-            <span className={`t-num mt-1 block text-[12.5px] ${on ? "text-white/70" : "text-ink-3"}`}>
-              {free ? "Свободен сейчас" : `Освободится в ${b.freeAt}`}
+            <span className="flex items-start justify-between">
+              <span
+                className={cn(
+                  "t-num text-[24px] font-semibold leading-none tracking-[-0.03em]",
+                  !free && !on && "text-ink-3",
+                )}
+              >
+                {String(i + 1).padStart(2, "0")}
+              </span>
+              {on ? (
+                <span className="grid h-5 w-5 place-items-center rounded-full bg-white text-ink">
+                  <Check className="h-3 w-3" strokeWidth={2.6} />
+                </span>
+              ) : (
+                <span className="mt-1 h-[7px] w-[7px] rounded-full" style={{ background: meta.dot }} />
+              )}
             </span>
-            {!free && (
-              <div className="absolute inset-x-3.5 bottom-3.5 h-[3px] overflow-hidden rounded-full bg-[rgb(23_21_15/0.08)]">
-                <motion.div
-                  className="h-full rounded-full bg-ink/70"
-                  initial={{ width: 0 }}
-                  animate={{ width: `${Math.round((b.progress ?? 0) * 100)}%` }}
-                  transition={{ type: "spring", stiffness: 80, damping: 18 }}
+            <span className="mt-auto">
+              <span
+                className={cn(
+                  "block truncate text-[13px] font-medium tracking-[-0.01em]",
+                  s.state === "reserved" && "text-reserved",
+                )}
+              >
+                {title}
+              </span>
+              <span className={cn("t-num mt-0.5 block truncate text-[11.5px]", on ? "text-white/65" : "text-ink-3")}>
+                {sub}
+              </span>
+            </span>
+            {s.state === "in_use" && (
+              <span className="absolute inset-x-0 bottom-0 h-[2px] bg-[rgb(17_18_20/0.06)]">
+                <motion.span
+                  className="block h-full bg-ink/60"
+                  initial={false}
+                  animate={{ width: `${Math.round(s.progress * 100)}%` }}
+                  transition={{ type: "spring", stiffness: 60, damping: 20 }}
                 />
-              </div>
+              </span>
             )}
           </motion.button>
         );
       })}
     </div>
+  );
+}
+
+export function BayLegend() {
+  return (
+    <span className="flex items-center gap-3 text-[11.5px] text-ink-3">
+      {(Object.keys(stateMeta) as BayStatus["state"][]).map((k) => (
+        <span key={k} className="inline-flex items-center gap-1.5">
+          <span className="h-1.5 w-1.5 rounded-full" style={{ background: stateMeta[k].dot }} />
+          {k === "in_use" ? "Мойка" : stateMeta[k].label}
+        </span>
+      ))}
+    </span>
   );
 }

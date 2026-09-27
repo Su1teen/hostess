@@ -165,7 +165,7 @@ export function PaymentSheet({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 z-[120] flex items-end bg-[rgb(23_21_15/0.36)] px-3 pb-[calc(var(--sab)+12px)]"
+            className="absolute inset-0 z-[120] flex items-end bg-[rgb(17_18_20/0.36)] px-3 pb-[calc(var(--sab)+12px)]"
           >
             <motion.div
               initial={{ y: "110%" }}
