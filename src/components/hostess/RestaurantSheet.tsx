@@ -1,12 +1,15 @@
 import { useRef, useState } from "react";
-import { AnimatePresence, motion, useScroll, useTransform } from "framer-motion";
-import { X, Star, Clock, MapPin, Minus, Plus, Flame, Utensils, Wine, ChevronDown } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
+import { Clock, MapPin, Receipt, Utensils } from "lucide-react";
 import { money, occupancyForId, type Restaurant, type Dish } from "@/data/hostess";
+import { hapticSelect } from "@/lib/haptics";
 import { FloorPlan } from "./FloorPlan";
-import { WheelPicker } from "./WheelPicker";
 import { DishModal } from "./DishModal";
 import { WaitlistButton } from "./waitlist/WaitlistButton";
 import { VenueStats } from "./VenueStats";
+import { FactsRow, VenueDetailShell } from "./VenueDetail";
+import { CartLine, CartSheet, MenuSections, SignatureDishes, addPreorder, setPreorderQty } from "./menu";
+import { Button, Chip, ListRow, RowGroup, SectionHeader, Stepper, Tabs, Tag, Ticker } from "./system";
 import type { BookingPayload, PreorderItem } from "./types";
 
 const times = ["18:00", "18:30", "19:00", "19:30", "20:00", "20:30", "21:00", "21:30"];
@@ -20,11 +23,10 @@ const zones = [
   { key: "private", label: "Приватный" },
 ];
 
-const CTA_BOTTOM = "bottom-[calc(80px+env(safe-area-inset-bottom)+16px)]";
-const SCROLL_PB = "pb-[calc(140px+env(safe-area-inset-bottom)+16px)]";
+type Tab = "book" | "menu" | "about";
 
-function pickTopDishes(menu: Restaurant["menu"], count = 3): Dish[] {
-  const all = menu.flatMap((sec) => sec.items);
+function pickTopDishes(r: Restaurant, count = 4): Dish[] {
+  const all = r.menu.flatMap((sec) => sec.items);
   const scored = all.map((d) => {
     let score = 0;
     if (d.special) score += 3;
@@ -33,12 +35,10 @@ function pickTopDishes(menu: Restaurant["menu"], count = 3): Dish[] {
     return { d, score };
   });
   scored.sort((a, b) => b.score - a.score);
-  return scored.slice(0, count).map((s) => s.d);
+  return [...r.specials, ...scored.map((s) => s.d)].slice(0, count);
 }
 
-function totalMenuItems(menu: Restaurant["menu"]) {
-  return menu.reduce((acc, sec) => acc + sec.items.length, 0);
-}
+const guestWord = (n: number) => (n === 1 ? "гость" : n < 5 ? "гостя" : "гостей");
 
 export function RestaurantSheet({
   r,
@@ -49,368 +49,281 @@ export function RestaurantSheet({
   onClose: () => void;
   onProceed: (b: BookingPayload) => void;
 }) {
+  const [tab, setTab] = useState<Tab>("book");
   const [guests, setGuests] = useState(2);
   const [timeIdx, setTimeIdx] = useState(4);
+  const [dayIdx, setDayIdx] = useState(0);
   const [zone, setZone] = useState("hall");
   const [table, setTable] = useState<number | null>(4);
-  // Сброс выбранного столика при смене зоны — у каждой схемы свой набор столов.
+  const [dish, setDish] = useState<Dish | null>(null);
+  const [preorder, setPreorder] = useState<PreorderItem[]>([]);
+  const [cartOpen, setCartOpen] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const tabsRef = useRef<HTMLDivElement>(null);
+
+  const time = times[timeIdx];
+  const fullyBooked = occupancyForId(`${r.id}-${days[dayIdx]}`) === "busy";
+  const takenSlots = new Set(times.filter((t) => occupancyForId(`${r.id}-${days[dayIdx]}-${t}`) === "busy"));
+  const preorderCount = preorder.reduce((s, p) => s + p.qty, 0);
+  const preorderTotal = preorder.reduce((s, p) => s + p.dish.price * p.qty, 0);
+  const qtyOf = (d: Dish) => preorder.find((p) => p.dish.id === d.id)?.qty ?? 0;
+  const menuCount = r.menu.reduce((acc, sec) => acc + sec.items.length, 0);
+
   const changeZone = (z: string) => {
     setZone(z);
     setTable(null);
   };
-  const [dayIdx, setDayIdx] = useState(0);
-  const [dish, setDish] = useState<Dish | null>(null);
-  const [preorder, setPreorder] = useState<PreorderItem[]>([]);
-  const [menuExpanded, setMenuExpanded] = useState(false);
-  const time = times[timeIdx];
-  // Демо-логика «всё занято»: часть комбинаций день+заведение полностью заняты.
-  const fullyBooked = occupancyForId(`${r.id}-${days[dayIdx]}`) === "busy";
 
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const { scrollYProgress } = useScroll({ container: scrollRef });
-  const heroScale = useTransform(scrollYProgress, [0, 1], [1, 1.2]);
-  const heroOpacity = useTransform(scrollYProgress, [0, 1], [1, 0.6]);
+  const goTab = (t: Tab) => {
+    setTab(t);
+    const el = tabsRef.current;
+    const sc = scrollRef.current;
+    if (el && sc && sc.scrollTop > el.offsetTop + 400) sc.scrollTo({ top: el.offsetTop + 300, behavior: "smooth" });
+  };
 
-  const addToPreorder = (d: Dish, qty: number) =>
-    setPreorder((prev) => {
-      const found = prev.find((p) => p.dish.id === d.id);
-      if (found) {
-        return prev.map((p) => (p.dish.id === d.id ? { ...p, qty: p.qty + qty } : p));
-      }
-      return [...prev, { dish: d, qty }];
-    });
-
-  const preorderCount = preorder.reduce((s, p) => s + p.qty, 0);
-
-  const topDishes = pickTopDishes(r.menu);
-  const menuCount = totalMenuItems(r.menu);
+  const proceed = () =>
+    onProceed({ restaurant: r, table, day: days[dayIdx], time, guests, preorder });
 
   return (
-    <motion.div
-      initial={{ y: "100%" }}
-      animate={{ y: 0 }}
-      exit={{ y: "100%" }}
-      transition={{ type: "spring", stiffness: 260, damping: 30 }}
-      className="absolute inset-0 z-[100] flex flex-col bg-white"
-    >
-      <div ref={scrollRef} className={`flex-1 overflow-y-auto overscroll-none ${SCROLL_PB}`}>
-        {/* Hero — sticky + parallax + blending с контентом */}
-        <div className="sticky top-0 z-0 h-[374px] w-full overflow-hidden">
-          <motion.img
-            src={r.cover}
-            alt=""
-            style={{
-              scale: heroScale,
-              opacity: heroOpacity,
-              originY: 0,
-            }}
-            className="h-full w-full object-cover"
-          />
-          <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/10 to-black/80" />
-          <div className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-white/95 via-white/80 to-transparent" />
-          <button
-            onClick={onClose}
-            className="absolute left-4 top-14 grid h-10 w-10 place-items-center rounded-full bg-white/90 backdrop-blur"
-          >
-            <X className="h-4 w-4" />
-          </button>
-          {/* Story dots */}
-          <div className="absolute inset-x-0 top-12 flex justify-center gap-1 px-4">
-            {r.gallery.map((_, i) => (
-              <span
-                key={i}
-                className={`h-0.5 flex-1 max-w-16 rounded-full ${i === 0 ? "bg-white" : "bg-white/30"}`}
+    <>
+      <VenueDetailShell
+        name={r.name}
+        images={r.gallery.length ? r.gallery : [r.cover]}
+        onClose={onClose}
+        scrollRef={scrollRef}
+        dock={
+          <>
+            <CartLine count={preorderCount} total={preorderTotal} onOpen={() => setCartOpen(true)} />
+            {fullyBooked ? (
+              <WaitlistButton
+                input={{
+                  entityId: r.id,
+                  entityName: r.name,
+                  entityKind: "Ресторан",
+                  cover: r.cover,
+                  resource: `Столик на ${guests} · ${days[dayIdx]}`,
+                  peopleAhead: 4,
+                  etaMin: 25,
+                }}
               />
+            ) : (
+              <div className="flex items-center gap-4">
+                <div className="min-w-0 flex-1">
+                  <p className="t-num truncate text-[12.5px] text-ink-3">
+                    {days[dayIdx]} · {time} · {guests} {guestWord(guests)}
+                  </p>
+                  <p className="truncate text-[16px] font-semibold tracking-[-0.015em]">
+                    {table ? `Столик ${table} · ${zones.find((z) => z.key === zone)?.label}` : "Любой столик"}
+                  </p>
+                </div>
+                <Button size="lg" onClick={proceed} className="px-7">
+                  Забронировать
+                </Button>
+              </div>
+            )}
+          </>
+        }
+      >
+        {/* Essentials */}
+        <div className="px-5">
+          <p className="t-micro">{r.cuisine}</p>
+          <h1 className="t-display mt-2">{r.name}</h1>
+          <p className="mt-2.5 flex items-center gap-1.5 text-[14px] text-ink-2">
+            <MapPin className="h-3.5 w-3.5 shrink-0" strokeWidth={1.6} />
+            <span className="truncate">
+              {r.district}
+              {r.address ? ` · ${r.address}` : ""} · {r.distanceKm} км
+            </span>
+          </p>
+          <p className="t-body mt-4 text-ink-2">{r.description}</p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {r.tags.map((t) => (
+              <Tag key={t}>{t}</Tag>
             ))}
           </div>
-          <div className="absolute inset-x-5 bottom-16 text-white">
-            <div className="flex items-center gap-2">
-              <span className="glass rounded-full px-2.5 py-1 text-[11px] font-semibold text-neutral-900">
-                <Star className="mr-1 -mt-0.5 inline h-3 w-3 fill-primary text-primary" />{" "}
-                {r.rating}
-              </span>
-              <span className="text-xs opacity-90">· {r.reviews} отзывов</span>
-            </div>
-            <h1 className="mt-1 text-3xl font-semibold tracking-tight">{r.name}</h1>
-            <p className="text-sm opacity-90">
-              {r.cuisine} · {r.district}
-            </p>
-          </div>
         </div>
 
-        {/* Контент — выезжает поверх hero, с bg-white и мягким верхним скруглением */}
-        <div className="relative z-10 rounded-t-[32px] bg-white px-5 pt-6">
-          {/* ── Статистика заведения ─────────────────────────────────── */}
-          <VenueStats
-            occupancy={r.occupancy}
-            avgCheck={r.avgCheck}
-            peakHours={r.peakHours}
-            rating={r.rating}
-            reviews={r.reviews}
+        <div className="mt-7">
+          <FactsRow
+            facts={[
+              { label: "Оценка", value: `★ ${r.rating.toFixed(1)}`, sub: `${r.reviews.toLocaleString("ru-RU")} отзывов` },
+              { label: "Средний чек", value: money(r.avgCheck), sub: "на гостя" },
+              {
+                label: "Сегодня",
+                value: r.hours ? `до ${r.hours.split("–")[1]?.trim()}` : "Открыто",
+                sub: r.hours ? `с ${r.hours.split("–")[0].trim()}` : undefined,
+              },
+            ]}
           />
+        </div>
 
-          <div className="mt-4 grid grid-cols-3 overflow-hidden rounded-2xl bg-neutral-50 text-center">
-            <div className="p-3">
-              <Clock className="mx-auto h-4 w-4 text-neutral-500" />
-              <p className="mt-1 text-[11px] text-neutral-500">Открыто</p>
-              <p className="text-xs font-semibold">до 01:00</p>
-            </div>
-            <div className="border-x border-white p-3">
-              <MapPin className="mx-auto h-4 w-4 text-neutral-500" />
-              <p className="mt-1 text-[11px] text-neutral-500">Расстояние</p>
-              <p className="text-xs font-semibold">{r.distanceKm} км</p>
-            </div>
-            <div className="p-3">
-              <Wine className="mx-auto h-4 w-4 text-neutral-500" />
-              <p className="mt-1 text-[11px] text-neutral-500">Винная карта</p>
-              <p className="text-xs font-semibold">120+</p>
-            </div>
-          </div>
+        <div className="mt-6 px-5">
+          <VenueStats occupancy={r.occupancy} peakHours={r.peakHours} />
+        </div>
 
-          {/* Specials */}
-          {r.specials.length > 0 && (
-            <div className="mt-6">
-              <h3 className="mb-3 flex items-center gap-2 text-[15px] font-semibold">
-                <Flame className="h-4 w-4 text-primary" /> Specials
-              </h3>
-              <div className="no-scrollbar -mx-5 flex gap-3 overflow-x-auto px-5 after:w-5 after:shrink-0 after:content-['']">
-                {r.specials.map((s) => (
-                  <div
-                    key={s.id}
-                    className="relative w-64 shrink-0 overflow-hidden rounded-3xl bg-gradient-to-br from-primary to-[#EA580C] p-4 text-white"
-                  >
-                    <span className="absolute right-3 top-3 rounded-full bg-black/40 px-2 py-0.5 text-[10px] font-bold backdrop-blur">
-                      {s.special}
-                    </span>
-                    <div className="flex items-start gap-3">
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-semibold leading-tight">{s.name}</p>
-                        <p className="mt-1 text-[11px] opacity-80">{s.desc}</p>
-                        <p className="mt-3 text-lg font-semibold">{money(s.price)}</p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+        {/* Progressive sections */}
+        <div ref={tabsRef} className="sticky top-[calc(var(--sat)+58px)] z-10 mt-8 bg-canvas pt-1">
+          <Tabs
+            id={`venue-${r.id}`}
+            value={tab}
+            onChange={goTab}
+            tabs={[
+              { key: "book", label: "Бронь" },
+              { key: "menu", label: `Меню · ${menuCount}` },
+              { key: "about", label: "О месте" },
+            ]}
+          />
+        </div>
 
-          {/* Menu — Sneak Peek: сразу 2-3 топовых позиции + плавное раскрытие всего меню */}
-          <div className="mt-6">
-            <h3 className="mb-3 flex items-center gap-2 text-[15px] font-semibold">
-              <Utensils className="h-4 w-4" /> Меню
-              <span className="ml-auto text-[10px] font-medium text-neutral-400">
-                {menuCount} позиций
-              </span>
-            </h3>
-
-            {/* Топовые позиции — компактные, с миниатюрами 40×40 */}
-            <div className="space-y-3">
-              {topDishes.map((d) => (
-                <motion.button
-                  key={d.id}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => setDish(d)}
-                  className="flex w-full items-center gap-3 rounded-2xl bg-white p-3 text-left shadow-soft"
-                >
-                  <img
-                    src={d.image}
-                    alt=""
-                    className="h-10 w-10 rounded-xl object-cover"
-                  />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[13px] font-semibold leading-tight">{d.name}</p>
-                    <p className="mt-0.5 truncate text-[11px] text-neutral-500">{d.desc}</p>
-                  </div>
-                  <p className="text-[13px] font-semibold text-primary">{money(d.price)}</p>
-                </motion.button>
-              ))}
-            </div>
-
-            {/* Кнопка раскрытия полного меню */}
-            <button
-              onClick={() => setMenuExpanded((v) => !v)}
-              className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border border-border/60 bg-white py-3 text-[13px] font-semibold text-neutral-900 transition-colors active:bg-neutral-50"
-            >
-              {menuExpanded ? "Свернуть меню" : `Посмотреть все ${menuCount} позиций`}
-              <motion.span animate={{ rotate: menuExpanded ? 180 : 0 }} transition={{ duration: 0.2 }}>
-                <ChevronDown className="h-4 w-4 text-neutral-500" />
-              </motion.span>
-            </button>
-
-            {/* Полное меню — плавное раскрытие */}
-            <AnimatePresence initial={false}>
-              {menuExpanded && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: "auto", opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ type: "spring", stiffness: 260, damping: 30 }}
-                  className="overflow-hidden"
-                >
-                  <div className="pt-3">
-                    {r.menu.map((sec) => (
-                      <div key={sec.section} className="mb-4">
-                        <p className="mb-2 text-[11px] font-semibold uppercase tracking-widest text-neutral-500">
-                          {sec.section}
-                        </p>
-                        <div className="space-y-3">
-                          {sec.items.map((d) => (
-                            <motion.button
-                              key={d.id}
-                              whileTap={{ scale: 0.98 }}
-                              onClick={() => setDish(d)}
-                              className="relative flex w-full overflow-hidden rounded-3xl bg-white text-left shadow-soft"
-                            >
-                              <div className="min-w-0 flex-1 p-4">
-                                <p className="text-[15px] font-semibold leading-tight">{d.name}</p>
-                                <p className="mt-1 text-xs text-neutral-500 line-clamp-2">{d.desc}</p>
-                                <div className="mt-3 flex flex-wrap gap-1.5">
-                                  {d.tags.slice(0, 3).map((t) => (
-                                    <span
-                                      key={t}
-                                      className="rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] font-medium text-neutral-700"
-                                    >
-                                      {t}
-                                    </span>
-                                  ))}
-                                </div>
-                                <p className="mt-3 text-lg font-semibold text-primary">{money(d.price)}</p>
-                              </div>
-                              <div className="relative w-32 shrink-0">
-                                <img
-                                  src={d.image}
-                                  alt=""
-                                  className="absolute inset-0 h-full w-full object-cover"
-                                />
-                                <span className="absolute right-2 top-2 rounded-full bg-black/70 px-2 py-0.5 text-[10px] font-semibold text-white backdrop-blur">
-                                  {d.weight} г
-                                </span>
-                                <span className="absolute bottom-2 right-2 rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-semibold text-neutral-900 backdrop-blur">
-                                  <Flame className="mr-0.5 -mt-0.5 inline h-2.5 w-2.5 text-primary" />
-                                  {d.kcal} ккал
-                                </span>
-                              </div>
-                            </motion.button>
-                          ))}
-                        </div>
-                      </div>
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={tab}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+          >
+            {tab === "book" && (
+              <div className="space-y-8 pt-6">
+                <div>
+                  <p className="t-micro px-5 pb-3">Когда</p>
+                  <div className="rail gap-2">
+                    {days.map((d, i) => (
+                      <Chip key={d} selected={dayIdx === i} tone="outline" onClick={() => setDayIdx(i)}>
+                        {d}
+                      </Chip>
                     ))}
                   </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
+                </div>
 
-          {/* Booking flow */}
-          <div className="mt-4 rounded-3xl bg-neutral-50 p-4">
-            <h3 className="mb-3 text-[15px] font-semibold">Бронирование</h3>
+                <div className="flex items-center justify-between px-5">
+                  <div>
+                    <p className="t-micro">Гости</p>
+                    <p className="mt-1.5 text-[15px]">
+                      <Ticker value={guests} /> {guestWord(guests)}
+                    </p>
+                  </div>
+                  <Stepper value={guests} onChange={setGuests} min={1} max={20} />
+                </div>
 
-            {/* Guests */}
-            <div className="flex items-center justify-between rounded-2xl bg-white p-3 hairline">
-              <div>
-                <p className="text-xs text-neutral-500">Гостей</p>
-                <p className="text-sm font-semibold">{guests} человек</p>
+                <div className="px-5">
+                  <div className="flex items-baseline justify-between pb-3">
+                    <p className="t-micro">Время</p>
+                    <p className="text-[12px] text-ink-3">
+                      {fullyBooked ? "На этот день мест нет" : `${times.length - takenSlots.size} слотов свободно`}
+                    </p>
+                  </div>
+                  {fullyBooked ? (
+                    <p className="t-caption rounded-card bg-surface p-4 shadow-hairline">
+                      Все столы на {days[dayIdx].toLowerCase()} заняты. Встаньте в лист ожидания — мы сообщим, как
+                      только освободится место.
+                    </p>
+                  ) : (
+                    <div className="grid grid-cols-4 gap-2">
+                      {times.map((t, i) => {
+                        const taken = takenSlots.has(t);
+                        const on = timeIdx === i;
+                        return (
+                          <motion.button
+                            key={t}
+                            type="button"
+                            disabled={taken}
+                            whileTap={{ scale: 0.94 }}
+                            onClick={() => {
+                              hapticSelect();
+                              setTimeIdx(i);
+                            }}
+                            className={`t-num h-11 rounded-[14px] text-[14.5px] font-medium transition-colors ${
+                              on
+                                ? "bg-ink text-white"
+                                : taken
+                                  ? "bg-transparent text-ink-3 line-through decoration-ink-3/50"
+                                  : "bg-surface text-ink shadow-[inset_0_0_0_1px_var(--hs-line-strong)]"
+                            }`}
+                          >
+                            {t}
+                          </motion.button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <div className="flex items-baseline justify-between px-5 pb-3">
+                    <p className="t-micro">Зона и стол</p>
+                    <p className="text-[12px] text-ink-3">{table ? `Выбран стол ${table}` : "Любой стол"}</p>
+                  </div>
+                  <div className="rail gap-2 pb-3">
+                    {zones.map((z) => (
+                      <Chip key={z.key} selected={zone === z.key} onClick={() => changeZone(z.key)}>
+                        {z.label}
+                      </Chip>
+                    ))}
+                  </div>
+                  <div className="mx-5 overflow-hidden rounded-card bg-surface p-2 shadow-hairline">
+                    <FloorPlan zone={zone} selected={table} onSelect={setTable} />
+                  </div>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setGuests(Math.max(1, guests - 1))}
-                  className="grid h-9 w-9 place-items-center rounded-full bg-neutral-100"
-                >
-                  <Minus className="h-4 w-4" />
-                </button>
-                <span className="w-6 text-center text-sm font-semibold">{guests}</span>
-                <button
-                  onClick={() => setGuests(Math.min(20, guests + 1))}
-                  className="grid h-9 w-9 place-items-center rounded-full bg-primary text-white"
-                >
-                  <Plus className="h-4 w-4" />
-                </button>
+            )}
+
+            {tab === "menu" && (
+              <div className="pt-6">
+                <SectionHeader eyebrow="От шефа" title="Фирменные блюда" />
+                <div className="mt-4">
+                  <SignatureDishes dishes={pickTopDishes(r)} onOpen={setDish} />
+                </div>
+                <MenuSections
+                  sections={r.menu}
+                  qtyOf={qtyOf}
+                  onOpen={setDish}
+                  onQty={(d, q) => setPreorder((prev) => setPreorderQty(prev, d, q))}
+                />
+                <p className="t-caption px-5 pt-6">
+                  Предзаказ подадут к вашему приходу. Оплата — вместе с бронью.
+                </p>
               </div>
-            </div>
+            )}
 
-            {/* Дата + время: iOS-барабаны */}
-            <div className="mt-3 rounded-2xl bg-white p-3 shadow-soft">
-              <div className="flex divide-x divide-neutral-100">
-                <WheelPicker label="Дата" options={days} value={dayIdx} onChange={setDayIdx} />
-                <WheelPicker label="Время" options={times} value={timeIdx} onChange={setTimeIdx} />
+            {tab === "about" && (
+              <div className="space-y-6 px-5 pt-6">
+                <p className="t-body text-ink-2">{r.description}</p>
+                <RowGroup>
+                  <ListRow icon={MapPin} title={r.address ?? r.district} subtitle={`${r.district} · ${r.distanceKm} км от вас`} chevron={false} />
+                  <ListRow icon={Clock} title={r.hours ?? "Ежедневно"} subtitle="Часы работы" chevron={false} />
+                  <ListRow icon={Utensils} title={r.cuisine} subtitle="Кухня" chevron={false} />
+                  <ListRow icon={Receipt} title={money(r.avgCheck)} subtitle="Средний чек на гостя" chevron={false} />
+                </RowGroup>
               </div>
-            </div>
+            )}
+          </motion.div>
+        </AnimatePresence>
+      </VenueDetailShell>
 
-            {/* Zones — горизонтальный скролл для 6 зон */}
-            <div className="no-scrollbar mt-3 flex gap-2 overflow-x-auto">
-              {zones.map((z) => (
-                <button
-                  key={z.key}
-                  onClick={() => changeZone(z.key)}
-                  className={`shrink-0 rounded-2xl px-3.5 py-2.5 text-xs font-medium ${
-                    zone === z.key
-                      ? "bg-neutral-900 text-white"
-                      : "bg-white text-neutral-800 hairline"
-                  }`}
-                >
-                  {z.label}
-                </button>
-              ))}
-            </div>
-
-            {/* Floor plan — интерактивная схема зала, переключается по зоне */}
-            <div className="mt-3">
-              <FloorPlan zone={zone} selected={table} onSelect={setTable} />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Floating CTA — над BottomNav с учётом safe-area. */}
-      <div className={`pointer-events-none absolute inset-x-0 z-40 px-5 ${CTA_BOTTOM}`}>
-        {fullyBooked ? (
-          <div className="pointer-events-auto">
-            <WaitlistButton
-              input={{
-                entityId: r.id,
-                entityName: r.name,
-                entityKind: "Ресторан",
-                cover: r.cover,
-                resource: `Столик на ${guests}`,
-                peopleAhead: 4,
-                etaMin: 25,
-              }}
-            />
-          </div>
-        ) : (
-          <motion.button
-            whileTap={{ scale: 0.97 }}
-            onClick={() =>
-              onProceed({
-                restaurant: r,
-                table,
-                day: days[dayIdx],
-                time,
-                guests,
-                preorder,
-              })
-            }
-            className="pointer-events-auto flex w-full items-center justify-between rounded-full bg-neutral-900 py-4 pl-6 pr-3 text-white shadow-float"
-          >
-            <span className="text-left">
-              <span className="block text-[11px] opacity-70">
-                {days[dayIdx]} · {time} · {guests} гостей
-                {preorderCount > 0 && ` · предзаказ ${preorderCount}`}
-              </span>
-              <span className="text-sm font-semibold">
-                {table ? `Забронировать T${table}` : "Выберите столик"}
-              </span>
-            </span>
-            <span className="rounded-full bg-primary px-5 py-2.5 text-sm font-semibold">Далее</span>
-          </motion.button>
-        )}
-      </div>
-
-      {/* Drill-down: детальная карточка блюда */}
       <AnimatePresence>
-        {dish && <DishModal dish={dish} onClose={() => setDish(null)} onAdd={addToPreorder} />}
+        {dish && (
+          <DishModal
+            key="dish"
+            dish={dish}
+            onClose={() => setDish(null)}
+            onAdd={(d, q) => setPreorder((prev) => addPreorder(prev, d, q))}
+          />
+        )}
+        {cartOpen && (
+          <CartSheet
+            key="cart"
+            items={preorder}
+            onQty={(d, q) => setPreorder((prev) => setPreorderQty(prev, d, q))}
+            onClose={() => setCartOpen(false)}
+            footer={
+              <Button block size="lg" onClick={() => setCartOpen(false)}>
+                Готово
+              </Button>
+            }
+          />
+        )}
       </AnimatePresence>
-    </motion.div>
+    </>
   );
 }

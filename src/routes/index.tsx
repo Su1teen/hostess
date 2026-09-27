@@ -24,22 +24,25 @@ export const Route = createFileRoute("/")({
 });
 
 function Index() {
-  const { role, login, logout } = useAuth();
-  const [splash, setSplash] = useState(true);
+  const { role, login, logout, hydrated } = useAuth();
+  const [splashDone, setSplashDone] = useState(false);
 
   useEffect(() => {
-    const t = setTimeout(() => setSplash(false), 1100);
+    const t = setTimeout(() => setSplashDone(true), 1100);
     return () => clearTimeout(t);
   }, []);
+
+  // До гидратации роль неизвестна — показываем сплэш, чтобы SSR и клиент совпадали.
+  const showSplash = !hydrated || (role !== null && !splashDone);
 
   return (
     <PhoneFrame>
       <AnimatePresence mode="wait" initial={false}>
-        {splash && role !== null && <Splash key="splash" />}
+        {showSplash && <Splash key="splash" />}
       </AnimatePresence>
 
       <AnimatePresence mode="wait" initial={false}>
-        {role === null && <AuthScreen key="auth" onLogin={login} />}
+        {hydrated && role === null && <AuthScreen key="auth" onLogin={login} />}
         {role === "guest" && (
           <motion.div
             key="guest"

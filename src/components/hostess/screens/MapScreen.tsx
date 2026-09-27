@@ -1,28 +1,23 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
-import { motion, AnimatePresence, useDragControls, type PanInfo } from "framer-motion";
 import {
-  Search,
-  SlidersHorizontal,
-  Star,
-  Clock,
-  X,
-  Loader2,
-  MapPin,
-  ChevronUp,
-  ChevronDown,
-} from "lucide-react";
+  AnimatePresence,
+  animate,
+  motion,
+  useDragControls,
+  useMotionValue,
+  useTransform,
+  type PanInfo,
+} from "framer-motion";
+import { ChevronDown, Loader2, LocateFixed, MapPin, Search, X } from "lucide-react";
 import {
-  ASTANA,
   MAPBOX_TOKEN,
   restaurants,
   venues,
   cityEvents,
   mapPoints,
   friendMapLocations,
-  categories,
-  occupancyForId,
   carWashById,
   type Restaurant,
   type Venue,
@@ -31,47 +26,46 @@ import {
   type MapPoint,
 } from "@/data/hostess";
 import { geocode, type GeoResult } from "@/lib/geo";
+import { hapticSelect } from "@/lib/haptics";
 import { CarWashSheet } from "../CarWashSheet";
-import { useTheme, categoryToTheme } from "@/components/hostess/ThemeProvider";
 import { VenueBookingModal } from "@/components/hostess/VenueBookingModal";
 import { EventTicketModal } from "@/components/hostess/EventTicketModal";
 import { CatalogSections, CategoryRail } from "@/components/hostess/screens/CatalogScreen";
+import { CompactVenueCard, Rating, SlotChips, VenueRow } from "@/components/hostess/cards";
+import {
+  ICON_STROKE,
+  IconButton,
+  LiveDot,
+  LiveStatus,
+  Photo,
+  sheetSpring,
+  spring,
+  occupancyLevel,
+  toneColor,
+} from "@/components/hostess/system";
+import { categoryMeta, nearbyFor, nearbyItem, slotsFor } from "@/components/hostess/venue";
+import type { SheetState } from "@/components/hostess/types";
 
 mapboxgl.accessToken = MAPBOX_TOKEN;
 
-// Цвет пина по категории.
-const catColor: Record<string, string> = {
-  food: "#F97316",
-  beauty: "#EC4899",
-  medicine: "#0EA5E9",
-  auto: "#22C55E",
-  concerts: "#A855F7",
-};
-
-const fallbackMarkerPhoto =
-  "https://images.unsplash.com/photo-1600607686527-6fb886090705?auto=format&fit=crop&w=600&q=80";
+const MAP_CENTER: [number, number] = [71.4335, 51.1335];
+const ME = { lng: 71.4302, lat: 51.1262 };
+const HEADER_H = 78;
 
 function mapPointToVenue(point: MapPoint): Venue {
-  const kind: Record<MapPoint["category"], string> = {
-    food: "Ресторан · Астана",
-    concerts: "Событие · Астана",
-    beauty: "Красота · Астана",
-    medicine: "Медицина · Астана",
-    auto: "Авто · Астана",
-  };
-
+  const item = nearbyItem(point);
   return {
     id: point.id,
     category: point.category,
     name: point.name,
-    kind: kind[point.category],
+    kind: item.subtitle,
     rating: point.rating,
     reviews: 128,
-    occupancy: 45,
+    occupancy: item.occupancy,
     peakHours: "18:00 – 21:00",
     cover: point.cover,
     priceFrom: 5000,
-    distanceKm: 2.4,
+    distanceKm: item.distanceKm,
     services: [
       { name: "Стандартная запись", price: 5000, duration: "60 мин" },
       { name: "Приоритетная запись", price: 8000, duration: "45 мин" },
@@ -80,110 +74,197 @@ function mapPointToVenue(point: MapPoint): Venue {
   };
 }
 
-// ── Состояния шторки ──────────────────────────────────────────────
-type SheetState = "collapsed" | "half" | "full";
-
 export function MapScreen({
   onOpenRestaurant,
-  sheetState = "collapsed",
+  sheetState = "peek",
   onSheetStateChange,
+  onOpenProfile,
+  onOverlayChange,
 }: {
   onOpenRestaurant: (r: Restaurant) => void;
   sheetState?: SheetState;
   onSheetStateChange?: (s: SheetState) => void;
+  onOpenProfile?: () => void;
+  onOverlayChange?: (open: boolean) => void;
 }) {
   const mapNode = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const pointMarkersRef = useRef<mapboxgl.Marker[]>([]);
+  const pinElsRef = useRef(new Map<string, HTMLElement>());
   const friendMarkersRef = useRef<mapboxgl.Marker[]>([]);
   const renderClustersRef = useRef<() => void>(() => {});
   const activeCategoriesRef = useRef(new Set<string>(["food"]));
-  const openPointRef = useRef<(p: MapPoint) => void>(() => {});
-  const sheetRef = useRef<HTMLDivElement>(null);
+  const selectedRef = useRef<string | null>(null);
+  const selectPointRef = useRef<(p: MapPoint) => void>(() => {});
+  const markerClickAt = useRef(0);
   const containerRef = useRef<HTMLDivElement>(null);
+  const safeProbe = useRef<HTMLDivElement>(null);
   const dragControls = useDragControls();
   const [containerH, setContainerH] = useState(800);
+  const [sab, setSab] = useState(0);
 
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<GeoResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [showResults, setShowResults] = useState(false);
 
-  // Внутреннее состояние шторки (может управляться извне через props).
   const [internalSheet, setInternalSheet] = useState<SheetState>(sheetState);
   const sheet = onSheetStateChange ? sheetState : internalSheet;
-  const setSheet = (s: SheetState) => {
-    if (onSheetStateChange) onSheetStateChange(s);
-    else setInternalSheet(s);
-  };
+  const setSheet = useCallback(
+    (s: SheetState) => {
+      if (onSheetStateChange) onSheetStateChange(s);
+      else setInternalSheet(s);
+    },
+    [onSheetStateChange],
+  );
 
-  // Каталог-стейт
   const [cat, setCat] = useState("food");
   const [activeCategories, setActiveCategories] = useState<string[]>(["food"]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [venue, setVenue] = useState<Venue | null>(null);
   const [event, setEvent] = useState<CityEvent | null>(null);
   const [carWash, setCarWash] = useState<CarWash | null>(null);
 
-  // Открытие точки: ресторан → карточка, авто → экран автомойки.
+  useEffect(() => {
+    onOverlayChange?.(Boolean(venue || event || carWash));
+  }, [venue, event, carWash, onOverlayChange]);
+
   const openVenue = (v: Venue) => {
     const wash = carWashById(v.id);
     if (v.category === "auto" && wash) setCarWash(wash);
     else setVenue(v);
   };
 
-  // Клик по пину на карте.
+  // Открыть детальную карточку точки.
   const openPoint = (p: MapPoint) => {
     const rest = restaurants.find((restaurant) => restaurant.id === p.id);
     if (rest) return onOpenRestaurant(rest);
-
     const cityEvent = cityEvents.find((item) => item.id === p.id);
     if (cityEvent) return setEvent(cityEvent);
-
     const wash = carWashById(p.id);
     if (wash) return setCarWash(wash);
-
     const item = venues.find((venueItem) => venueItem.id === p.id);
     setVenue(item ?? mapPointToVenue(p));
   };
-  openPointRef.current = openPoint;
 
-  // Динамическая тема: переключается при смене категории.
-  const { setTheme } = useTheme();
-  const handleCategorySelect = useCallback(
-    (category: string) => {
-      const isActive = activeCategories.includes(category);
-      if (isActive && activeCategories.length === 1) return;
+  /* ── Sheet geometry ───────────────────────────────────────────── */
+  const navSpace = 64 + 12 + sab + 8;
+  const collapsedV = navSpace + HEADER_H;
+  const peekV = collapsedV + 124;
+  const halfV = Math.max(peekV + 140, Math.round(containerH * 0.6));
+  const visibleOf = useCallback(
+    (s: SheetState) =>
+      s === "collapsed" ? collapsedV : s === "peek" ? peekV : s === "half" ? halfV : containerH,
+    [collapsedV, peekV, halfV, containerH],
+  );
+  const yOf = useCallback((s: SheetState) => containerH - visibleOf(s), [containerH, visibleOf]);
 
-      const nextCategories = isActive
-        ? activeCategories.filter((item) => item !== category)
-        : [...activeCategories, category];
-      const nextCatalogCategory =
-        (isActive && cat === category ? nextCategories[nextCategories.length - 1] : category) ??
-        "food";
-
-      setActiveCategories(nextCategories);
-      setCat(nextCatalogCategory);
-      setTheme(categoryToTheme(nextCatalogCategory));
-    },
-    [activeCategories, cat, setTheme],
+  const sheetY = useMotionValue(containerH - peekV);
+  const dragging = useRef(false);
+  const radius = useTransform(sheetY, [0, 48], [0, 30]);
+  const overlayOpacity = useTransform(sheetY, (v) => Math.min(1, Math.max(0, (v - 40) / (containerH * 0.25))));
+  const controlsY = useTransform(sheetY, (v) => v - 56);
+  const controlsOpacity = useTransform(sheetY, (v) =>
+    Math.min(1, Math.max(0, (v - containerH * 0.38) / 80)),
   );
 
-  useEffect(() => {
-    activeCategoriesRef.current = new Set(activeCategories);
-    renderClustersRef.current();
-  }, [activeCategories]);
-
-  // Высота контейнера (для расчёта позиций шторки).
-  useEffect(() => {
+  useLayoutEffect(() => {
     const measure = () => {
       if (containerRef.current) setContainerH(containerRef.current.clientHeight);
+      if (safeProbe.current) setSab(safeProbe.current.clientHeight);
     };
     measure();
     window.addEventListener("resize", measure);
     return () => window.removeEventListener("resize", measure);
   }, []);
 
-  // Дебаунс-поиск через Positionstack.
+  useEffect(() => {
+    if (dragging.current) return;
+    const controls = animate(sheetY, yOf(sheet), sheetSpring);
+    return () => controls.stop();
+  }, [sheet, yOf, sheetY]);
+
+  const order: SheetState[] = ["full", "half", "peek", "collapsed"];
+  const lastDragEnd = useRef(0);
+  const handleDragEnd = (_: unknown, info: PanInfo) => {
+    dragging.current = false;
+    lastDragEnd.current = Date.now();
+    const projected = sheetY.get() + info.velocity.y * 0.2;
+    let target = order.reduce((best, s) =>
+      Math.abs(yOf(s) - projected) < Math.abs(yOf(best) - projected) ? s : best,
+    );
+    if (target === sheet && Math.abs(info.velocity.y) > 500) {
+      const i = order.indexOf(sheet) + (info.velocity.y > 0 ? 1 : -1);
+      target = order[Math.max(0, Math.min(order.length - 1, i))];
+    }
+    animate(sheetY, yOf(target), { ...sheetSpring, velocity: info.velocity.y });
+    if (target !== sheet) setSheet(target);
+  };
+
+  /* ── Categories ───────────────────────────────────────────────── */
+  const handleCategorySelect = useCallback(
+    (category: string) => {
+      const isActive = activeCategories.includes(category);
+      if (isActive && activeCategories.length === 1) return;
+      const next = isActive
+        ? activeCategories.filter((item) => item !== category)
+        : [...activeCategories, category];
+      setActiveCategories(next);
+      setCat((isActive && cat === category ? next[next.length - 1] : category) ?? "food");
+      setSelectedId(null);
+    },
+    [activeCategories, cat],
+  );
+
+  const selectDiscoveryCategory = (c: string) => {
+    setCat(c);
+    setActiveCategories([c]);
+  };
+
+  useEffect(() => {
+    activeCategoriesRef.current = new Set(activeCategories);
+    renderClustersRef.current();
+  }, [activeCategories]);
+
+  const nearby = useMemo(() => nearbyFor(activeCategories), [activeCategories]);
+  const freeNow = nearby.filter((i) => occupancyLevel(i.occupancy).tone === "live").length;
+  const nowRail = [...nearby].sort((a, b) => a.occupancy - b.occupancy).slice(0, 8);
+
+  /* ── Selection ────────────────────────────────────────────────── */
+  const selectPoint = (p: MapPoint) => {
+    hapticSelect();
+    setSelectedId(p.id);
+    setSheet("collapsed");
+    const map = mapRef.current;
+    if (map) {
+      map.easeTo({
+        center: [p.coords.lng, p.coords.lat],
+        zoom: Math.max(map.getZoom(), 13.6),
+        offset: [0, -Math.round(containerH * 0.14)],
+        duration: 650,
+        easing: (t) => 1 - Math.pow(1 - t, 3),
+      });
+    }
+  };
+  selectPointRef.current = selectPoint;
+
+  useEffect(() => {
+    selectedRef.current = selectedId;
+    pinElsRef.current.forEach((el, id) => {
+      const on = id === selectedId;
+      el.querySelector(".hs-pin")?.classList.toggle("hs-pin--selected", on);
+      el.style.zIndex = on ? "5" : "";
+    });
+  }, [selectedId]);
+
+  useEffect(() => {
+    if (sheet !== "collapsed") setSelectedId(null);
+  }, [sheet]);
+
+  const selectedPoint = selectedId ? mapPoints.find((p) => p.id === selectedId) : undefined;
+  const selectedItem = selectedPoint ? nearbyItem(selectedPoint) : undefined;
+
+  /* ── Search ───────────────────────────────────────────────────── */
   useEffect(() => {
     const q = query.trim();
     if (!q) {
@@ -195,8 +276,7 @@ export function MapScreen({
     const ctrl = new AbortController();
     const t = setTimeout(async () => {
       try {
-        const r = await geocode(q, ctrl.signal);
-        setResults(r);
+        setResults(await geocode(q, ctrl.signal));
       } finally {
         setLoading(false);
       }
@@ -207,186 +287,160 @@ export function MapScreen({
     };
   }, [query]);
 
-  // Стабильная ссылка на onOpenRestaurant через ref — предотвращает
-  // пересоздание карты при ре-рендерах родителя (bugfix: stale closure).
   const onOpenRef = useRef(onOpenRestaurant);
   onOpenRef.current = onOpenRestaurant;
 
-  // Инициализация карты + динамическая кластеризация — выполняется один раз.
+  /* ── Map init (once) ──────────────────────────────────────────── */
   useEffect(() => {
     if (!mapNode.current || mapRef.current) return;
     const map = new mapboxgl.Map({
       container: mapNode.current,
       style: "mapbox://styles/mapbox/light-v11",
-      center: [ASTANA.lng, ASTANA.lat],
-      zoom: 12.5,
+      center: MAP_CENTER,
+      zoom: 12.9,
       attributionControl: false,
-      pitch: 30,
+      pitch: 0,
     });
     mapRef.current = map;
 
-    // ── Клиентская кластеризация по пиксельной сетке ──────────────
-    // При отдалении близкие пины группируются в кластер со счётчиком;
-    // при приближении сетка «разъезжается» и открываются одиночные пины.
-    const CELL = 68; // размер ячейки сетки, px
+    const CELL = 64;
     const renderClusters = () => {
-      // Убираем прежние пины точек (аватарки друзей не трогаем).
       pointMarkersRef.current.forEach((m) => m.remove());
       pointMarkersRef.current = [];
+      pinElsRef.current.clear();
 
       type Cell = { points: MapPoint[]; sx: number; sy: number };
       const cells = new Map<string, Cell>();
-      const currentCenter = map.getCenter();
-      
-      const activePoints = mapPoints.filter((point) => activeCategoriesRef.current.has(point.category));
-      
-      // Сортировка по удаленности от центра карты для ограничения (оставляем 15 ближайших)
-      const sortedPoints = activePoints.sort((a, b) => {
-        const distA = Math.pow(a.coords.lng - currentCenter.lng, 2) + Math.pow(a.coords.lat - currentCenter.lat, 2);
-        const distB = Math.pow(b.coords.lng - currentCenter.lng, 2) + Math.pow(b.coords.lat - currentCenter.lat, 2);
-        return distA - distB;
-      });
-      
-      const limitedPoints = sortedPoints.slice(0, 15);
+      const c = map.getCenter();
+      const active = mapPoints
+        .filter((point) => activeCategoriesRef.current.has(point.category))
+        .sort(
+          (a, b) =>
+            (a.coords.lng - c.lng) ** 2 +
+            (a.coords.lat - c.lat) ** 2 -
+            ((b.coords.lng - c.lng) ** 2 + (b.coords.lat - c.lat) ** 2),
+        )
+        .slice(0, 24);
 
-      limitedPoints.forEach((p) => {
-          const px = map.project([p.coords.lng, p.coords.lat]);
-          const key = `${Math.floor(px.x / CELL)}:${Math.floor(px.y / CELL)}`;
-          const cell = cells.get(key) ?? { points: [], sx: 0, sy: 0 };
-          cell.points.push(p);
-          cell.sx += p.coords.lng;
-          cell.sy += p.coords.lat;
-          cells.set(key, cell);
-        });
+      active.forEach((p) => {
+        const px = map.project([p.coords.lng, p.coords.lat]);
+        const key = `${Math.floor(px.x / CELL)}:${Math.floor(px.y / CELL)}`;
+        const cell = cells.get(key) ?? { points: [], sx: 0, sy: 0 };
+        cell.points.push(p);
+        cell.sx += p.coords.lng;
+        cell.sy += p.coords.lat;
+        cells.set(key, cell);
+      });
 
       cells.forEach((cell) => {
-        if (cell.points.length > 1) {
+        if (cell.points.length > 1 && !cell.points.some((p) => p.id === selectedRef.current)) {
           const lng = cell.sx / cell.points.length;
           const lat = cell.sy / cell.points.length;
           const el = document.createElement("button");
-          el.className = "cluster-marker";
           el.type = "button";
-          el.setAttribute("aria-label", `${cell.points.length} заведений`);
-          Object.assign(el.style, {
-            width: "58px",
-            height: "50px",
-            borderRadius: "18px",
-            background: "#ffffff",
-            color: "#171717",
-            fontFamily: "Clarity City, sans-serif",
-            fontSize: "15px",
-            fontWeight: "400",
-            boxShadow: "0 10px 26px rgba(15, 23, 42, 0.2)",
-            border: "1px solid rgba(15, 23, 42, 0.07)",
-          });
+          el.className = "hs-cluster";
+          el.setAttribute("aria-label", `${cell.points.length} мест`);
           el.textContent = String(cell.points.length);
-          el.onclick = () =>
-            map.easeTo({
-              center: [lng, lat],
-              zoom: Math.min(map.getZoom() + 2, 16),
-              duration: 500,
-            });
-          const m = new mapboxgl.Marker({ element: el, anchor: "center" })
-            .setLngLat([lng, lat])
-            .addTo(map);
-          pointMarkersRef.current.push(m);
-        } else {
-          const p = cell.points[0];
-          const occStatus = occupancyForId(p.id);
-          const ringColor =
-            occStatus === "busy" ? "#ef4444" : occStatus === "moderate" ? "#f97316" : "#22c55e";
-
-          const isLarge = map.getZoom() >= 14 || occStatus === "busy";
-          const markerWidth = isLarge ? 84 : 66;
-          const markerHeight = isLarge ? 68 : 54;
-          const el = document.createElement("button");
-          el.type = "button";
-          el.className = "group relative flex flex-col items-center";
-          el.setAttribute("aria-label", p.name);
-
-          const frame = document.createElement("span");
-          Object.assign(frame.style, {
-            display: "block",
-            width: `${markerWidth}px`,
-            height: `${markerHeight}px`,
-            overflow: "hidden",
-            borderRadius: isLarge ? "22px" : "18px",
-            border: `3px solid ${ringColor}`,
-            background: "#ffffff",
-            boxShadow: "0 10px 28px rgba(15, 23, 42, 0.24)",
-            padding: "2px",
-          });
-
-          const image = document.createElement("img");
-          image.src = p.cover || fallbackMarkerPhoto;
-          image.alt = "";
-          image.onerror = () => {
-            image.onerror = null;
-            image.src = fallbackMarkerPhoto;
+          el.onclick = (e) => {
+            e.stopPropagation();
+            markerClickAt.current = Date.now();
+            map.easeTo({ center: [lng, lat], zoom: Math.min(map.getZoom() + 1.8, 16), duration: 500 });
           };
-          Object.assign(image.style, {
-            display: "block",
-            width: "100%",
-            height: "100%",
-            objectFit: "cover",
-            borderRadius: isLarge ? "17px" : "13px",
-          });
-          frame.appendChild(image);
-
-          const label = document.createElement("span");
-          label.textContent = p.name;
-          Object.assign(label.style, {
-            maxWidth: `${Math.max(markerWidth + 30, 104)}px`,
-            marginTop: "5px",
-            overflow: "hidden",
-            color: "#171717",
-            fontFamily: "Clarity City, sans-serif",
-            fontSize: "10px",
-            fontWeight: "400",
-            lineHeight: "1.1",
-            textOverflow: "ellipsis",
-            textShadow: "0 1px 2px rgba(255,255,255,0.95)",
-            whiteSpace: "nowrap",
-          });
-          el.append(frame, label);
-          el.onclick = () => openPointRef.current(p);
-          const m = new mapboxgl.Marker({ element: el, anchor: "center" })
-            .setLngLat([p.coords.lng, p.coords.lat])
-            .addTo(map);
-          pointMarkersRef.current.push(m);
+          pointMarkersRef.current.push(
+            new mapboxgl.Marker({ element: el, anchor: "center" }).setLngLat([lng, lat]).addTo(map),
+          );
+          return;
         }
+        cell.points.forEach((p) => {
+          const item = nearbyItem(p);
+          const { tone } = occupancyLevel(item.occupancy);
+          const wrap = document.createElement("div");
+          const pin = document.createElement("button");
+          pin.type = "button";
+          pin.className = `hs-pin${p.id === selectedRef.current ? " hs-pin--selected" : ""}`;
+          pin.setAttribute("aria-label", p.name);
+          const dot = document.createElement("span");
+          dot.className = "hs-pin__dot";
+          dot.style.background = toneColor[tone];
+          const name = document.createElement("span");
+          name.className = "hs-pin__name";
+          name.textContent = p.name;
+          const sep = document.createElement("span");
+          sep.className = "hs-pin__sep";
+          const value = document.createElement("span");
+          value.textContent = item.rating.toFixed(1);
+          pin.append(dot, name, sep, value);
+          pin.onclick = (e) => {
+            e.stopPropagation();
+            markerClickAt.current = Date.now();
+            selectPointRef.current(p);
+          };
+          wrap.appendChild(pin);
+          if (p.id === selectedRef.current) wrap.style.zIndex = "5";
+          pinElsRef.current.set(p.id, wrap);
+          pointMarkersRef.current.push(
+            new mapboxgl.Marker({ element: wrap, anchor: "bottom", offset: [0, -6] })
+              .setLngLat([p.coords.lng, p.coords.lat])
+              .addTo(map),
+          );
+        });
       });
     };
     renderClustersRef.current = renderClusters;
 
     map.on("load", () => {
+      // Тёплая «бумажная» подложка вместо стерильного серого.
+      const paint: [string, string, string][] = [
+        ["land", "background-color", "#f3f0ea"],
+        ["water", "fill-color", "#d5dfe2"],
+        ["landuse", "fill-color", "#e9e6dc"],
+        ["national-park", "fill-color", "#e2e6d8"],
+        ["building", "fill-color", "#e8e3da"],
+      ];
+      paint.forEach(([layer, prop, value]) => {
+        try {
+          if (map.getLayer(layer)) map.setPaintProperty(layer, prop as never, value as never);
+        } catch {
+          /* style variant without this layer */
+        }
+      });
+
       map.resize();
       setTimeout(() => map.resize(), 300);
       renderClusters();
 
-      // Аватарки друзей (Zenly-style, 8 штук) — создаются один раз.
+      const me = document.createElement("div");
+      me.className = "hs-me";
+      friendMarkersRef.current.push(
+        new mapboxgl.Marker({ element: me, anchor: "center" }).setLngLat([ME.lng, ME.lat]).addTo(map),
+      );
+
       friendMapLocations.forEach((f) => {
         const el = document.createElement("div");
-        el.className = "friend-marker";
-        const agoText =
-          f.minutesAgo < 60 ? `${f.minutesAgo} мин` : `${Math.floor(f.minutesAgo / 60)} ч`;
-        el.innerHTML = `
-          <div style="position:relative;width:44px;height:44px;">
-            <div style="position:absolute;inset:-3px;border-radius:50%;background:linear-gradient(135deg,#F97316,#EC4899);animation:pulse-ring 2.5s ease-out infinite;"></div>
-            <img src="${f.avatar}" style="width:44px;height:44px;border-radius:50%;object-fit:cover;border:2.5px solid white;position:relative;box-shadow:0 4px 12px rgba(0,0,0,0.25);" />
-            <div style="position:absolute;bottom:-6px;left:50%;transform:translateX(-50%);background:#1a1a1a;color:white;font-family:'Clarity City',sans-serif;font-size:9px;font-weight:400;padding:2px 7px;border-radius:10px;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.3);">${f.name} · ${agoText}</div>
-          </div>
-        `;
-        const m = new mapboxgl.Marker({ element: el, anchor: "center" })
-          .setLngLat([f.coords.lng, f.coords.lat])
-          .addTo(map);
-        friendMarkersRef.current.push(m);
+        el.className = "hs-friend";
+        el.title = `${f.name} · ${f.minutesAgo < 60 ? `${f.minutesAgo} мин` : `${Math.floor(f.minutesAgo / 60)} ч`}`;
+        const img = document.createElement("img");
+        img.src = f.avatar;
+        img.alt = "";
+        img.onerror = () => {
+          img.remove();
+          const fb = document.createElement("span");
+          fb.className = "hs-friend__fallback";
+          fb.textContent = f.name.slice(0, 1);
+          el.appendChild(fb);
+        };
+        el.appendChild(img);
+        friendMarkersRef.current.push(
+          new mapboxgl.Marker({ element: el, anchor: "center" }).setLngLat([f.coords.lng, f.coords.lat]).addTo(map),
+        );
       });
     });
 
-    // Перекластеризация при изменении масштаба/сдвиге.
-    map.on("zoomend", renderClusters);
     map.on("moveend", renderClusters);
+    map.on("click", () => {
+      if (Date.now() - markerClickAt.current < 350) return;
+      setSelectedId(null);
+    });
 
     return () => {
       pointMarkersRef.current.forEach((m) => m.remove());
@@ -397,65 +451,38 @@ export function MapScreen({
       mapRef.current = null;
       renderClustersRef.current = () => {};
     };
-  }, []); // Пустой deps — карта создаётся один раз (bugfix)
+  }, []);
 
-  // Перелёт к результату поиска.
   const flyTo = (r: GeoResult) => {
     setQuery(r.label);
     setShowResults(false);
-    mapRef.current?.flyTo({
-      center: [r.lng, r.lat],
-      zoom: 14.5,
-      speed: 1.4,
-      curve: 1.6,
-    });
-    if (r.kind === "restaurant") {
-      const rest = restaurants.find((x) => x.id === r.id);
-      if (rest) setTimeout(() => onOpenRef.current(rest), 700);
-    }
+    mapRef.current?.flyTo({ center: [r.lng, r.lat], zoom: 14.5, speed: 1.4, curve: 1.6 });
+    const point = mapPoints.find((p) => p.id === r.id);
+    if (point) setTimeout(() => selectPointRef.current(point), 650);
   };
 
-  // ── Физика шторки ────────────────────────────────────────────────
-  // Увеличенная высота collapsed-состояния, чтобы контент не перекрывался навбаром
-  const collapsedH = 220;
-  const halfH = Math.round(containerH * 0.55);
-  const fullH = containerH;
-
-  const sheetHeight = sheet === "collapsed" ? collapsedH : sheet === "half" ? halfH : fullH;
-
-  const handleDragEnd = (_: unknown, info: PanInfo) => {
-    const offset = info.offset.y;
-    const velocity = info.velocity.y;
-
-    let target: SheetState = sheet;
-
-    if (velocity < -300 || offset < -60) {
-      target = sheet === "collapsed" ? "half" : sheet === "half" ? "full" : "full";
-    } else if (velocity > 300 || offset > 60) {
-      target = sheet === "full" ? "half" : sheet === "half" ? "collapsed" : "collapsed";
-    } else {
-      const midPoint = (collapsedH + halfH) / 2;
-      const fullPoint = (halfH + fullH) / 2;
-      if (sheetHeight < midPoint) target = "collapsed";
-      else if (sheetHeight < fullPoint) target = "half";
-      else target = "full";
-    }
-
-    setSheet(target);
+  const locate = () => {
+    hapticSelect();
+    mapRef.current?.flyTo({ center: [ME.lng, ME.lat], zoom: 14.2, speed: 1.3 });
   };
+
+  const activeLabels = activeCategories.map((c) => categoryMeta[c]?.label ?? c).join(", ");
+  const nearMode = sheet !== "full";
 
   return (
-    <div ref={containerRef} className="relative h-full w-full overflow-hidden bg-neutral-100">
-      {/* ── Карта на весь экран ─────────────────────────────────────── */}
+    <div ref={containerRef} className="relative h-full w-full overflow-hidden bg-[#f3f0ea]">
+      <div ref={safeProbe} className="pointer-events-none absolute h-[var(--sab)] w-0" />
       <div ref={mapNode} className="absolute inset-0 h-full w-full touch-manipulation" />
 
-      {/* ── Верхний оверлей: поиск + профиль ─────────────────────────── */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 z-10 px-4 pt-[calc(env(safe-area-inset-top)+12px)]">
-        <div className="flex items-start gap-3">
-          {/* Живой поиск */}
+      {/* ── Floating search + filters ─────────────────────────────── */}
+      <motion.div
+        style={{ opacity: overlayOpacity }}
+        className="pointer-events-none absolute inset-x-0 top-0 z-10 pt-safe"
+      >
+        <div className="flex items-center gap-2.5 px-4">
           <div className="pointer-events-auto relative min-w-0 flex-1">
-            <div className="flex min-h-12 items-center gap-3 rounded-[20px] bg-white/96 px-4 shadow-float backdrop-blur-xl">
-              <Search className="h-5 w-5 shrink-0 text-neutral-500" strokeWidth={1.5} />
+            <div className="flex h-12 items-center gap-2.5 rounded-[18px] bg-white pl-4 pr-1.5 shadow-float">
+              <Search className="h-[18px] w-[18px] shrink-0 text-ink-2" strokeWidth={ICON_STROKE} />
               <input
                 value={query}
                 onChange={(e) => {
@@ -463,81 +490,61 @@ export function MapScreen({
                   setShowResults(true);
                 }}
                 onFocus={() => setShowResults(true)}
-                placeholder="Найти место, ресторан…"
-                className="min-w-0 flex-1 bg-transparent text-sm font-normal text-neutral-900 outline-none placeholder:text-neutral-400"
+                onBlur={() => setTimeout(() => setShowResults(false), 150)}
+                placeholder="Рестораны, бары, адреса"
+                enterKeyHint="search"
+                className="min-w-0 flex-1 bg-transparent text-[15px] text-ink outline-none placeholder:text-ink-3"
               />
               {loading ? (
-                <Loader2 className="h-4 w-4 shrink-0 animate-spin text-neutral-900" />
+                <Loader2 className="mr-2.5 h-4 w-4 shrink-0 animate-spin text-ink-3" />
               ) : query ? (
-                <button
-                  type="button"
+                <IconButton
+                  icon={X}
+                  label="Очистить"
+                  variant="stone"
+                  size={34}
+                  iconSize={15}
                   onClick={() => setQuery("")}
-                  className="grid h-10 w-10 shrink-0 place-items-center"
-                  aria-label="Очистить"
-                >
-                  <X className="h-4 w-4 text-neutral-400" strokeWidth={1.5} />
-                </button>
-              ) : (
-                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[14px] bg-neutral-100">
-                  <SlidersHorizontal className="h-4 w-4 text-neutral-700" strokeWidth={1.5} />
-                </span>
-              )}
+                />
+              ) : null}
             </div>
 
             <AnimatePresence>
               {showResults && (query || loading) && (
                 <motion.div
-                  initial={{ opacity: 0, y: -8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -8 }}
-                  className="absolute inset-x-0 top-full mt-2 max-h-80 overflow-y-auto rounded-[20px] bg-white p-1.5 shadow-float"
+                  initial={{ opacity: 0, y: -6, scale: 0.98 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -6, scale: 0.98 }}
+                  transition={{ duration: 0.18 }}
+                  className="no-scrollbar absolute inset-x-0 top-full mt-2 max-h-80 origin-top overflow-y-auto rounded-card bg-white p-1.5 shadow-float"
                 >
-                  {loading && results.length === 0 && (
-                    <div className="flex items-center gap-3 p-3 text-sm text-neutral-500">
-                      <Loader2 className="h-4 w-4 animate-spin text-neutral-900" />
-                      Ищем через Positionstack…
-                    </div>
-                  )}
+                  {loading && results.length === 0 &&
+                    [0, 1, 2].map((i) => (
+                      <div key={i} className="flex items-center gap-3 p-2.5">
+                        <span className="skeleton h-9 w-9 rounded-[11px]" />
+                        <span className="flex-1 space-y-1.5">
+                          <span className="skeleton block h-3 w-2/3 rounded" />
+                          <span className="skeleton block h-2.5 w-1/3 rounded" />
+                        </span>
+                      </div>
+                    ))}
                   {!loading && results.length === 0 && (
-                    <div className="p-3 text-sm text-neutral-500">Ничего не найдено</div>
+                    <p className="t-caption p-3">Ничего не нашли — попробуйте другое название</p>
                   )}
                   {results.map((r) => (
                     <button
                       key={r.id}
+                      type="button"
+                      onMouseDown={(e) => e.preventDefault()}
                       onClick={() => flyTo(r)}
-                      className="flex min-h-12 w-full items-center gap-3 rounded-xl p-2.5 text-left hover:bg-neutral-50"
+                      className="press-soft flex min-h-12 w-full items-center gap-3 rounded-[14px] p-2.5 text-left"
                     >
-                      <span
-                        className="grid h-9 w-9 shrink-0 place-items-center rounded-xl"
-                        style={{
-                          background: `${catColor[r.kind === "restaurant" ? "food" : r.kind === "venue" ? "beauty" : "concerts"]}1A`,
-                        }}
-                      >
-                        <MapPin
-                          className="h-4 w-4"
-                          strokeWidth={1.5}
-                          style={{
-                            color:
-                              catColor[
-                                r.kind === "restaurant"
-                                  ? "food"
-                                  : r.kind === "venue"
-                                    ? "beauty"
-                                    : "concerts"
-                              ],
-                          }}
-                        />
+                      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[11px] bg-stone text-ink">
+                        <MapPin className="h-4 w-4" strokeWidth={ICON_STROKE} />
                       </span>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-normal text-neutral-900">{r.label}</p>
-                        <p className="truncate text-xs font-light text-neutral-500">{r.sublabel}</p>
-                      </div>
-                      <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] font-normal text-neutral-600">
-                        {r.kind === "restaurant"
-                          ? "Ресторан"
-                          : r.kind === "venue"
-                            ? "Заведение"
-                            : "Место"}
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-[14.5px] font-medium">{r.label}</span>
+                        <span className="block truncate text-[12.5px] text-ink-3">{r.sublabel}</span>
                       </span>
                     </button>
                   ))}
@@ -546,9 +553,11 @@ export function MapScreen({
             </AnimatePresence>
           </div>
 
-          <button
+          <motion.button
             type="button"
-            className="pointer-events-auto grid h-12 w-12 shrink-0 place-items-center rounded-full bg-white/96 shadow-float backdrop-blur-xl"
+            whileTap={{ scale: 0.92 }}
+            onClick={onOpenProfile}
+            className="pointer-events-auto grid h-12 w-12 shrink-0 place-items-center rounded-full bg-white shadow-float"
             aria-label="Открыть профиль"
           >
             <img
@@ -556,139 +565,229 @@ export function MapScreen({
               alt=""
               className="h-10 w-10 rounded-full object-cover"
             />
-          </button>
+          </motion.button>
         </div>
-      </div>
 
-      {/* ── Легенда категорий (видна только когда шторка не full) ──── */}
+        <div className="pointer-events-auto mt-2.5">
+          <CategoryRail activeValues={activeCategories} onSelect={handleCategorySelect} tone="surface" className="pb-3" />
+        </div>
+      </motion.div>
+
+      {/* ── Map controls ride on top of the sheet ─────────────────── */}
+      <motion.div
+        style={{ y: controlsY, opacity: controlsOpacity }}
+        className="pointer-events-none absolute right-4 top-0 z-[15]"
+      >
+        <IconButton
+          icon={LocateFixed}
+          label="Где я"
+          variant="surface"
+          size={44}
+          className="pointer-events-auto shadow-float"
+          onClick={locate}
+        />
+      </motion.div>
+
+      {/* ── Selected venue card (Booking-style marker → result) ───── */}
       <AnimatePresence>
-        {sheet !== "full" && (
+        {selectedPoint && selectedItem && sheet === "collapsed" && (
           <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            className="pointer-events-none absolute left-4 top-20 z-10 flex flex-col gap-1.5"
+            key={selectedPoint.id}
+            initial={{ y: 40, opacity: 0, scale: 0.97 }}
+            animate={{ y: 0, opacity: 1, scale: 1 }}
+            exit={{ y: 30, opacity: 0, scale: 0.98 }}
+            transition={spring}
+            drag="y"
+            dragConstraints={{ top: 0, bottom: 0 }}
+            dragElastic={{ top: 0.1, bottom: 0.7 }}
+            onDragEnd={(_, info) => {
+              if (info.offset.y > 60 || info.velocity.y > 500) setSelectedId(null);
+            }}
+            className="absolute inset-x-3 z-[25]"
+            style={{ bottom: collapsedV + 10 }}
           >
-            {categories
-              .filter((category) => activeCategories.includes(category.key))
-              .map((c) => (
-                <div
-                  key={c.key}
-                  className="pointer-events-auto flex items-center gap-1.5 rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-normal text-neutral-700 shadow-soft backdrop-blur"
-                >
-                  <span
-                    className="h-2 w-2 rounded-full"
-                    style={{ background: catColor[c.key] ?? "#64748B" }}
+            <div className="rounded-hero bg-white p-3 shadow-float">
+              <button
+                type="button"
+                onClick={() => openPoint(selectedPoint)}
+                className="flex w-full items-stretch gap-3.5 text-left"
+              >
+                <Photo src={selectedItem.cover} className="h-[104px] w-[104px] shrink-0 rounded-[18px]" eager />
+                <span className="flex min-w-0 flex-1 flex-col py-0.5">
+                  <span className="t-micro">{categoryMeta[selectedItem.category]?.label}</span>
+                  <span className="mt-1 flex items-start justify-between gap-2">
+                    <span className="truncate text-[18px] font-semibold leading-tight tracking-[-0.02em]">
+                      {selectedItem.name}
+                    </span>
+                    <Rating value={selectedItem.rating} className="shrink-0 pt-1" />
+                  </span>
+                  <span className="mt-0.5 truncate text-[13px] text-ink-2">{selectedItem.subtitle}</span>
+                  <span className="mt-auto flex items-center justify-between gap-2 pt-2">
+                    <LiveStatus occupancy={selectedItem.occupancy} showPercent={false} />
+                    <span className="t-num text-[12.5px] text-ink-3">
+                      {selectedItem.distanceKm} км{selectedItem.price ? ` · ${selectedItem.price}` : ""}
+                    </span>
+                  </span>
+                </span>
+              </button>
+              {selectedItem.category === "food" && (
+                <div className="mt-3 flex items-center justify-between gap-3 border-t border-line pt-3">
+                  <SlotChips
+                    slots={slotsFor(selectedItem.id, selectedItem.occupancy)}
+                    onPick={() => openPoint(selectedPoint)}
                   />
-                  {c.label}
                 </div>
-              ))}
+              )}
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* ── BOTTOM SHEET — резиновая шторка с 3 snap-состояниями ───── */}
+      {/* ── Bottom sheet: collapsed · peek · half · full ──────────── */}
       <motion.div
-        ref={sheetRef}
         drag="y"
         dragControls={dragControls}
         dragListener={false}
-        dragConstraints={{ top: 0, bottom: 0 }}
-        dragElastic={0.12}
+        dragConstraints={{ top: 0, bottom: containerH - collapsedV }}
+        dragElastic={0.06}
         dragMomentum={false}
+        onDragStart={() => (dragging.current = true)}
         onDragEnd={handleDragEnd}
-        animate={{ height: sheetHeight }}
-        transition={{ type: "spring", stiffness: 400, damping: 38, mass: 0.8 }}
-        className="absolute inset-x-0 bottom-0 z-20 flex flex-col overflow-hidden rounded-t-[28px] bg-white shadow-[0_-20px_60px_-20px_rgba(0,0,0,0.25)]"
+        style={{
+          y: sheetY,
+          height: containerH,
+          borderTopLeftRadius: radius,
+          borderTopRightRadius: radius,
+        }}
+        className="absolute inset-x-0 top-0 z-20 flex flex-col overflow-hidden bg-canvas shadow-sheet"
       >
-        {/* Грань для перетаскивания */}
-        <button
-          type="button"
-          onPointerDown={(event) => dragControls.start(event)}
-          onClick={() =>
-            setSheet(sheet === "collapsed" ? "half" : sheet === "half" ? "full" : "collapsed")
-          }
-          className="flex w-full shrink-0 touch-none flex-col items-center gap-1 pt-2.5 pb-1"
-          aria-label="Переключить шторку"
-        >
-          <div className="h-1.5 w-10 rounded-full bg-neutral-300" />
-          <div className="flex items-center gap-1 text-neutral-400">
-            {sheet === "full" ? (
-              <ChevronDown className="h-3.5 w-3.5" />
-            ) : (
-              <ChevronUp className="h-3.5 w-3.5" />
-            )}
-          </div>
-        </button>
-
-        <div className="shrink-0">
-          <CategoryRail activeValues={activeCategories} onSelect={handleCategorySelect} />
-        </div>
-
-        {/* ── Half-состояние: горизонтальная карусель "Рядом с вами" ─ */}
-        {sheet === "half" && (
-          <div className="catalog-scroll min-h-0 flex-1 overflow-y-auto pb-[calc(80px+env(safe-area-inset-bottom)+1rem)]">
-            <div className="flex items-center justify-between px-4 pb-3 pt-1">
-              <h3 className="text-[19px] font-normal tracking-[-0.02em] text-neutral-900">
-                Ближайшие заведения
-              </h3>
-              <span className="text-xs font-light text-neutral-500">{restaurants.length} мест</span>
-            </div>
-            <div className="no-scrollbar touch-pan-x snap-x snap-mandatory overflow-x-auto px-4 pb-2">
-              <div className="flex w-max gap-3.5 after:w-4 after:shrink-0 after:content-['']">
-                {restaurants.map((r) => (
-                  <motion.button
-                    key={r.id}
-                    whileTap={{ scale: 0.985 }}
-                    transition={{ duration: 0.1 }}
-                    onClick={() => onOpenRestaurant(r)}
-                    className="relative aspect-video w-[76vw] max-w-[300px] shrink-0 snap-start overflow-hidden rounded-[24px] bg-neutral-200 text-left shadow-soft"
-                  >
-                    <img
-                      src={r.cover}
-                      alt=""
-                      className="absolute inset-0 h-full w-full object-cover"
-                    />
-                    <span className="absolute inset-0 bg-gradient-to-t from-black/75 via-transparent to-black/5" />
-                    <span className="absolute right-3 top-3 rounded-full bg-white/92 px-2.5 py-1 text-[11px] font-normal text-neutral-900 backdrop-blur-md">
-                      <Star className="mr-1 inline h-3 w-3" strokeWidth={1.5} />
-                      {r.rating}
-                    </span>
-                    <span className="absolute inset-x-4 bottom-4 text-white">
-                      <span className="block text-[17px] font-normal">{r.name}</span>
-                      <span className="mt-1 flex items-center gap-1.5 text-xs font-light text-white/75">
-                        <Clock className="h-3 w-3" strokeWidth={1.5} />
-                        {r.cuisine} · {r.distanceKm} км
-                      </span>
-                    </span>
-                  </motion.button>
-                ))}
+        <AnimatePresence mode="popLayout" initial={false}>
+          {nearMode ? (
+            <motion.div
+              key="near"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              <div
+                onPointerDown={(e) => dragControls.start(e)}
+                onClick={() => {
+                  if (Date.now() - lastDragEnd.current < 300) return;
+                  setSheet(sheet === "half" ? "peek" : "half");
+                }}
+                className="relative flex touch-none cursor-grab flex-col"
+                style={{ height: HEADER_H }}
+              >
+                <span className="mx-auto mt-2 h-[5px] w-9 rounded-full bg-[rgb(23_21_15/0.16)]" />
+                <div className="flex items-end justify-between gap-3 px-5 pt-3">
+                  <div className="min-w-0">
+                    <p className="t-subhead font-semibold">Рядом с вами</p>
+                    <p className="t-caption mt-0.5 truncate">
+                      {nearby.length} мест · {activeLabels}
+                    </p>
+                  </div>
+                  <span className="mb-0.5 inline-flex shrink-0 items-center gap-1.5 rounded-full bg-surface px-3 py-1.5 text-[12.5px] font-medium shadow-hairline">
+                    <LiveDot tone="live" pulse />
+                    <span className="t-num">{freeNow}</span> свободно
+                  </span>
+                </div>
               </div>
-            </div>
-          </div>
-        )}
 
-        {/* ── Full-состояние: категории + три чистых блока ─────────── */}
-        {sheet === "full" && (
-          <div className="catalog-scroll min-h-0 flex-1 overflow-y-auto bg-[#fafafa] pb-[calc(100px+env(safe-area-inset-bottom))]">
-            <CatalogSections
-              category={cat}
-              onOpenRestaurant={onOpenRestaurant}
-              onOpenVenue={openVenue}
-              onOpenEvent={setEvent}
-            />
-          </div>
-        )}
+              <div
+                className={`no-scrollbar ${sheet === "half" ? "catalog-scroll overflow-y-auto" : "overflow-hidden"}`}
+                style={{
+                  height: Math.max(0, visibleOf(sheet) - HEADER_H - (sheet === "half" ? 0 : navSpace)),
+                }}
+              >
+                <div className="rail gap-2.5 pb-3 pt-2">
+                  {nowRail.map((item) => {
+                    const p = mapPoints.find((x) => x.id === item.id)!;
+                    return (
+                      <CompactVenueCard
+                        key={item.id}
+                        image={item.cover}
+                        title={item.name}
+                        subtitle={item.subtitle}
+                        occupancy={item.occupancy}
+                        rating={item.rating}
+                        onClick={() => openPoint(p)}
+                      />
+                    );
+                  })}
+                </div>
 
-        {/* Модалки каталога (переиспользуемые компоненты) */}
-        <AnimatePresence>
-          {venue && <VenueBookingModal key="venue" venue={venue} onClose={() => setVenue(null)} />}
-          {event && <EventTicketModal key="event" event={event} onClose={() => setEvent(null)} />}
-          {carWash && (
-            <CarWashSheet key="carwash" wash={carWash} onClose={() => setCarWash(null)} />
+                <div style={{ paddingBottom: navSpace + 16 }}>
+                  <p className="t-micro px-5 pb-4 pt-5">Все места поблизости</p>
+                  <div className="space-y-5">
+                    {nearby.map((item) => {
+                      const p = mapPoints.find((x) => x.id === item.id)!;
+                      return (
+                        <VenueRow
+                          key={item.id}
+                          image={item.cover}
+                          title={item.name}
+                          subtitle={item.subtitle}
+                          occupancy={item.occupancy}
+                          rating={item.rating}
+                          meta={`${item.distanceKm} км`}
+                          onClick={() => openPoint(p)}
+                        />
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="discover"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.22 }}
+              className="flex h-full min-h-0 flex-col"
+            >
+              <div
+                onPointerDown={(e) => dragControls.start(e)}
+                className="pt-safe shrink-0 touch-none border-b border-line pb-3"
+              >
+                <div className="flex items-start justify-between gap-3 px-5 pb-3 pt-1">
+                  <div>
+                    <p className="t-micro">Астана · сегодня</p>
+                    <h1 className="t-title mt-1.5">Места</h1>
+                  </div>
+                  <IconButton
+                    icon={ChevronDown}
+                    label="Свернуть"
+                    variant="stone"
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onClick={() => setSheet("half")}
+                  />
+                </div>
+                <div onPointerDown={(e) => e.stopPropagation()} className="touch-auto">
+                  <CategoryRail activeValues={[cat]} onSelect={selectDiscoveryCategory} />
+                </div>
+              </div>
+              <div className="catalog-scroll no-scrollbar min-h-0 flex-1 overflow-y-auto pb-nav">
+                <CatalogSections
+                  category={cat}
+                  onOpenRestaurant={onOpenRestaurant}
+                  onOpenVenue={openVenue}
+                  onOpenEvent={setEvent}
+                />
+              </div>
+            </motion.div>
           )}
         </AnimatePresence>
       </motion.div>
+
+      {/* Модалки — вне шторки, чтобы не обрезались её высотой. */}
+      <AnimatePresence>
+        {venue && <VenueBookingModal key="venue" venue={venue} onClose={() => setVenue(null)} />}
+        {event && <EventTicketModal key="event" event={event} onClose={() => setEvent(null)} />}
+        {carWash && <CarWashSheet key="carwash" wash={carWash} onClose={() => setCarWash(null)} />}
+      </AnimatePresence>
     </div>
   );
 }

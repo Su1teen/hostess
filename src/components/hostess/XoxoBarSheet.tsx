@@ -1,29 +1,33 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { AnimatePresence, motion, useScroll, useTransform } from "framer-motion";
-import {
-  X,
-  Star,
-  Clock,
-  MapPin,
-  Minus,
-  Plus,
-  Utensils,
-  ChevronDown,
-  Check,
-  ShoppingBag,
-  UserRound,
-} from "lucide-react";
+import { useCallback, useRef, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { Receipt, ShoppingBag, UserRound } from "lucide-react";
+import { toast } from "sonner";
 import { money, type Restaurant, type Dish } from "@/data/hostess";
 import { addXoxoOrder, addXoxoVisit, readXoxoAccount, xoxoCashback } from "@/lib/xoxo-loyalty";
-import { DishModal } from "./DishModal";
-import type { PreorderItem } from "./types";
-import { toast } from "sonner";
 import { findXoxoExchangeProduct, useXoxoExchange } from "@/hooks/useXoxoExchange";
+import { hapticSuccess } from "@/lib/haptics";
+import { Switch } from "@/components/ui/switch";
+import { DishModal } from "./DishModal";
+import { VenueStats } from "./VenueStats";
+import { FactsRow, VenueDetailShell } from "./VenueDetail";
+import { CartLine, CartSheet, MenuSections, SignatureDishes, addPreorder, setPreorderQty } from "./menu";
+import {
+  BottomSheet,
+  Button,
+  Chip,
+  EmptyState,
+  IconButton,
+  LiveDot,
+  SectionHeader,
+  Stepper,
+  SuccessMark,
+  Tabs,
+  Tag,
+} from "./system";
+import type { PreorderItem } from "./types";
+import { cn } from "@/lib/utils";
 
 /* ── Helpers ──────────────────────────────────────────────────────── */
-
-const CTA_BOTTOM = "bottom-[calc(80px+env(safe-area-inset-bottom)+16px)]";
-const SCROLL_PB = "pb-[calc(180px+env(safe-area-inset-bottom)+16px)]";
 
 function formatPhone(raw: string): string {
   const digits = raw.replace(/\D/g, "").slice(0, 11);
@@ -55,92 +59,57 @@ function guestLabel(n: number): string {
   return `${n} мест`;
 }
 
-function totalMenuItems(menu: Restaurant["menu"]) {
-  return menu.reduce((acc, sec) => acc + sec.items.length, 0);
-}
+type Tab = "menu" | "book";
 
 /* ── Component ────────────────────────────────────────────────────── */
 
-export function XoxoBarSheet({
-  r,
-  onClose,
-}: {
-  r: Restaurant;
-  onClose: () => void;
-}) {
-  /* ── Gallery ── */
-  const [activePhoto, setActivePhoto] = useState(0);
-  const photoRefs = useRef<(HTMLDivElement | null)[]>([]);
+export function XoxoBarSheet({ r, onClose }: { r: Restaurant; onClose: () => void }) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const tabsRef = useRef<HTMLDivElement>(null);
+  const [tab, setTab] = useState<Tab>("menu");
 
-  useEffect(() => {
-    const observers: IntersectionObserver[] = [];
-    photoRefs.current.forEach((el, i) => {
-      if (!el) return;
-      const obs = new IntersectionObserver(
-        ([entry]) => {
-          if (entry.isIntersecting) setActivePhoto(i);
-        },
-        { threshold: 0.6 },
-      );
-      obs.observe(el);
-      observers.push(obs);
-    });
-    return () => observers.forEach((o) => o.disconnect());
-  }, []);
-
-  /* ── Menu ── */
+  /* ── Menu + live exchange ── */
   const [activeCategory, setActiveCategory] = useState("Все");
   const [dish, setDish] = useState<Dish | null>(null);
-  const [menuExpanded, setMenuExpanded] = useState(false);
-  const menuCount = totalMenuItems(r.menu);
   const exchange = useXoxoExchange();
   const liveProduct = (item: Dish) => findXoxoExchangeProduct(item.name, exchange.products);
   const priceOf = (item: Dish) => liveProduct(item)?.price ?? item.price;
-  const selectDish = (item: Dish) => setDish({ ...item, price: priceOf(item) });
-
+  const menuCount = r.menu.reduce((acc, sec) => acc + sec.items.length, 0);
   const filteredSections =
-    activeCategory === "Все"
-      ? r.menu
-      : r.menu.filter((sec) => sec.section === activeCategory);
-
-  const previewItems = r.menu.filter((sec) => ["Коктейли", "Лимонады", "Горячие напитки"].includes(sec.section)).flatMap((sec) => sec.items).slice(0, 4);
+    activeCategory === "Все" ? r.menu : r.menu.filter((sec) => sec.section === activeCategory);
+  const signature = r.menu
+    .flatMap((sec) => sec.items)
+    .filter((d) => d.image.startsWith("/image/"))
+    .slice(0, 6);
 
   /* ── Preorder ── */
   const [preorder, setPreorder] = useState<PreorderItem[]>([]);
   const [preorderEnabled, setPreorderEnabled] = useState(false);
+  const [cartOpen, setCartOpen] = useState(false);
   const [account, setAccount] = useState(readXoxoAccount);
   const [accountOpen, setAccountOpen] = useState(false);
 
   const addToPreorder = useCallback((d: Dish, qty: number) => {
-    setPreorder((prev) => {
-      const found = prev.find((p) => p.dish.id === d.id);
-      if (found)
-        return prev.map((p) =>
-          p.dish.id === d.id ? { ...p, qty: p.qty + qty } : p,
-        );
-      return [...prev, { dish: d, qty }];
-    });
+    setPreorder((prev) => addPreorder(prev, d, qty));
     setPreorderEnabled(true);
   }, []);
-
-  const updatePreorderQty = (id: string, qty: number) => {
-    if (qty <= 0) {
-      setPreorder((prev) => prev.filter((p) => p.dish.id !== id));
-    } else {
-      setPreorder((prev) =>
-        prev.map((p) => (p.dish.id === id ? { ...p, qty } : p)),
-      );
-    }
+  const changeQty = (d: Dish, qty: number) => {
+    setPreorder((prev) => setPreorderQty(prev, d, qty));
+    if (qty > 0) setPreorderEnabled(true);
   };
-
+  const qtyOf = (d: Dish) => preorder.find((p) => p.dish.id === d.id)?.qty ?? 0;
+  const preorderCount = preorder.reduce((s, p) => s + p.qty, 0);
   const preorderTotal = preorder.reduce((s, p) => s + priceOf(p.dish) * p.qty, 0);
-  const orderItems = () => preorder.map(({ dish: item, qty }) => ({ name: item.name, quantity: qty, price: priceOf(item) }));
+  const orderItems = () =>
+    preorder.map(({ dish: item, qty }) => ({ name: item.name, quantity: qty, price: priceOf(item) }));
 
   const purchaseNow = () => {
     if (!preorder.length) return;
+    hapticSuccess();
     setAccount(addXoxoOrder("Покупка", orderItems()));
     setPreorder([]);
     setPreorderEnabled(false);
+    setCartOpen(false);
     toast.success(`Покупка записана · кэшбэк ${money(Math.round(preorderTotal * 0.05))}`);
   };
 
@@ -156,27 +125,23 @@ export function XoxoBarSheet({
   const handlePhoneChange = (val: string) => {
     const formatted = formatPhone(val);
     setPhone(formatted);
-    if (formatted.length > 0 && !isPhoneValid(formatted)) {
-      setPhoneError("Формат: +7 (7XX) XXX-XX-XX");
-    } else {
-      setPhoneError("");
-    }
+    setPhoneError(formatted.length > 0 && !isPhoneValid(formatted) ? "Формат: +7 (7XX) XXX-XX-XX" : "");
   };
 
   const handleTimeChange = (val: string) => {
     setTime(val);
-    if (val && !isTimeInRange(val)) {
-      setTimeError("Заведение закрыто в это время");
-    } else {
-      setTimeError("");
-    }
+    setTimeError(val && !isTimeInRange(val) ? "Заведение закрыто в это время" : "");
+  };
+
+  const goTab = (t: Tab) => {
+    setTab(t);
+    const el = tabsRef.current;
+    const sc = scrollRef.current;
+    if (el && sc) sc.scrollTo({ top: el.offsetTop - 60, behavior: "smooth" });
   };
 
   const handleSubmit = () => {
-    let hasError = false;
-    if (!name.trim()) {
-      hasError = true;
-    }
+    let hasError = !name.trim();
     if (!isPhoneValid(phone)) {
       setPhoneError("Формат: +7 (7XX) XXX-XX-XX");
       hasError = true;
@@ -185,527 +150,421 @@ export function XoxoBarSheet({
       setTimeError("Заведение закрыто в это время");
       hasError = true;
     }
-    if (hasError) return;
-
+    if (hasError) {
+      if (tab !== "book") goTab("book");
+      return;
+    }
     let next = addXoxoVisit(guests, time);
     if (preorderEnabled && preorder.length) next = addXoxoOrder("Предзаказ", orderItems());
     setAccount(next);
     setBooked(true);
-    toast.success("Бронь подтверждена!");
+    hapticSuccess();
+    toast.success("Бронь подтверждена");
   };
 
-  /* ── Scroll parallax ── */
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const { scrollYProgress } = useScroll({ container: scrollRef });
-  const heroScale = useTransform(scrollYProgress, [0, 1], [1, 1.2]);
-  const heroOpacity = useTransform(scrollYProgress, [0, 1], [1, 0.6]);
+  const updated = exchange.updatedAt
+    ? new Date(exchange.updatedAt).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })
+    : null;
 
-  /* ── Menu section ref for scroll-to ── */
-  const menuRef = useRef<HTMLDivElement>(null);
+  const priceMeta = (d: Dish) => {
+    const p = liveProduct(d);
+    if (!p) return null;
+    const up = p.changePercent > 0;
+    const down = p.changePercent < 0;
+    return (
+      <>
+        <span className={cn("t-num text-[12px] font-medium", up ? "text-busy" : down ? "text-live" : "text-ink-3")}>
+          {up ? "↗" : down ? "↘" : "→"} {Math.abs(p.changePercent).toFixed(1)}%
+        </span>
+        <span className="t-num text-[12px] text-ink-3">
+          мин. {money(p.minPrice)} · меню {money(p.originalPrice)}
+        </span>
+      </>
+    );
+  };
 
   return (
-    <motion.div
-      initial={{ y: "100%" }}
-      animate={{ y: 0 }}
-      exit={{ y: "100%" }}
-      transition={{ type: "spring", stiffness: 260, damping: 30 }}
-      className="absolute inset-0 z-[100] flex flex-col bg-white"
-    >
-      <div
-        ref={scrollRef}
-        className={`flex-1 overflow-y-auto overscroll-none ${SCROLL_PB}`}
-      >
-        {/* ── Hero Gallery ──────────────────────────────────────────── */}
-        <div className="sticky top-0 z-0 h-[320px] w-full overflow-hidden">
-          <div className="no-scrollbar flex h-full snap-x snap-mandatory overflow-x-auto">
-            {r.gallery.map((src, i) => (
-              <div
-                key={i}
-                ref={(el) => {
-                  photoRefs.current[i] = el;
-                }}
-                className="h-full w-full shrink-0 snap-center"
-              >
-                <motion.img
-                  src={src}
-                  alt=""
-                  style={
-                    i === 0
-                      ? {
-                          scale: heroScale,
-                          opacity: heroOpacity,
-                          originY: 0,
-                        }
-                      : undefined
-                  }
-                  className="h-full w-full object-cover"
-                />
-              </div>
-            ))}
-          </div>
-          <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/70 pointer-events-none" />
-          <div className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-white/95 via-white/80 to-transparent pointer-events-none" />
-
-          {/* Close button */}
-          <button
-            onClick={onClose}
-            className="absolute left-4 top-14 grid h-10 w-10 place-items-center rounded-full bg-white/90 backdrop-blur shadow-soft"
-          >
-            <X className="h-4 w-4" />
-          </button>
-          <button
-            type="button"
+    <>
+      <VenueDetailShell
+        name={r.name}
+        images={r.gallery}
+        onClose={onClose}
+        scrollRef={scrollRef}
+        heroShade="mood"
+        topRight={
+          <IconButton
+            icon={UserRound}
+            label="Кабинет"
+            variant="photo"
             onClick={() => setAccountOpen(true)}
-            className="absolute right-4 top-14 flex h-10 items-center gap-2 rounded-full bg-white/95 px-3 text-xs font-semibold text-neutral-900 shadow-soft"
-          >
-            <UserRound className="h-4 w-4" /> Кабинет
-          </button>
-
-          {/* Dot indicators */}
-          <div className="absolute inset-x-0 top-12 flex justify-center gap-1 px-4">
-            {r.gallery.map((_, i) => (
-              <span
-                key={i}
-                className={`h-0.5 flex-1 max-w-16 rounded-full transition-colors ${
-                  i === activePhoto ? "bg-white" : "bg-white/30"
-                }`}
-              />
-            ))}
-          </div>
-
-          {/* Venue name overlay */}
-          <div className="absolute inset-x-5 bottom-16 text-white">
-            <div className="flex items-center gap-2">
-              <span className="glass rounded-full px-2.5 py-1 text-[11px] font-semibold text-neutral-900">
-                <Star className="mr-1 -mt-0.5 inline h-3 w-3 fill-primary text-primary" />{" "}
-                {r.rating}
-              </span>
-              <span className="text-xs opacity-90">· {r.reviews} отзывов</span>
-            </div>
-            <h1 className="mt-1 text-3xl font-semibold tracking-tight">
-              {r.name}
-            </h1>
-            <p className="text-sm opacity-90">
-              {r.cuisine} · {r.district}
+          />
+        }
+        heroOverlay={
+          <div className="px-5 text-white">
+            <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-white/70">
+              Sports · Lounge · Nightlife
             </p>
+            <h1 className="t-display mt-2 max-w-[320px]">{r.name}</h1>
+          </div>
+        }
+        dock={
+          booked ? (
+            <Button block size="lg" onClick={onClose}>
+              Готово
+            </Button>
+          ) : (
+            <>
+              <CartLine count={preorderCount} total={preorderTotal} onOpen={() => setCartOpen(true)} />
+              <div className="flex items-center gap-4">
+                <div className="min-w-0 flex-1">
+                  <p className="t-num truncate text-[12.5px] text-ink-3">
+                    {tab === "book" ? `${name || "Гость"} · ${guestLabel(guests)}` : r.hours}
+                  </p>
+                  <p className="truncate text-[16px] font-semibold tracking-[-0.015em]">
+                    {tab === "book" ? `Сегодня в ${time}` : "Стол на вечер"}
+                  </p>
+                </div>
+                {tab === "book" ? (
+                  <Button size="lg" onClick={handleSubmit} className="px-7">
+                    Подтвердить
+                  </Button>
+                ) : (
+                  <Button size="lg" onClick={() => goTab("book")} className="px-7">
+                    Забронировать
+                  </Button>
+                )}
+              </div>
+            </>
+          )
+        }
+      >
+        <div className="px-5">
+          <p className="t-caption flex items-center gap-1.5 text-ink-2">
+            {r.address} · {r.distanceKm} км
+          </p>
+          <p className="t-body mt-3 text-ink-2">{r.description}</p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {r.tags.map((t) => (
+              <Tag key={t}>{t}</Tag>
+            ))}
           </div>
         </div>
 
-        {/* ── Content ───────────────────────────────────────────────── */}
-        <div className="relative z-10 rounded-t-[32px] bg-white px-5 pt-6">
-          {/* Venue info grid */}
-          <div className="grid grid-cols-3 overflow-hidden rounded-2xl bg-neutral-50 text-center">
-            <div className="p-3">
-              <Clock className="mx-auto h-4 w-4 text-neutral-500" />
-              <p className="mt-1 text-[11px] text-neutral-500">Часы работы</p>
-              <p className="text-xs font-semibold">17:00 – 04:00</p>
+        <div className="mt-7">
+          <FactsRow
+            facts={[
+              { label: "Открыто", value: r.hours ?? "17:00 – 04:00", sub: "каждый день" },
+              { label: "Средний чек", value: money(r.avgCheck), sub: "на гостя" },
+              { label: "Оценка", value: `★ ${r.rating.toFixed(1)}`, sub: `${r.reviews} отзывов` },
+            ]}
+          />
+        </div>
+
+        {/* Live drinks exchange — realtime intelligence, stated calmly */}
+        <div className="mt-6 space-y-3 px-5">
+          <div className="rounded-card bg-surface p-4 shadow-hairline">
+            <div className="flex items-center justify-between gap-3">
+              <p className="t-micro">Биржа напитков</p>
+              <span className="t-num text-[11.5px] text-ink-3">авто · 30 сек</span>
             </div>
-            <div className="border-x border-white p-3">
-              <MapPin className="mx-auto h-4 w-4 text-neutral-500" />
-              <p className="mt-1 text-[11px] text-neutral-500">Адрес</p>
-              <p className="text-[10px] font-semibold leading-tight">
-                ул. Асфендиярова, 8
+            <div className="mt-2.5 flex items-center gap-2">
+              <LiveDot tone={exchange.connected ? "live" : "warn"} pulse={exchange.connected} size={8} />
+              <p className="text-[15px] font-medium">
+                {exchange.connected ? "В эфире" : "Ожидает соединения"}
+                {exchange.roundKey && <span className="text-ink-3"> · раунд {exchange.roundKey}</span>}
               </p>
             </div>
-            <div className="p-3">
-              <Star className="mx-auto h-4 w-4 text-neutral-500" />
-              <p className="mt-1 text-[11px] text-neutral-500">Рейтинг</p>
-              <p className="text-xs font-semibold">{r.rating} из 5</p>
-            </div>
+            <p className="t-caption mt-1.5">
+              Цены на напитки меняются вместе со спросом в зале
+              {updated ? ` · обновлено в ${updated}` : ". Сейчас действуют цены меню."}
+            </p>
           </div>
+          <VenueStats occupancy={r.occupancy} peakHours={r.peakHours} title="В зале сейчас" />
+        </div>
 
-          {/* ── Menu ────────────────────────────────────────────────── */}
-          <div className="mt-6" ref={menuRef}>
-            <h3 className="mb-3 flex items-center gap-2 text-[15px] font-semibold">
-              <Utensils className="h-4 w-4" /> Меню
-              <span className="ml-auto text-[10px] font-medium text-neutral-400">
-                {menuCount} позиций
-              </span>
-            </h3>
-            <div className="mb-3 flex items-center justify-between rounded-2xl bg-[#171a1d] px-3.5 py-3 text-white">
-              <div className="flex min-w-0 items-center gap-2.5">
-                <span className={`h-2 w-2 shrink-0 rounded-full ${exchange.connected ? "bg-emerald-400" : "bg-amber-400"}`} />
-                <div className="min-w-0">
-                  <p className="text-xs font-semibold">Биржа {exchange.connected ? "в эфире" : "ожидает соединения"}</p>
-                  <p className="mt-0.5 truncate text-[10px] text-white/55">{exchange.roundKey ? `Раунд ${exchange.roundKey}` : "Цены меню доступны"}{exchange.updatedAt ? ` · ${new Date(exchange.updatedAt).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}` : ""}</p>
+        <div ref={tabsRef} className="sticky top-[calc(var(--sat)+58px)] z-10 mt-8 bg-canvas pt-1">
+          <Tabs
+            id="xoxo"
+            value={tab}
+            onChange={goTab}
+            tabs={[
+              { key: "menu", label: `Бар · ${menuCount}` },
+              { key: "book", label: "Бронь" },
+            ]}
+          />
+        </div>
+
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={tab}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+          >
+            {tab === "menu" && (
+              <div className="pt-6">
+                <SectionHeader eyebrow="Биржевые цены" title="Хиты бара" />
+                <div className="mt-4">
+                  <SignatureDishes dishes={signature} onOpen={setDish} priceOf={priceOf} />
                 </div>
-              </div>
-              <span className="shrink-0 text-[10px] text-white/45">авто · 30 сек</span>
-            </div>
-
-            {/* Category tabs */}
-            <div className="no-scrollbar -mx-5 flex gap-2 overflow-x-auto px-5 pb-3">
-              {["Все", ...r.menu.map((s) => s.section)].map((cat) => (
-                <button
-                  key={cat}
-                  onClick={() => { setActiveCategory(cat); setMenuExpanded(true); }}
-                  className={`shrink-0 rounded-2xl px-3.5 py-2.5 text-xs font-medium transition-colors ${
-                    activeCategory === cat
-                      ? "bg-neutral-900 text-white"
-                      : "bg-white text-neutral-800 hairline"
-                  }`}
-                >
-                  {cat}
-                </button>
-              ))}
-            </div>
-
-            {/* Preview items (when menu collapsed) */}
-            {!menuExpanded && (
-              <div className="space-y-3">
-                {previewItems.map((d) => (
-                  <motion.button
-                    key={d.id}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => selectDish(d)}
-                    className="flex w-full items-center gap-3 rounded-2xl bg-white p-3 text-left shadow-soft"
-                  >
-                    <img
-                      src={d.image}
-                      alt=""
-                      className="h-10 w-10 rounded-xl object-cover"
-                    />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-[13px] font-semibold leading-tight">
-                        {d.name}
-                      </p>
-                      <p className="mt-0.5 truncate text-[11px] text-neutral-500">
-                        {d.desc}
-                      </p>
-                    </div>
-                    <p className="text-[13px] font-semibold text-primary">
-                      <span className="text-right">{money(priceOf(d))}{liveProduct(d) && <span className={`mt-1 block text-[10px] ${liveProduct(d)!.changePercent > 0 ? "text-rose-600" : liveProduct(d)!.changePercent < 0 ? "text-emerald-700" : "text-neutral-400"}`}>{liveProduct(d)!.changePercent > 0 ? "↗" : liveProduct(d)!.changePercent < 0 ? "↘" : "→"} {Math.abs(liveProduct(d)!.changePercent).toFixed(1)}% · мин. {money(liveProduct(d)!.minPrice)} · меню {money(liveProduct(d)!.originalPrice)}</span>}</span>
-                    </p>
-                  </motion.button>
-                ))}
+                <div className="rail mt-7 gap-2">
+                  {["Все", ...r.menu.map((s) => s.section)].map((c) => (
+                    <Chip key={c} selected={activeCategory === c} onClick={() => setActiveCategory(c)}>
+                      {c}
+                    </Chip>
+                  ))}
+                </div>
+                <MenuSections
+                  sections={filteredSections}
+                  qtyOf={qtyOf}
+                  onOpen={setDish}
+                  onQty={changeQty}
+                  priceOf={priceOf}
+                  priceMeta={priceMeta}
+                />
               </div>
             )}
 
-            {/* Expand/collapse */}
-            <button
-              onClick={() => setMenuExpanded((v) => !v)}
-              className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border border-border/60 bg-white py-3 text-[13px] font-semibold text-neutral-900 transition-colors active:bg-neutral-50"
-            >
-              {menuExpanded
-                ? "Свернуть меню"
-                : `Посмотреть все ${menuCount} позиций`}
-              <motion.span
-                animate={{ rotate: menuExpanded ? 180 : 0 }}
-                transition={{ duration: 0.2 }}
-              >
-                <ChevronDown className="h-4 w-4 text-neutral-500" />
-              </motion.span>
-            </button>
-
-            {/* Full menu */}
-            <AnimatePresence initial={false}>
-              {menuExpanded && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: "auto", opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{
-                    type: "spring",
-                    stiffness: 260,
-                    damping: 30,
-                  }}
-                  className="overflow-hidden"
-                >
-                  <div className="pt-3">
-                    {filteredSections.map((sec) => (
-                      <div key={sec.section} className="mb-4">
-                        <p className="mb-2 text-[11px] font-semibold uppercase tracking-widest text-neutral-500">
-                          {sec.section}
-                        </p>
-                        <div className="space-y-3">
-                          {sec.items.map((d) => (
-                            <motion.button
-                              key={d.id}
-                              whileTap={{ scale: 0.98 }}
-                              onClick={() => selectDish(d)}
-                              className="flex w-full items-center gap-3 rounded-2xl bg-white p-3 text-left shadow-soft"
-                            >
-                              <img
-                                src={d.image}
-                                alt=""
-                                className="h-12 w-12 rounded-xl object-cover"
-                              />
-                              <div className="min-w-0 flex-1">
-                                <p className="text-[13px] font-semibold leading-tight">
-                                  {d.name}
-                                </p>
-                                <p className="mt-0.5 truncate text-[11px] text-neutral-500">
-                                  {d.desc}
-                                </p>
-                              </div>
-                              <p className="shrink-0 text-[13px] font-semibold text-primary">
-                                <span className="text-right">{money(priceOf(d))}{liveProduct(d) && <span className={`mt-1 block text-[10px] ${liveProduct(d)!.changePercent > 0 ? "text-rose-600" : liveProduct(d)!.changePercent < 0 ? "text-emerald-700" : "text-neutral-400"}`}>{liveProduct(d)!.changePercent > 0 ? "↗" : liveProduct(d)!.changePercent < 0 ? "↘" : "→"} {Math.abs(liveProduct(d)!.changePercent).toFixed(1)}% · мин. {money(liveProduct(d)!.minPrice)} · меню {money(liveProduct(d)!.originalPrice)}</span>}</span>
-                              </p>
-                            </motion.button>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-
-          {/* ── Booking Section ─────────────────────────────────────── */}
-          <div className="mt-6 rounded-3xl bg-neutral-50 p-5">
-            <h3 className="mb-4 text-[15px] font-semibold">Бронирование</h3>
-
-            {booked ? (
-              /* ── Success state ─── */
-              <div className="py-10 text-center">
-                <motion.div
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  transition={{
-                    type: "spring",
-                    stiffness: 300,
-                    damping: 18,
-                  }}
-                  className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-emerald-500 text-white"
-                >
-                  <Check className="h-7 w-7" strokeWidth={3} />
-                </motion.div>
-                <p className="mt-3 text-base font-semibold">
-                  Бронь подтверждена!
-                </p>
-                <p className="mt-1 text-xs text-neutral-500">
-                  {name} · {guestLabel(guests)} · {time}
-                  {preorder.length > 0 &&
-                    ` · предзаказ ${money(preorderTotal)}`}
-                </p>
-                <button
-                  onClick={onClose}
-                  className="mt-5 rounded-full bg-neutral-900 px-8 py-3 text-sm font-semibold text-white"
-                >
-                  Отлично
-                </button>
-              </div>
-            ) : (
-              <>
-                {/* Name */}
-                <div className="mb-3">
-                  <p className="mb-1 text-[11px] font-semibold uppercase tracking-widest text-neutral-500">
-                    Имя
-                  </p>
-                  <input
-                    type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    className="w-full rounded-2xl border border-border/60 bg-white p-3 text-sm outline-none focus:ring-2 focus:ring-primary/30"
-                    placeholder="Ваше имя"
-                  />
-                </div>
-
-                {/* Phone */}
-                <div className="mb-3">
-                  <p className="mb-1 text-[11px] font-semibold uppercase tracking-widest text-neutral-500">
-                    Телефон
-                  </p>
-                  <input
-                    type="tel"
-                    value={phone}
-                    onChange={(e) => handlePhoneChange(e.target.value)}
-                    className={`w-full rounded-2xl border bg-white p-3 text-sm outline-none focus:ring-2 ${
-                      phoneError
-                        ? "border-red-400 focus:ring-red-200"
-                        : "border-border/60 focus:ring-primary/30"
-                    }`}
-                    placeholder="+7 (7XX) XXX-XX-XX"
-                  />
-                  {phoneError && (
-                    <p className="mt-1 text-[11px] text-red-500">
-                      {phoneError}
+            {tab === "book" && (
+              <div className="px-5 pt-6">
+                {booked ? (
+                  <div className="flex flex-col items-center py-10 text-center">
+                    <SuccessMark />
+                    <p className="t-headline mt-5">Бронь подтверждена</p>
+                    <p className="t-caption mt-1.5">
+                      {name} · {guestLabel(guests)} · сегодня в {time}
+                      {preorder.length > 0 && preorderEnabled && ` · предзаказ ${money(preorderTotal)}`}
                     </p>
-                  )}
-                </div>
-
-                {/* Guests */}
-                <div className="mb-3 flex items-center justify-between rounded-2xl bg-white p-3 hairline">
-                  <div>
-                    <p className="text-xs text-neutral-500">Гостей</p>
-                    <p className="text-sm font-semibold">{guestLabel(guests)}</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setGuests(Math.max(1, guests - 1))}
-                      className="grid h-9 w-9 place-items-center rounded-full bg-neutral-100"
-                    >
-                      <Minus className="h-4 w-4" />
-                    </button>
-                    <span className="w-6 text-center text-sm font-semibold">
-                      {guests}
-                    </span>
-                    <button
-                      onClick={() => setGuests(Math.min(20, guests + 1))}
-                      className="grid h-9 w-9 place-items-center rounded-full bg-primary text-white"
-                    >
-                      <Plus className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Time */}
-                <div className="mb-3">
-                  <p className="mb-1 text-[11px] font-semibold uppercase tracking-widest text-neutral-500">
-                    Время
-                  </p>
-                  <input
-                    type="time"
-                    value={time}
-                    onChange={(e) => handleTimeChange(e.target.value)}
-                    className={`w-full rounded-2xl border bg-white p-3 text-sm outline-none focus:ring-2 ${
-                      timeError
-                        ? "border-red-400 focus:ring-red-200"
-                        : "border-border/60 focus:ring-primary/30"
-                    }`}
-                  />
-                  {timeError && (
-                    <p className="mt-1 text-[11px] text-red-500">
-                      {timeError}
+                    <p className="t-caption mt-4 max-w-[260px]">
+                      Визит и кэшбэк уже в вашем кабинете XOXO.
                     </p>
-                  )}
-                </div>
-
-                {/* Pre-order toggle */}
-                <button
-                  onClick={() => setPreorderEnabled((v) => !v)}
-                  className={`mb-3 flex w-full items-center gap-3 rounded-2xl p-3 text-left transition-all ${
-                    preorderEnabled
-                      ? "bg-neutral-900 text-white"
-                      : "bg-white text-neutral-900 hairline"
-                  }`}
-                >
-                  <ShoppingBag className="h-4 w-4 shrink-0" />
-                  <span className="text-sm font-semibold">
-                    Добавить предзаказ по меню
-                  </span>
-                  <span className="ml-auto">
-                    {preorderEnabled ? (
-                      <Check className="h-4 w-4" />
-                    ) : (
-                      <Plus className="h-4 w-4" />
-                    )}
-                  </span>
-                </button>
-
-                {/* Pre-order items */}
-                {preorderEnabled && (
-                  <div className="mb-3 rounded-2xl bg-white p-3 hairline">
-                    {preorder.length === 0 ? (
-                      <div className="py-4 text-center">
-                        <p className="text-xs text-neutral-500">
-                          Нажмите на позицию меню выше, чтобы добавить
-                        </p>
-                        <button
-                          onClick={() => {
-                            setMenuExpanded(true);
-                            menuRef.current?.scrollIntoView({
-                              behavior: "smooth",
-                            });
-                          }}
-                          className="mt-2 text-xs font-semibold text-primary"
-                        >
-                          Выбрать из меню ↑
-                        </button>
+                  </div>
+                ) : (
+                  <div className="space-y-5">
+                    <Field label="Имя" error={!name.trim() ? "Укажите имя" : ""}>
+                      <input
+                        type="text"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        placeholder="Ваше имя"
+                        autoComplete="given-name"
+                        className="h-full w-full bg-transparent text-[15px] outline-none placeholder:text-ink-3"
+                      />
+                    </Field>
+                    <Field label="Телефон" error={phoneError}>
+                      <input
+                        type="tel"
+                        inputMode="tel"
+                        value={phone}
+                        onChange={(e) => handlePhoneChange(e.target.value)}
+                        placeholder="+7 (7XX) XXX-XX-XX"
+                        autoComplete="tel"
+                        className="t-num h-full w-full bg-transparent text-[15px] outline-none placeholder:text-ink-3"
+                      />
+                    </Field>
+                    <div className="grid grid-cols-2 gap-3">
+                      <Field label="Время" error={timeError}>
+                        <input
+                          type="time"
+                          value={time}
+                          onChange={(e) => handleTimeChange(e.target.value)}
+                          className="t-num h-full w-full bg-transparent text-[15px] outline-none"
+                        />
+                      </Field>
+                      <div>
+                        <p className="t-micro mb-2">Гости</p>
+                        <Stepper value={guests} onChange={setGuests} min={1} max={20} tone="surface" />
                       </div>
-                    ) : (
-                      <>
-                        <div className="space-y-2">
-                          {preorder.map((p) => (
-                            <div
-                              key={p.dish.id}
-                              className="flex items-center gap-2"
-                            >
-                              <div className="min-w-0 flex-1">
-                                <p className="truncate text-xs font-semibold">
-                                  {p.dish.name}
-                                </p>
-                                <p className="text-[10px] text-neutral-500">
-                                  {money(priceOf(p.dish))} × {p.qty}
-                                </p>
-                              </div>
-                              <div className="flex items-center gap-1.5">
-                                <button
-                                  onClick={() =>
-                                    updatePreorderQty(p.dish.id, p.qty - 1)
-                                  }
-                                  className="grid h-7 w-7 place-items-center rounded-full bg-neutral-100"
-                                >
-                                  <Minus className="h-3 w-3" />
-                                </button>
-                                <span className="w-4 text-center text-xs font-semibold">
-                                  {p.qty}
-                                </span>
-                                <button
-                                  onClick={() =>
-                                    updatePreorderQty(p.dish.id, p.qty + 1)
-                                  }
-                                  className="grid h-7 w-7 place-items-center rounded-full bg-neutral-100"
-                                >
-                                  <Plus className="h-3 w-3" />
-                                </button>
-                              </div>
-                              <p className="w-20 text-right text-xs font-semibold">
-                                {money(priceOf(p.dish) * p.qty)}
-                              </p>
-                            </div>
-                          ))}
+                    </div>
+
+                    <div className="rounded-card bg-surface shadow-hairline">
+                      <label className="flex cursor-pointer items-center gap-3.5 px-4 py-3.5">
+                        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[11px] bg-stone">
+                          <ShoppingBag className="h-[17px] w-[17px]" strokeWidth={1.6} />
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-[15px]">Предзаказ к столу</span>
+                          <span className="t-num block truncate text-[13px] text-ink-3">
+                            {preorderCount > 0
+                              ? `${preorderCount} поз. · ${money(preorderTotal)} · кэшбэк 5%`
+                              : "Напитки будут готовы к приходу"}
+                          </span>
+                        </span>
+                        <Switch checked={preorderEnabled} onCheckedChange={setPreorderEnabled} />
+                      </label>
+                      {preorderEnabled && preorder.length === 0 && (
+                        <div className="border-t border-line px-4 py-3.5">
+                          <button
+                            type="button"
+                            onClick={() => goTab("menu")}
+                            className="press text-[14px] font-medium text-ink"
+                          >
+                            Выбрать в баре →
+                          </button>
                         </div>
-                        <div className="mt-3 flex items-center justify-between border-t border-neutral-100 pt-3">
-                          <p className="text-sm font-semibold">Итого</p>
-                          <p className="text-sm font-semibold text-primary">
-                            {money(preorderTotal)}
-                          </p>
-                        </div>
-                        <p className="mt-2 text-xs font-medium text-emerald-700">Вернём {money(Math.round(preorderTotal * 0.05))} · 5%</p>
-                        <button type="button" onClick={purchaseNow} className="mt-3 min-h-11 w-full rounded-xl bg-emerald-700 px-4 text-sm font-semibold text-white">Оплатить покупку · {money(preorderTotal)}</button>
-                      </>
-                    )}
+                      )}
+                    </div>
                   </div>
                 )}
-
-                {/* Submit */}
-                <motion.button
-                  whileTap={{ scale: 0.97 }}
-                  onClick={handleSubmit}
-                  className="w-full rounded-full bg-neutral-900 py-4 text-sm font-semibold text-white shadow-float"
-                >
-                  Подтвердить бронь
-                </motion.button>
-              </>
+              </div>
             )}
-          </div>
-        </div>
-      </div>
-
-      {/* ── DishModal drill-down ─────────────────────────────────── */}
-      <AnimatePresence>
-        {accountOpen && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 z-[150] bg-black/50" onClick={() => setAccountOpen(false)}>
-            <motion.section initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} transition={{ type: "spring", stiffness: 280, damping: 30 }} onClick={(event) => event.stopPropagation()} className="absolute inset-x-0 bottom-0 max-h-[88%] overflow-y-auto rounded-t-[32px] bg-[#f7f5f0] px-5 pb-[calc(24px+env(safe-area-inset-bottom))] pt-5 text-neutral-950">
-              <div className="mb-5 flex items-center justify-between"><div><p className="text-xs font-semibold uppercase tracking-[.2em] text-emerald-700">XOXO · мой кабинет</p><h2 className="mt-1 text-2xl font-semibold">Советов Султан</h2></div><button type="button" onClick={() => setAccountOpen(false)} className="grid h-10 w-10 place-items-center rounded-full bg-white" aria-label="Закрыть кабинет"><X className="h-5 w-5" /></button></div>
-              <div className="rounded-[28px] bg-[#142a25] p-5 text-white"><p className="text-sm text-emerald-200">Кэшбэк · 5% с заказа</p><p className="mt-4 text-4xl font-semibold tabular-nums">{money(xoxoCashback(account))}</p><p className="mt-2 text-xs text-white/65">Начисляется после оформления предзаказа или покупки в демо</p></div>
-              <h3 className="mb-3 mt-6 text-lg font-semibold">Заказы</h3>
-              <div className="space-y-2">{account.orders.map((order) => <div key={order.id} className="rounded-2xl bg-white p-4"><div className="flex justify-between gap-3"><div><p className="font-semibold">{order.kind}</p><p className="mt-1 text-xs text-neutral-500">{new Date(order.date).toLocaleDateString("ru-RU")} · {order.items.map((item) => `${item.name} ×${item.quantity}`).join(", ")}</p></div><div className="shrink-0 text-right"><p className="font-semibold">{money(order.total)}</p><p className="mt-1 text-xs font-semibold text-emerald-700">+{money(order.cashback)}</p></div></div></div>)}</div>
-              <h3 className="mb-3 mt-6 text-lg font-semibold">Посещения XOXO</h3>
-              <div className="space-y-2">{account.visits.map((visit) => <div key={visit.id} className="flex justify-between rounded-2xl bg-white p-4 text-sm"><span>{new Date(visit.date).toLocaleDateString("ru-RU")} · {visit.time}</span><span className="font-semibold">{guestLabel(visit.guests)}</span></div>)}</div>
-            </motion.section>
           </motion.div>
+        </AnimatePresence>
+      </VenueDetailShell>
+
+      <AnimatePresence>
+        {cartOpen && (
+          <CartSheet
+            key="cart"
+            items={preorder}
+            priceOf={priceOf}
+            onQty={changeQty}
+            onClose={() => setCartOpen(false)}
+            note={
+              preorderTotal > 0 && (
+                <p className="mb-3 text-[13px] font-medium text-live">
+                  Вернём {money(Math.round(preorderTotal * 0.05))} · 5% кэшбэк
+                </p>
+              )
+            }
+            footer={
+              <div className="flex gap-2.5">
+                <Button
+                  variant="secondary"
+                  size="lg"
+                  className="flex-1"
+                  disabled={!preorder.length}
+                  onClick={() => {
+                    setPreorderEnabled(true);
+                    setCartOpen(false);
+                    goTab("book");
+                  }}
+                >
+                  К брони
+                </Button>
+                <Button size="lg" className="flex-[1.4]" disabled={!preorder.length} onClick={purchaseNow}>
+                  Оплатить сейчас
+                </Button>
+              </div>
+            }
+          />
         )}
+
+        {accountOpen && (
+          <BottomSheet
+            key="account"
+            onClose={() => setAccountOpen(false)}
+            z="z-[150]"
+            maxHeight="90%"
+            header={
+              <div className="px-5 pb-4 pt-8">
+                <p className="t-micro">XOXO · мой кабинет</p>
+                <h2 className="t-title mt-1.5">Советов Султан</h2>
+              </div>
+            }
+          >
+            <div className="px-5 pb-8">
+              <div className="relative overflow-hidden rounded-hero bg-[#17150f] p-5 text-white shadow-float">
+                <img src={r.gallery[1] ?? r.cover} alt="" className="absolute inset-0 h-full w-full object-cover opacity-25" />
+                <div className="absolute inset-0 bg-gradient-to-br from-[#17150f]/40 to-[#17150f]/90" />
+                <div className="relative">
+                  <div className="flex items-center justify-between">
+                    <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-[#d8b58a]">XOXO Member</p>
+                    <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-white/50">5% кэшбэк</p>
+                  </div>
+                  <p className="mt-8 text-[13px] text-white/60">Накоплено кэшбэка</p>
+                  <p className="t-num mt-1 text-[40px] font-semibold leading-none tracking-[-0.03em]">
+                    {money(xoxoCashback(account))}
+                  </p>
+                  <div className="mt-6 flex gap-6 border-t border-white/15 pt-4 text-[13px]">
+                    <span>
+                      <span className="t-num font-semibold">{account.orders.length}</span>
+                      <span className="text-white/60"> заказов</span>
+                    </span>
+                    <span>
+                      <span className="t-num font-semibold">{account.visits.length}</span>
+                      <span className="text-white/60"> визитов</span>
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <p className="t-micro mb-2 mt-8">Заказы</p>
+              {account.orders.length === 0 ? (
+                <EmptyState icon={Receipt} title="Заказов пока нет" className="py-6" />
+              ) : (
+                <div className="divide-hairline rounded-card bg-surface px-4 shadow-hairline">
+                  {account.orders.map((order) => (
+                    <div key={order.id} className="flex items-start justify-between gap-3 py-3.5">
+                      <div className="min-w-0">
+                        <p className="text-[15px] font-medium">{order.kind}</p>
+                        <p className="mt-0.5 line-clamp-2 text-[12.5px] text-ink-3">
+                          {new Date(order.date).toLocaleDateString("ru-RU")} ·{" "}
+                          {order.items.map((item) => `${item.name} ×${item.quantity}`).join(", ")}
+                        </p>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <p className="t-num text-[15px] font-medium">{money(order.total)}</p>
+                        <p className="t-num mt-0.5 text-[12.5px] font-medium text-live">+{money(order.cashback)}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <p className="t-micro mb-2 mt-8">Посещения</p>
+              <div className="divide-hairline rounded-card bg-surface px-4 shadow-hairline">
+                {account.visits.map((visit) => (
+                  <div key={visit.id} className="flex items-center justify-between py-3.5 text-[14.5px]">
+                    <span className="t-num">
+                      {new Date(visit.date).toLocaleDateString("ru-RU")} · {visit.time}
+                    </span>
+                    <span className="text-ink-2">{guestLabel(visit.guests)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </BottomSheet>
+        )}
+
         {dish && (
           <DishModal
+            key="dish"
             dish={{ ...dish, price: priceOf(dish) }}
             onClose={() => setDish(null)}
             onAdd={addToPreorder}
           />
         )}
       </AnimatePresence>
-    </motion.div>
+    </>
+  );
+}
+
+function Field({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <p className="t-micro mb-2">{label}</p>
+      <div
+        className={cn(
+          "h-12 rounded-row bg-surface px-4 transition-shadow focus-within:shadow-[inset_0_0_0_1.5px_var(--hs-ink)]",
+          error ? "shadow-[inset_0_0_0_1.5px_var(--hs-busy)]" : "shadow-hairline",
+        )}
+      >
+        {children}
+      </div>
+      <AnimatePresence>
+        {error && (
+          <motion.p
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="mt-1.5 text-[12px] text-busy"
+          >
+            {error}
+          </motion.p>
+        )}
+      </AnimatePresence>
+    </div>
   );
 }

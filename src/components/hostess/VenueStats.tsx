@@ -1,123 +1,65 @@
 import { useRef } from "react";
 import { motion, useInView } from "framer-motion";
-import { Clock, Star, Wallet } from "lucide-react";
-import { money } from "@/data/hostess";
+import { cn } from "@/lib/utils";
+import { LiveStatus, occupancyLevel, toneColor } from "./system";
+import { hourlyLoad } from "./venue";
 
-/* ── Props ────────────────────────────────────────────────────────── */
-
-interface VenueStatsProps {
-  occupancy: number; // 0-100 percentage
-  avgCheck: number; // in tenge
-  peakHours: string; // e.g. "19:00 – 21:00"
-  rating: number; // e.g. 4.9
-  reviews: number; // e.g. 1284
-}
-
-/* ── SVG Donut constants ──────────────────────────────────────────── */
-
-const RADIUS = 46;
-const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
-
-/* ── Component ────────────────────────────────────────────────────── */
-
-export function VenueStats({ occupancy, avgCheck, peakHours, rating, reviews }: VenueStatsProps) {
+/**
+ * Realtime load panel (Flighty-style): one status line, one calm chart.
+ * Current hour is the only saturated bar; everything else stays neutral.
+ */
+export function VenueStats({
+  occupancy,
+  peakHours,
+  className,
+  title = "Загрузка сейчас",
+}: {
+  occupancy: number;
+  peakHours: string;
+  className?: string;
+  title?: string;
+}) {
   const ref = useRef<HTMLDivElement>(null);
-  const isInView = useInView(ref, { once: true, margin: "-40px" });
-
-  // Calculate the stroke offset for the donut arc
-  const targetOffset = CIRCUMFERENCE - (occupancy / 100) * CIRCUMFERENCE;
+  const inView = useInView(ref, { once: true, margin: "-20px" });
+  const load = hourlyLoad(peakHours, occupancy);
+  const hour = new Date().getHours();
+  const idx = Math.max(0, Math.min(load.length - 1, (hour < 6 ? hour + 24 : hour) - 12));
+  const values = load.map((v, i) => (i === idx ? occupancy : v));
+  const { tone } = occupancyLevel(occupancy);
 
   return (
-    <div ref={ref} className="flex items-center gap-4 rounded-2xl bg-neutral-50 p-4">
-      {/* ── Donut chart ───────────────────────────────────────── */}
-      <div className="relative h-[120px] w-[120px] shrink-0">
-        <svg viewBox="0 0 100 100" className="h-full w-full -rotate-90">
-          {/* Background ring */}
-          <circle cx="50" cy="50" r={RADIUS} fill="none" stroke="#e5e5e5" strokeWidth="7" />
-          {/* Animated progress ring */}
-          <motion.circle
-            cx="50"
-            cy="50"
-            r={RADIUS}
-            fill="none"
-            stroke="var(--theme-accent, #F97316)"
-            strokeWidth="7"
-            strokeLinecap="round"
-            strokeDasharray={CIRCUMFERENCE}
-            initial={{ strokeDashoffset: CIRCUMFERENCE }}
-            animate={isInView ? { strokeDashoffset: targetOffset } : {}}
-            transition={{ type: "spring", stiffness: 60, damping: 18, mass: 1 }}
-          />
-        </svg>
-
-        {/* Center percentage label */}
-        <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <motion.span
-            className="text-2xl font-semibold tracking-tight"
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={isInView ? { opacity: 1, scale: 1 } : {}}
-            transition={{ type: "spring", stiffness: 200, damping: 20, delay: 0.3 }}
-          >
-            {occupancy}%
-          </motion.span>
-          <span className="text-[10px] text-neutral-500">загрузка</span>
+    <div ref={ref} className={cn("rounded-card bg-surface p-4 shadow-hairline", className)}>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="t-micro">{title}</p>
+          <LiveStatus occupancy={occupancy} className="mt-2 text-[14px]" />
+        </div>
+        <div className="text-right">
+          <p className="t-micro">Пик</p>
+          <p className="t-num mt-2 text-[14px] font-medium">{peakHours}</p>
         </div>
       </div>
-
-      {/* ── Metric cards ──────────────────────────────────────── */}
-      <div className="flex flex-1 flex-col gap-2">
-        {/* Average check */}
-        <motion.div
-          className="flex items-center gap-2.5 rounded-xl bg-white p-2.5 shadow-sm"
-          initial={{ opacity: 0, x: 20 }}
-          animate={isInView ? { opacity: 1, x: 0 } : {}}
-          transition={{ type: "spring", stiffness: 200, damping: 22, delay: 0.1 }}
-        >
-          <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-orange-50">
-            <Wallet className="h-4 w-4 text-primary" />
-          </div>
-          <div className="min-w-0">
-            <p className="text-[10px] text-neutral-500">Средний чек</p>
-            <p className="text-sm font-semibold leading-tight">{money(avgCheck)}</p>
-          </div>
-        </motion.div>
-
-        {/* Peak hours */}
-        <motion.div
-          className="flex items-center gap-2.5 rounded-xl bg-white p-2.5 shadow-sm"
-          initial={{ opacity: 0, x: 20 }}
-          animate={isInView ? { opacity: 1, x: 0 } : {}}
-          transition={{ type: "spring", stiffness: 200, damping: 22, delay: 0.2 }}
-        >
-          <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-blue-50">
-            <Clock className="h-4 w-4 text-blue-500" />
-          </div>
-          <div className="min-w-0">
-            <p className="text-[10px] text-neutral-500">Пиковые часы</p>
-            <p className="text-sm font-semibold leading-tight">{peakHours}</p>
-          </div>
-        </motion.div>
-
-        {/* Rating */}
-        <motion.div
-          className="flex items-center gap-2.5 rounded-xl bg-white p-2.5 shadow-sm"
-          initial={{ opacity: 0, x: 20 }}
-          animate={isInView ? { opacity: 1, x: 0 } : {}}
-          transition={{ type: "spring", stiffness: 200, damping: 22, delay: 0.3 }}
-        >
-          <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-yellow-50">
-            <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-          </div>
-          <div className="min-w-0">
-            <p className="text-[10px] text-neutral-500">Рейтинг</p>
-            <p className="text-sm font-semibold leading-tight">
-              {rating}{" "}
-              <span className="text-[10px] font-normal text-neutral-400">
-                ({reviews.toLocaleString("ru-RU")} отзывов)
-              </span>
-            </p>
-          </div>
-        </motion.div>
+      <div className="mt-4 flex h-14 items-end gap-[3px]">
+        {values.map((v, i) => (
+          <motion.span
+            key={i}
+            className="flex-1 origin-bottom rounded-[3px]"
+            style={{
+              height: `${v}%`,
+              background: i === idx ? toneColor[tone] : "rgb(23 21 15 / 0.1)",
+            }}
+            initial={{ scaleY: 0 }}
+            animate={inView ? { scaleY: 1 } : {}}
+            transition={{ delay: i * 0.02, type: "spring", stiffness: 260, damping: 26 }}
+          />
+        ))}
+      </div>
+      <div className="t-num mt-2 flex justify-between text-[10.5px] text-ink-3">
+        <span>12:00</span>
+        <span>16:00</span>
+        <span>20:00</span>
+        <span>00:00</span>
+        <span>02:00</span>
       </div>
     </div>
   );

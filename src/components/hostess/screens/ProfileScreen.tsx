@@ -1,32 +1,27 @@
 import { useState } from "react";
+import { motion } from "framer-motion";
 import {
-  Settings,
-  ChevronRight,
-  Split,
-  Wallet,
-  Heart,
-  Clock,
-  User,
-  Phone,
-  Mail,
-  Utensils,
-  SlidersHorizontal,
   Bell,
   Globe,
   HelpCircle,
-  Shield,
   LogOut,
+  Mail,
+  Phone,
+  Settings,
+  Shield,
+  Split,
+  User,
 } from "lucide-react";
 import { friends, history, money } from "@/data/hostess";
 import { Switch } from "@/components/ui/switch";
-import { BentoCard, BentoHeader } from "../Bento";
 import { WalletStack } from "../WalletStack";
 import { MyQueuesSection } from "../waitlist/MyQueuesSection";
 import { BusinessProfileScreen } from "./BusinessProfileScreen";
+import { Chip, IconButton, ListRow, RowGroup, SectionHeader } from "../system";
 
 const CUISINES = [
   "Казахская",
-  "Грузинская",
+  "Европейская",
   "Итальянская",
   "Азиатская",
   "Стейк-хаус",
@@ -34,6 +29,8 @@ const CUISINES = [
   "Авторская",
   "Французская",
 ];
+
+const TIER = { name: "Gold", next: "Platinum", points: 17480, target: 20000 };
 
 export function ProfileScreen({
   onSplitBill,
@@ -47,306 +44,186 @@ export function ProfileScreen({
   if (variant === "business") {
     return <BusinessProfileScreen onLogout={onLogout} />;
   }
+  return <GuestProfile onSplitBill={onSplitBill} onLogout={onLogout} />;
+}
 
+function GuestProfile({ onSplitBill, onLogout }: { onSplitBill?: () => void; onLogout: () => void }) {
   const [notifications, setNotifications] = useState(true);
   const [marketing, setMarketing] = useState(false);
-  const [selectedCuisines, setSelectedCuisines] = useState<string[]>(["Казахская", "Грузинская"]);
-  const [language, setLanguage] = useState("Русский");
+  const [selectedCuisines, setSelectedCuisines] = useState<string[]>(["Казахская", "Европейская"]);
 
   const toggleCuisine = (c: string) =>
     setSelectedCuisines((prev) => (prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]));
 
+  const progress = TIER.points / TIER.target;
+
   return (
-    <div className="h-full overflow-y-auto overscroll-none bg-gray-50 pb-[calc(80px+env(safe-area-inset-bottom)+16px)]">
-      <div className="flex items-center justify-between px-5 pt-14">
-        <p className="text-[11px] uppercase tracking-widest text-neutral-500">Профиль</p>
-        <button className="grid h-10 w-10 place-items-center rounded-full bg-white shadow-soft">
-          <Settings className="h-4 w-4" strokeWidth={1.5} />
-        </button>
+    <div className="no-scrollbar h-full overflow-y-auto overscroll-none bg-canvas pb-nav">
+      <div className="flex items-center justify-between px-5 pt-safe">
+        <p className="t-micro pt-2">Профиль</p>
+        <IconButton icon={Settings} label="Настройки" variant="stone" />
       </div>
 
-      <div className="px-5 pt-4">
+      {/* Member header */}
+      <div className="px-5 pt-5">
         <div className="flex items-center gap-4">
           <img
             src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=200&q=80"
-            className="h-16 w-16 rounded-full object-cover ring-4 ring-white shadow-soft"
+            className="h-[72px] w-[72px] rounded-full object-cover"
             alt=""
           />
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">Айгерим К.</h1>
-            <p className="text-xs text-neutral-500">Hostess Gold · с 2023</p>
+          <div className="min-w-0">
+            <h1 className="t-title truncate">Айгерим Куатова</h1>
+            <p className="t-caption mt-1">Участник с 2023 · Астана</p>
           </div>
         </div>
-
-        {/* Статистика — Bento */}
-        <BentoCard className="mt-5 grid grid-cols-3 divide-x divide-border/60" padded={false}>
-          {[
-            { v: "42", l: "Места" },
-            { v: "186k", l: "Потрачено ₸" },
-            { v: "17.5k", l: "Бонусы" },
-          ].map((s) => (
-            <div key={s.l} className="p-4 text-center">
-              <p className="text-xl font-semibold">{s.v}</p>
-              <p className="text-[11px] text-neutral-500">{s.l}</p>
-            </div>
-          ))}
-        </BentoCard>
       </div>
 
-      {/* Активные очереди (Task 4b) */}
-      <MyQueuesSection />
+      {/* Membership card — light, precise, membership-like */}
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+        className="mx-5 mt-6 overflow-hidden rounded-hero bg-surface p-5 shadow-soft"
+      >
+        <div className="flex items-center justify-between">
+          <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-brass">Hostess {TIER.name}</p>
+          <p className="t-num text-[11px] font-medium tracking-[0.12em] text-ink-3">№ 0427 1983</p>
+        </div>
+        <p className="t-num mt-7 text-[44px] font-semibold leading-none tracking-[-0.04em]">
+          {TIER.points.toLocaleString("ru-RU")}
+        </p>
+        <p className="t-caption mt-1.5">бонусов · 1 бонус = 1 ₸</p>
 
-      {/* Account */}
-      <div className="mt-6 px-5">
-        <BentoHeader
-          title="Аккаунт"
-          icon={<User className="h-4 w-4 text-primary" strokeWidth={1.5} />}
-          className="pb-3"
-        />
-        <BentoCard className="divide-y divide-border/60" padded={false}>
-          {[
-            { icon: User, label: "Имя", value: "Айгерим Куатова" },
-            { icon: Phone, label: "Телефон", value: "+7 701 234 56 78" },
-            { icon: Mail, label: "Email", value: "aigerim@hostess.kz" },
-          ].map((row) => (
-            <button
-              key={row.label}
-              className="flex w-full items-center gap-3 p-3 text-left transition-colors active:bg-neutral-50"
-            >
-              <div className="grid h-10 w-10 place-items-center rounded-xl bg-neutral-100">
-                <row.icon className="h-4 w-4 text-neutral-500" strokeWidth={1.5} />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-[11px] text-neutral-500">{row.label}</p>
-                <p className="text-sm font-semibold">{row.value}</p>
-              </div>
-              <ChevronRight className="h-4 w-4 text-neutral-400" strokeWidth={1.5} />
-            </button>
-          ))}
-        </BentoCard>
-      </div>
-
-      {/* Preferences */}
-      <div className="mt-6 px-5">
-        <BentoHeader
-          title="Предпочтения"
-          icon={<Utensils className="h-4 w-4 text-primary" strokeWidth={1.5} />}
-          className="pb-3"
-        />
-        <BentoCard>
-          <p className="mb-3 text-[11px] font-semibold uppercase tracking-widest text-neutral-500">
-            Избранные кухни
+        <div className="mt-6">
+          <div className="h-[3px] overflow-hidden rounded-full bg-stone">
+            <motion.div
+              className="h-full rounded-full bg-ink"
+              initial={{ width: 0 }}
+              animate={{ width: `${progress * 100}%` }}
+              transition={{ delay: 0.2, duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
+            />
+          </div>
+          <p className="t-num mt-2 text-[12.5px] text-ink-2">
+            Ещё {(TIER.target - TIER.points).toLocaleString("ru-RU")} до {TIER.next}
           </p>
-          <div className="flex flex-wrap gap-2">
-            {CUISINES.map((c) => {
-              const on = selectedCuisines.includes(c);
-              return (
-                <button
-                  key={c}
-                  onClick={() => toggleCuisine(c)}
-                  className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
-                    on
-                      ? "bg-neutral-900 text-white"
-                      : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200"
-                  }`}
-                >
-                  {c}
-                </button>
-              );
-            })}
-          </div>
-          <div className="mt-4 flex items-center justify-between rounded-2xl bg-neutral-50 p-3">
-            <div className="flex items-center gap-2">
-              <SlidersHorizontal className="h-4 w-4 text-neutral-500" strokeWidth={1.5} />
-              <p className="text-sm font-semibold">Фильтры поиска</p>
-            </div>
-            <ChevronRight className="h-4 w-4 text-neutral-400" strokeWidth={1.5} />
-          </div>
-        </BentoCard>
-      </div>
+        </div>
 
-      {/* Stories */}
-      <div className="mt-6">
-        <div className="no-scrollbar flex gap-3 overflow-x-auto px-5">
-          {[{ name: "Вы", add: true }, ...friends].map((f, i) => (
-            <div key={i} className="flex w-16 shrink-0 flex-col items-center gap-1">
-              <div
-                className={`rounded-full p-[2px] ${"add" in f && f.add ? "bg-neutral-200" : "bg-gradient-to-tr from-primary via-pink-400 to-purple-500"}`}
-              >
-                <div className="rounded-full bg-white p-[2px]">
-                  <img
-                    src={
-                      "avatar" in f && f.avatar
-                        ? f.avatar
-                        : "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200"
-                    }
-                    className="h-12 w-12 rounded-full object-cover"
-                    alt=""
-                  />
-                </div>
-              </div>
-              <span className="truncate text-[10px] text-neutral-600">{f.name}</span>
+        <div className="mt-5 grid grid-cols-3 divide-x divide-line border-t border-line pt-4">
+          {[
+            { v: "5%", l: "Кэшбэк" },
+            { v: "42", l: "Визита" },
+            { v: "186k ₸", l: "За год" },
+          ].map((s) => (
+            <div key={s.l} className="px-3 first:pl-0">
+              <p className="t-num text-[17px] font-semibold tracking-[-0.015em]">{s.v}</p>
+              <p className="mt-0.5 text-[12px] text-ink-3">{s.l}</p>
             </div>
           ))}
         </div>
-      </div>
+      </motion.div>
 
-      {/* Кошелёк — вертикальная колода карт (Task 4) */}
-      <div className="mt-6">
-        <BentoHeader
-          title="Кошелёк"
-          icon={<Wallet className="h-4 w-4" strokeWidth={1.5} />}
-          className="px-5 pb-3"
-          action={<span className="text-xs text-neutral-500">Нажмите, чтобы раскрыть</span>}
-        />
-        <WalletStack />
-      </div>
+      <div className="mt-10 space-y-10">
+        <MyQueuesSection />
 
-      {/* Friends */}
-      <div className="mt-6 px-5">
-        <BentoHeader
-          title="Друзья"
-          className="pb-3"
-          action={<span className="text-xs text-neutral-500">Управлять</span>}
-        />
-        <div className="space-y-2">
-          {friends.slice(0, 4).map((f) => (
-            <BentoCard key={f.id} className="flex items-center gap-3" padded={false}>
-              <div className="flex flex-1 items-center gap-3 p-2.5">
-                <img src={f.avatar} className="h-11 w-11 rounded-full object-cover" alt="" />
-                <div className="flex-1">
-                  <p className="text-sm font-semibold">{f.name}</p>
-                  <p className="text-xs text-neutral-500">{f.lastSeen}</p>
+        <section className="space-y-4">
+          <SectionHeader eyebrow="Клубные карты" title="Кошелёк" action="Все" />
+          <WalletStack />
+        </section>
+
+        <section className="space-y-4">
+          <SectionHeader title="Друзья" action="Управлять" />
+          <div className="rail gap-4">
+            {friends.map((f) => (
+              <div key={f.id} className="w-[72px] shrink-0 snap-start text-center">
+                <div className="relative mx-auto h-16 w-16">
+                  <img src={f.avatar} className="h-16 w-16 rounded-full object-cover" alt="" />
+                  {f.lastSeen.includes("сейчас") && (
+                    <span className="absolute bottom-0.5 right-0.5 h-3.5 w-3.5 rounded-full border-[2.5px] border-canvas bg-live" />
+                  )}
                 </div>
-                <span className="mr-2.5 grid h-8 w-8 place-items-center rounded-full bg-neutral-100">
-                  <ChevronRight className="h-4 w-4" strokeWidth={1.5} />
-                </span>
+                <p className="mt-2 truncate text-[13px] font-medium">{f.name}</p>
+                <p className="truncate text-[11px] text-ink-3">{f.lastSeen.split(" · ")[0]}</p>
               </div>
-            </BentoCard>
-          ))}
-        </div>
-      </div>
+            ))}
+          </div>
+          <div className="px-5">
+            <RowGroup>
+              <ListRow
+                icon={Split}
+                title="Разделить счёт"
+                subtitle="Qazaq Gourmet · сегодня · 4 гостя"
+                onClick={onSplitBill}
+              />
+            </RowGroup>
+          </div>
+        </section>
 
-      {/* Split bill */}
-      <div className="mt-6 px-5">
-        <button
-          onClick={onSplitBill}
-          className="flex w-full items-center gap-3 rounded-[24px] bg-neutral-900 p-4 text-left text-white shadow-float"
-        >
-          <div className="grid h-11 w-11 place-items-center rounded-2xl bg-primary">
-            <Split className="h-5 w-5" strokeWidth={1.5} />
+        <section className="space-y-4">
+          <SectionHeader eyebrow="История" title="Недавние визиты" action="Все" />
+          <div className="px-5">
+            <RowGroup>
+              {history.slice(0, 5).map((h) => (
+                <ListRow
+                  key={h.id}
+                  leading={
+                    <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[12px] bg-stone text-[14px] font-semibold">
+                      {h.place[0]}
+                    </span>
+                  }
+                  title={h.place}
+                  subtitle={`${h.when} · ${h.companions.length ? `с ${h.companions.slice(0, 2).join(", ")}` : "один"}`}
+                  value={money(h.sum)}
+                  chevron={false}
+                />
+              ))}
+            </RowGroup>
           </div>
-          <div className="flex-1">
-            <p className="text-sm font-semibold">Разделить счёт</p>
-            <p className="text-xs opacity-70">Ауыл · сегодня · 4 гостя</p>
-          </div>
-          <ChevronRight className="h-5 w-5 opacity-60" strokeWidth={1.5} />
-        </button>
-      </div>
+        </section>
 
-      {/* Settings */}
-      <div className="mt-6 px-5">
-        <BentoHeader
-          title="Настройки"
-          icon={<Settings className="h-4 w-4 text-primary" strokeWidth={1.5} />}
-          className="pb-3"
-        />
-        <BentoCard className="divide-y divide-border/60" padded={false}>
-          <div className="flex items-center justify-between p-3">
-            <div className="flex items-center gap-3">
-              <div className="grid h-10 w-10 place-items-center rounded-xl bg-neutral-100">
-                <Bell className="h-4 w-4 text-neutral-500" strokeWidth={1.5} />
-              </div>
-              <div>
-                <p className="text-sm font-semibold">Уведомления</p>
-                <p className="text-[11px] text-neutral-500">Бронирования, акции, напоминания</p>
-              </div>
-            </div>
-            <Switch checked={notifications} onCheckedChange={setNotifications} />
+        <section className="space-y-4">
+          <SectionHeader eyebrow="Для консьержа" title="Предпочтения" />
+          <div className="flex flex-wrap gap-2 px-5">
+            {CUISINES.map((c) => (
+              <Chip key={c} tone="outline" selected={selectedCuisines.includes(c)} onClick={() => toggleCuisine(c)}>
+                {c}
+              </Chip>
+            ))}
           </div>
-          <div className="flex items-center justify-between p-3">
-            <div className="flex items-center gap-3">
-              <div className="grid h-10 w-10 place-items-center rounded-xl bg-neutral-100">
-                <Mail className="h-4 w-4 text-neutral-500" strokeWidth={1.5} />
-              </div>
-              <div>
-                <p className="text-sm font-semibold">Маркетинг</p>
-                <p className="text-[11px] text-neutral-500">Советы и персональные предложения</p>
-              </div>
-            </div>
-            <Switch checked={marketing} onCheckedChange={setMarketing} />
-          </div>
-          <button className="flex w-full items-center justify-between p-3 text-left transition-colors active:bg-neutral-50">
-            <div className="flex items-center gap-3">
-              <div className="grid h-10 w-10 place-items-center rounded-xl bg-neutral-100">
-                <Globe className="h-4 w-4 text-neutral-500" strokeWidth={1.5} />
-              </div>
-              <div>
-                <p className="text-sm font-semibold">Язык</p>
-                <p className="text-[11px] text-neutral-500">{language}</p>
-              </div>
-            </div>
-            <ChevronRight className="h-4 w-4 text-neutral-400" strokeWidth={1.5} />
-          </button>
-          <button className="flex w-full items-center justify-between p-3 text-left transition-colors active:bg-neutral-50">
-            <div className="flex items-center gap-3">
-              <div className="grid h-10 w-10 place-items-center rounded-xl bg-neutral-100">
-                <Shield className="h-4 w-4 text-neutral-500" strokeWidth={1.5} />
-              </div>
-              <div>
-                <p className="text-sm font-semibold">Безопасность</p>
-                <p className="text-[11px] text-neutral-500">Пароль, Face ID</p>
-              </div>
-            </div>
-            <ChevronRight className="h-4 w-4 text-neutral-400" strokeWidth={1.5} />
-          </button>
-          <button className="flex w-full items-center justify-between p-3 text-left transition-colors active:bg-neutral-50">
-            <div className="flex items-center gap-3">
-              <div className="grid h-10 w-10 place-items-center rounded-xl bg-neutral-100">
-                <HelpCircle className="h-4 w-4 text-neutral-500" strokeWidth={1.5} />
-              </div>
-              <div>
-                <p className="text-sm font-semibold">Помощь</p>
-                <p className="text-[11px] text-neutral-500">FAQ и поддержка</p>
-              </div>
-            </div>
-            <ChevronRight className="h-4 w-4 text-neutral-400" strokeWidth={1.5} />
-          </button>
-          <button
-            onClick={onLogout}
-            className="flex w-full items-center justify-between p-3 text-left text-red-600 transition-colors active:bg-red-50"
-          >
-            <div className="flex items-center gap-3">
-              <div className="grid h-10 w-10 place-items-center rounded-xl bg-red-50">
-                <LogOut className="h-4 w-4 text-red-500" strokeWidth={1.5} />
-              </div>
-              <p className="text-sm font-semibold">Выйти</p>
-            </div>
-          </button>
-        </BentoCard>
-      </div>
+        </section>
 
-      {/* History */}
-      <div className="mt-6 px-5">
-        <BentoHeader
-          title="История посещений"
-          icon={<Clock className="h-4 w-4" strokeWidth={1.5} />}
-          className="pb-3"
-        />
-        <BentoCard className="divide-y divide-border/60" padded={false}>
-          {history.map((h) => (
-            <div key={h.id} className="flex items-center gap-3 p-3">
-              <div className="grid h-10 w-10 place-items-center rounded-xl bg-neutral-100">
-                <Heart className="h-4 w-4 text-neutral-500" strokeWidth={1.5} />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-semibold">{h.place}</p>
-                <p className="text-xs text-neutral-500">{h.when}</p>
-              </div>
-              <p className="text-sm font-semibold">{money(h.sum)}</p>
-            </div>
-          ))}
-        </BentoCard>
+        <section className="space-y-3 px-5">
+          <p className="t-micro px-1">Аккаунт</p>
+          <RowGroup>
+            <ListRow icon={User} title="Айгерим Куатова" subtitle="Имя" onClick={() => {}} />
+            <ListRow icon={Phone} title="+7 701 234 56 78" subtitle="Телефон" onClick={() => {}} />
+            <ListRow icon={Mail} title="aigerim@hostess.kz" subtitle="Email" onClick={() => {}} />
+          </RowGroup>
+        </section>
+
+        <section className="space-y-3 px-5">
+          <p className="t-micro px-1">Настройки</p>
+          <RowGroup>
+            <ListRow
+              icon={Bell}
+              title="Уведомления"
+              subtitle="Брони, листы ожидания, напоминания"
+              trailing={<Switch checked={notifications} onCheckedChange={setNotifications} />}
+            />
+            <ListRow
+              icon={Mail}
+              title="Персональные предложения"
+              trailing={<Switch checked={marketing} onCheckedChange={setMarketing} />}
+            />
+            <ListRow icon={Globe} title="Язык" value="Русский" onClick={() => {}} />
+            <ListRow icon={Shield} title="Безопасность" value="Face ID" onClick={() => {}} />
+            <ListRow icon={HelpCircle} title="Помощь и поддержка" onClick={() => {}} />
+          </RowGroup>
+          <RowGroup>
+            <ListRow icon={LogOut} title="Выйти" destructive onClick={onLogout} chevron={false} />
+          </RowGroup>
+          <p className="t-num pt-2 text-center text-[11.5px] text-ink-3">Hostess · версия 2.0</p>
+        </section>
       </div>
     </div>
   );

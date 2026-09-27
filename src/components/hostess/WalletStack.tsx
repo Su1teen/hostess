@@ -3,15 +3,14 @@ import { motion } from "framer-motion";
 import { hapticSelect, hapticTick } from "@/lib/haptics";
 import { loyaltyCards } from "@/data/hostess";
 
-const CARD_H = 184;
-const PEEK = 34; // видимая «шапка» карты в свёрнутой колоде
-const SPREAD = CARD_H + 12; // расстояние между картами в раскрытом виде
+const CARD_H = 176;
+const PEEK = 46; // видимая «шапка» карты в свёрнутой колоде
+const SPREAD = CARD_H + 12;
 
 /**
- * Вертикальная колода карт (Task 4) в стиле Apple Wallet.
- * Свёрнуто: карты перекрывают друг друга, видна только «шапка».
- * Тап по колоде — раскрывает; тап по карте — выносит её наверх и сворачивает.
- * Тактильная отдача при раскрытии/выборе и при прокрутке фокуса.
+ * Wallet-style vertical deck of venue membership cards.
+ * Collapsed: only the headers peek. Tap to fan out; tap a card to bring it forward.
+ * Cards use muted material tones — no saturated gradients.
  */
 export function WalletStack() {
   const [order, setOrder] = useState<string[]>(loyaltyCards.map((c) => c.id));
@@ -23,19 +22,18 @@ export function WalletStack() {
 
   const n = cards.length;
   const collapsedH = CARD_H + (n - 1) * PEEK;
-  const expandedH = n * SPREAD - (SPREAD - CARD_H) + 8;
+  const expandedH = n * SPREAD - (SPREAD - CARD_H);
 
-  const handleCard = (id: string, idx: number) => {
+  const handleCard = (id: string) => {
     if (!expanded) {
       hapticSelect();
       setExpanded(true);
       return;
     }
-    // Раскрыто: выносим выбранную карту наверх, сворачиваем колоду.
     hapticTick();
-    setOrder((prev) => [id, ...prev.filter((x) => x !== id)]);
+    // Выбранная карта уходит в конец колоды — там она видна целиком.
+    setOrder((prev) => [...prev.filter((x) => x !== id), id]);
     setExpanded(false);
-    void idx;
   };
 
   return (
@@ -48,38 +46,32 @@ export function WalletStack() {
       {cards.map((c, i) => (
         <motion.button
           key={c.id}
-          layout
-          onClick={() => handleCard(c.id, i)}
-          animate={{
-            y: expanded ? i * SPREAD : i * PEEK,
-            scale: expanded ? 1 : 1 - i * 0.02,
-          }}
+          type="button"
+          onClick={() => handleCard(c.id)}
+          initial={false}
+          animate={{ y: expanded ? i * SPREAD : i * PEEK }}
+          whileTap={{ scale: 0.985 }}
           transition={{ type: "spring", stiffness: 320, damping: 34 }}
-          className={`absolute inset-x-0 h-[184px] overflow-hidden rounded-[24px] bg-gradient-to-br ${c.gradient} p-5 text-left text-white shadow-xl`}
-          style={{ zIndex: n - i }}
+          className={`absolute inset-x-0 overflow-hidden rounded-card bg-gradient-to-br ${c.gradient} px-5 py-4 text-left text-white shadow-[0_-1px_0_rgb(255_255_255/0.08)_inset,0_14px_30px_-18px_rgb(23_21_15/0.6)]`}
+          style={{ height: CARD_H, zIndex: i + 1 }}
+          aria-label={`${c.name}, ${c.tier}`}
         >
-          <div
-            className="absolute inset-0 opacity-30"
-            style={{
-              backgroundImage:
-                "radial-gradient(circle at 20% 20%, rgba(255,255,255,0.4), transparent 40%), radial-gradient(circle at 80% 80%, rgba(255,255,255,0.2), transparent 40%)",
-            }}
-          />
-          <div className="relative flex h-full flex-col justify-between">
+          <div className="flex h-full flex-col justify-between">
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-[11px] uppercase tracking-widest opacity-70">{c.tier}</p>
-                <p className="text-lg font-semibold">{c.name}</p>
+                <p className="text-[16px] font-semibold tracking-[-0.015em]">{c.name}</p>
+                <p className="mt-0.5 text-[11px] font-medium uppercase tracking-[0.16em] text-white/60">{c.tier}</p>
               </div>
-              <span className="rounded-full bg-white/20 px-2.5 py-1 text-[10px] font-semibold backdrop-blur">
-                Hostess
-              </span>
+              <span className="text-[10.5px] font-medium uppercase tracking-[0.22em] text-white/55">Hostess</span>
             </div>
-            <div>
-              <p className="text-[11px] opacity-70">Бонусы</p>
-              <p className="text-2xl font-semibold tracking-tight">
-                {c.points.toLocaleString("ru-RU")}
-              </p>
+            <div className="flex items-end justify-between">
+              <div>
+                <p className="text-[11px] text-white/60">Бонусы</p>
+                <p className="t-num text-[26px] font-semibold leading-none tracking-[-0.02em]">
+                  {c.points.toLocaleString("ru-RU")}
+                </p>
+              </div>
+              <p className="t-num text-[12px] tracking-[0.12em] text-white/50">•• {String(c.points).slice(-4)}</p>
             </div>
           </div>
         </motion.button>

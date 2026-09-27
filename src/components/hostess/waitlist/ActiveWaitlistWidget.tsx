@@ -1,5 +1,6 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { ChevronRight } from "lucide-react";
+import { LiveDot, spring } from "../system";
 import { useWaitlist } from "./WaitlistProvider";
 import { ProgressRing } from "./ProgressRing";
 
@@ -10,13 +11,11 @@ const fmt = (sec: number) => {
 };
 
 /**
- * Плавающий виджет активной очереди — всегда виден поверх экранов,
- * пока пользователь стоит в очереди (и слот ещё не освободился).
- * Прогресс-кольцо заполняется по мере продвижения к началу очереди.
+ * Live Activity–style pill: always visible while the guest is queued.
+ * One line of status, one number, one ring.
  */
 export function ActiveWaitlistWidget({ onOpen }: { onOpen?: () => void }) {
   const { queues } = useWaitlist();
-  // Показываем самую «близкую» к выдаче запись в статусе ожидания.
   const waiting = queues.filter((q) => q.status === "waiting").sort((a, b) => a.etaSec - b.etaSec);
   const entry = waiting[0];
 
@@ -25,33 +24,37 @@ export function ActiveWaitlistWidget({ onOpen }: { onOpen?: () => void }) {
       {entry && (
         <motion.button
           key={entry.id}
-          layout
-          initial={{ y: -80, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          exit={{ y: -80, opacity: 0 }}
-          transition={{ type: "spring", stiffness: 300, damping: 28 }}
+          type="button"
+          initial={{ y: -80, opacity: 0, scale: 0.96 }}
+          animate={{ y: 0, opacity: 1, scale: 1 }}
+          exit={{ y: -80, opacity: 0, scale: 0.96 }}
+          transition={spring}
+          whileTap={{ scale: 0.98 }}
           onClick={onOpen}
-          className="glass-frosted pointer-events-auto absolute inset-x-4 top-4 z-[60] flex items-center gap-3 rounded-[22px] px-3 py-2.5 text-left"
+          className="absolute inset-x-3 top-safe z-[60] flex items-center gap-3 rounded-[24px] bg-ink py-2 pl-2 pr-3.5 text-left text-white shadow-float"
         >
           <ProgressRing
             progress={1 - entry.position / entry.initialPosition + 0.001}
-            size={46}
-            stroke={4}
+            size={42}
+            stroke={3}
+            color="#ffffff"
+            track="rgb(255 255 255 / 0.15)"
           >
-            <span className="text-[13px] font-bold text-neutral-900">#{entry.position}</span>
+            <span className="t-num text-[13px] font-semibold">#{entry.position}</span>
           </ProgressRing>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-[13px] font-semibold text-neutral-900">
-              {entry.entityName}
-            </p>
-            <p className="truncate text-[11px] text-neutral-600">
-              В очереди · осталось ~{fmt(entry.etaSec)}
+            <p className="truncate text-[14px] font-semibold tracking-[-0.01em]">{entry.entityName}</p>
+            <p className="flex items-center gap-1.5 truncate text-[12px] text-white/60">
+              <LiveDot tone="live" pulse size={6} />
+              Лист ожидания · ~<span className="t-num">{fmt(entry.etaSec)}</span>
             </p>
           </div>
-          <span className="flex items-center gap-1 rounded-full bg-neutral-900 px-2.5 py-1 text-[10px] font-semibold text-white">
-            {queues.length > 1 ? `${queues.length} очереди` : "Очередь"}
-            <ChevronRight className="h-3 w-3" />
-          </span>
+          {queues.length > 1 && (
+            <span className="t-num rounded-full bg-white/12 px-2 py-0.5 text-[11px] font-medium">
+              {queues.length}
+            </span>
+          )}
+          <ChevronRight className="h-4 w-4 text-white/50" strokeWidth={1.6} />
         </motion.button>
       )}
     </AnimatePresence>

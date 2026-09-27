@@ -7,17 +7,22 @@ export function Splash() {
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.5 }}
-      className="absolute inset-0 z-[100] flex items-center justify-center bg-white"
+      className="absolute inset-0 z-[200] flex flex-col items-center justify-center bg-canvas"
     >
-      <motion.div
-        initial={{ y: 10, opacity: 0, letterSpacing: "0.2em" }}
-        animate={{ y: 0, opacity: 1, letterSpacing: "0em" }}
-        transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
-        className="text-6xl font-normal italic tracking-tight text-neutral-950"
-        style={{ fontFamily: "var(--font-display)" }}
+      <motion.p
+        initial={{ opacity: 0, letterSpacing: "0.6em" }}
+        animate={{ opacity: 1, letterSpacing: "0.38em" }}
+        transition={{ duration: 1, ease: [0.22, 1, 0.36, 1] }}
+        className="pl-[0.38em] text-[22px] font-semibold text-ink"
       >
-        Hostess
-      </motion.div>
+        HOSTESS
+      </motion.p>
+      <motion.span
+        initial={{ scaleX: 0 }}
+        animate={{ scaleX: 1 }}
+        transition={{ delay: 0.25, duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+        className="mt-4 h-px w-10 origin-center bg-ink/30"
+      />
     </motion.div>
   );
 }

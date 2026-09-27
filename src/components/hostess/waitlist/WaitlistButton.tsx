@@ -1,15 +1,14 @@
 import { useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence } from "framer-motion";
 import { Check, ListPlus } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Button } from "../system";
 import { useWaitlist } from "./WaitlistProvider";
 import { JoinWaitlistSheet } from "./JoinWaitlistSheet";
 import type { JoinWaitlistInput } from "./types";
 
 /**
- * Универсальная кнопка «Встать в очередь» — подставляется вместо
- * «Забронировать», когда ресурс полностью занят. Принимает generic input,
- * поэтому работает для ресторана, автомойки, клиники и т.д.
+ * Replaces «Забронировать» when a resource is fully booked.
+ * Generic input — works for restaurants, car washes, clinics, etc.
  */
 export function WaitlistButton({
   input,
@@ -24,26 +23,24 @@ export function WaitlistButton({
 
   return (
     <>
-      <motion.button
-        whileTap={{ scale: 0.97 }}
+      <Button
+        block
+        size="lg"
+        variant={queued ? "secondary" : "primary"}
         disabled={queued}
         onClick={() => setOpen(true)}
-        className={cn(
-          "flex w-full items-center justify-center gap-2 rounded-full py-4 text-sm font-semibold shadow-float transition-colors",
-          queued ? "bg-emerald-500 text-white" : "bg-neutral-900 text-white",
-          className,
-        )}
+        className={queued ? `disabled:opacity-100 ${className ?? ""}` : className}
       >
         {queued ? (
           <>
-            <Check className="h-4 w-4" /> Вы в очереди
+            <Check className="h-4 w-4 text-live" strokeWidth={2} /> Вы в листе ожидания
           </>
         ) : (
           <>
-            <ListPlus className="h-4 w-4" /> Встать в очередь
+            <ListPlus className="h-4 w-4" strokeWidth={1.6} /> Встать в лист ожидания
           </>
         )}
-      </motion.button>
+      </Button>
 
       <AnimatePresence>
         {open && (

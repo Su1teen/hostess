@@ -67,7 +67,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         content:
           "Премиум приложение для бронирования столиков, меню и социального опыта в лучших ресторанах Астаны.",
       },
-      { name: "theme-color", content: "#ffffff" },
+      { name: "theme-color", content: "#f7f5f0" },
       { property: "og:title", content: "Hostess — Премиум бронирование ресторанов" },
       { property: "og:description", content: "Столики, меню, друзья и оплата в одном приложении." },
       { property: "og:type", content: "website" },
@@ -76,12 +76,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     links: [
       { rel: "stylesheet", href: appCss },
       { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
-      { rel: "preconnect", href: "https://fonts.googleapis.com" },
-      { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "" },
-      {
-        rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@300;400;500;600;700;800&display=swap",
-      },
+      { rel: "preload", href: "/fonts/ClarityCity-Regular.woff2", as: "font", type: "font/woff2", crossOrigin: "" },
+      { rel: "preload", href: "/fonts/ClarityCity-SemiBold.woff2", as: "font", type: "font/woff2", crossOrigin: "" },
     ],
   }),
   shellComponent: RootShell,

@@ -1,122 +1,86 @@
-import { useRef, useState } from "react";
-import { motion, useScroll, useTransform } from "framer-motion";
-import { X, Ticket, CalendarDays, MapPin } from "lucide-react";
+import { useState } from "react";
+import { motion } from "framer-motion";
+import { CalendarDays, MapPin } from "lucide-react";
 import { money, type CityEvent } from "@/data/hostess";
+import { hapticSuccess } from "@/lib/haptics";
+import { BottomSheet, Button, ListRow, Photo, RowGroup, Stepper, softSpring } from "./system";
 
-const CTA_BOTTOM = "bottom-[calc(80px+env(safe-area-inset-bottom)+16px)]";
-const SCROLL_PB = "pb-[calc(140px+env(safe-area-inset-bottom)+16px)]";
-
-/**
- * Билет на событие — Bottom sheet с информацией о событии и покупкой билета.
- * Task 1/2: sticky hero с parallax + плавное смешение с контентом + floating CTA
- * с корректным отступом от BottomNav / safe-area.
- */
+/** Event ticket — cinematic cover, essential facts, quantity, a wallet-style pass on success. */
 export function EventTicketModal({ event, onClose }: { event: CityEvent; onClose: () => void }) {
   const [bought, setBought] = useState(false);
-
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const { scrollYProgress } = useScroll({ container: scrollRef });
-  const heroScale = useTransform(scrollYProgress, [0, 1], [1, 1.2]);
-  const heroOpacity = useTransform(scrollYProgress, [0, 1], [1, 0.6]);
+  const [qty, setQty] = useState(1);
+  const free = event.price === 0;
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="absolute inset-0 z-[100] flex items-end bg-black/45 backdrop-blur-[2px]"
-      onClick={onClose}
-    >
-      <motion.div
-        ref={scrollRef}
-        initial={{ y: "100%" }}
-        animate={{ y: 0 }}
-        exit={{ y: "100%" }}
-        transition={{ type: "spring", stiffness: 320, damping: 32 }}
-        onClick={(e) => e.stopPropagation()}
-        className={`relative max-h-[92%] w-full overflow-y-auto overscroll-none rounded-t-[32px] bg-white shadow-float ${SCROLL_PB}`}
-      >
-        {/* Hero — sticky + parallax + blending */}
-        <div className="sticky top-0 z-0 h-52 overflow-hidden">
-          <motion.img
-            src={event.cover}
-            alt=""
-            style={{ scale: heroScale, opacity: heroOpacity, originY: 0 }}
-            className="h-full w-full rounded-t-[32px] object-cover"
-          />
-          <div className="absolute inset-0 rounded-t-[32px] bg-gradient-to-t from-black/60 to-transparent" />
-          <div className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-white/95 via-white/80 to-transparent" />
-          <button
-            onClick={onClose}
-            className="absolute right-4 top-4 grid h-9 w-9 place-items-center rounded-full bg-white/90 shadow-soft backdrop-blur"
-            aria-label="Закрыть"
-          >
-            <X className="h-4 w-4" />
-          </button>
-          <div className="absolute inset-x-4 bottom-16 text-white">
-            <span className="rounded-full bg-white/20 px-2.5 py-1 text-[10px] font-bold backdrop-blur">
-              {event.tag}
-            </span>
-            <h2 className="mt-1.5 text-xl font-semibold">{event.title}</h2>
-          </div>
-        </div>
-
-        <div className="relative z-10 rounded-t-[32px] bg-white px-5 pt-4">
-          {/* Метаинформация */}
-          <div className="flex gap-4 text-xs text-neutral-600">
-            <span className="flex items-center gap-1">
-              <CalendarDays className="h-3.5 w-3.5" strokeWidth={1.5} /> {event.date} · {event.time}
-            </span>
-            <span className="flex items-center gap-1">
-              <MapPin className="h-3.5 w-3.5" strokeWidth={1.5} /> {event.place}
-            </span>
-          </div>
-
-          {bought ? (
-            /* ── Билет куплен ─────────────────────────────────────────── */
-            <div className="py-8 text-center">
-              <motion.div
-                initial={{ scale: 0, rotate: -8 }}
-                animate={{ scale: 1, rotate: 0 }}
-                transition={{ type: "spring", stiffness: 260, damping: 16 }}
-                className="mx-auto flex w-56 flex-col items-center rounded-2xl bg-neutral-900 p-4 text-white shadow-float"
-              >
-                <Ticket className="h-6 w-6 text-primary" />
-                <p className="mt-2 text-sm font-semibold">{event.title}</p>
-                <p className="mt-0.5 text-[10px] opacity-60">
-                  {event.date} · {event.time} · 1 билет
-                </p>
-                {/* Баркод-паттерн */}
-                <div className="mt-3 flex gap-[3px]">
-                  {Array.from({ length: 24 }).map((_, i) => (
-                    <span
-                      key={i}
-                      className="w-[3px] rounded bg-white"
-                      style={{ height: 6 + ((i * 7) % 18) }}
-                    />
-                  ))}
-                </div>
-              </motion.div>
-              <p className="mt-4 text-xs text-neutral-500">Билет добавлен в Wallet</p>
-            </div>
-          ) : null}
-        </div>
-
-        {/* Floating CTA — над BottomNav */}
-        {!bought && (
-          <div className={`pointer-events-none absolute inset-x-0 z-40 px-5 ${CTA_BOTTOM}`}>
-            <motion.button
-              whileTap={{ scale: 0.97 }}
-              onClick={() => setBought(true)}
-              className="pointer-events-auto w-full rounded-full bg-neutral-900 py-4 text-sm font-semibold text-white shadow-float"
+    <BottomSheet
+      onClose={onClose}
+      footer={
+        bought ? (
+          <Button block size="lg" onClick={onClose}>
+            Готово
+          </Button>
+        ) : (
+          <div className="flex items-center gap-3">
+            <Stepper value={qty} onChange={setQty} min={1} max={8} />
+            <Button
+              block
+              size="lg"
+              className="flex-1"
+              onClick={() => {
+                hapticSuccess();
+                setBought(true);
+              }}
             >
-              {event.price === 0
-                ? "Зарегистрироваться · бесплатно"
-                : `Купить билет · ${money(event.price)}`}
-            </motion.button>
+              {free ? "Зарегистрироваться" : `Купить · ${money(event.price * qty)}`}
+            </Button>
           </div>
+        )
+      }
+    >
+      <div className="relative">
+        <Photo src={event.cover} className="aspect-[4/3] w-full" eager />
+        <span className="frost-photo absolute left-4 top-6 rounded-full px-2.5 py-1 text-[11px] font-medium text-ink">
+          {event.tag}
+        </span>
+      </div>
+      <div className="px-5 pb-6 pt-6">
+        {bought ? (
+          <motion.div
+            initial={{ opacity: 0, y: 16, rotateX: 18 }}
+            animate={{ opacity: 1, y: 0, rotateX: 0 }}
+            transition={softSpring}
+            className="mx-auto max-w-[300px] overflow-hidden rounded-hero bg-ink text-white shadow-float"
+          >
+            <div className="p-5">
+              <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-white/55">Hostess · билет</p>
+              <p className="mt-3 text-[20px] font-semibold leading-tight tracking-[-0.02em]">{event.title}</p>
+              <p className="t-num mt-1.5 text-[13px] text-white/65">
+                {event.date} · {event.time} · {qty} {qty === 1 ? "билет" : "билета"}
+              </p>
+            </div>
+            <div className="flex items-end justify-center gap-[3px] border-t border-dashed border-white/20 px-5 py-4">
+              {Array.from({ length: 34 }).map((_, i) => (
+                <span key={i} className="w-[3px] rounded-[1px] bg-white" style={{ height: 14 + ((i * 7) % 18) }} />
+              ))}
+            </div>
+          </motion.div>
+        ) : (
+          <>
+            <h2 className="t-title">{event.title}</h2>
+            <div className="mt-6">
+              <RowGroup>
+                <ListRow icon={CalendarDays} title={`${event.date}, ${event.time}`} subtitle="Дата и время" chevron={false} />
+                <ListRow icon={MapPin} title={event.place} subtitle="Место" chevron={false} />
+              </RowGroup>
+            </div>
+            <p className="t-caption mt-4">
+              {free ? "Вход свободный по регистрации." : `Билет от ${money(event.price)}.`} Билет появится в разделе
+              «Брони» и в Wallet.
+            </p>
+          </>
         )}
-      </motion.div>
-    </motion.div>
+        {bought && <p className="t-caption mt-4 text-center">Билет добавлен в Wallet и раздел «Брони»</p>}
+      </div>
+    </BottomSheet>
   );
 }

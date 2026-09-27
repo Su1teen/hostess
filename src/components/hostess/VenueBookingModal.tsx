@@ -1,18 +1,17 @@
-import { useRef, useState } from "react";
-import { AnimatePresence, motion, useScroll, useTransform } from "framer-motion";
-import { X, Check } from "lucide-react";
+import { useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { Check } from "lucide-react";
 import { money, type Venue } from "@/data/hostess";
+import { hapticSelect, hapticSuccess } from "@/lib/haptics";
 import { useWaitlist } from "./waitlist/WaitlistProvider";
 import { JoinWaitlistSheet } from "./waitlist/JoinWaitlistSheet";
 import type { JoinWaitlistInput } from "./waitlist/types";
-
-const CTA_BOTTOM = "bottom-[calc(80px+env(safe-area-inset-bottom)+16px)]";
-const SCROLL_PB = "pb-[calc(140px+env(safe-area-inset-bottom)+16px)]";
+import { Rating } from "./cards";
+import { BottomSheet, Button, LiveStatus, Photo, SuccessMark, tapSpring } from "./system";
 
 /**
- * Запись в заведение (барбершоп, клиника, автомойка и т.д.) —
- * Bottom sheet с выбором услуги и времени.
- * Task 2: floating CTA с корректным отступом от BottomNav / safe-area.
+ * Appointment booking for lifestyle venues (barber, clinic, salon…):
+ * service → time → confirm. Full slots route to the waitlist.
  */
 export function VenueBookingModal({ venue, onClose }: { venue: Venue; onClose: () => void }) {
   const [service, setService] = useState(0);
@@ -21,118 +20,99 @@ export function VenueBookingModal({ venue, onClose }: { venue: Venue; onClose: (
   const [waitInput, setWaitInput] = useState<JoinWaitlistInput | null>(null);
   const { join, isQueued } = useWaitlist();
   const slots = ["10:00", "11:30", "13:00", "15:30", "17:00", "19:30"];
-  // Мок: эти слоты «полностью заняты» — на них можно только встать в очередь.
   const fullSlots = new Set(["13:00", "17:00"]);
 
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const { scrollYProgress } = useScroll({ container: scrollRef });
-  const heroScale = useTransform(scrollYProgress, [0, 1], [1, 1.2]);
-  const heroOpacity = useTransform(scrollYProgress, [0, 1], [1, 0.6]);
-
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="absolute inset-0 z-[100] flex items-end bg-black/45 backdrop-blur-[2px]"
-      onClick={onClose}
-    >
-      <motion.div
-        ref={scrollRef}
-        initial={{ y: "100%" }}
-        animate={{ y: 0 }}
-        exit={{ y: "100%" }}
-        transition={{ type: "spring", stiffness: 320, damping: 32 }}
-        onClick={(e) => e.stopPropagation()}
-        className={`relative max-h-[92%] w-full overflow-y-auto overscroll-none rounded-t-[32px] bg-white shadow-float ${SCROLL_PB}`}
+    <>
+      <BottomSheet
+        onClose={onClose}
+        footer={
+          booked ? (
+            <Button block size="lg" onClick={onClose}>
+              Готово
+            </Button>
+          ) : (
+            <Button
+              block
+              size="lg"
+              disabled={!slot}
+              onClick={() => {
+                hapticSuccess();
+                setBooked(true);
+              }}
+            >
+              {slot ? `Записаться на ${slot} · ${money(venue.services[service].price)}` : "Выберите время"}
+            </Button>
+          )
+        }
       >
-        {/* Обложка — sticky + parallax + blending */}
-        <div className="sticky top-0 z-0 h-48 overflow-hidden">
-          <motion.img
-            src={venue.cover}
-            alt=""
-            style={{ scale: heroScale, opacity: heroOpacity, originY: 0 }}
-            className="h-full w-full rounded-t-[32px] object-cover"
-          />
-          <div className="absolute inset-0 rounded-t-[32px] bg-gradient-to-t from-black/50 to-transparent" />
-          <div className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-white/95 via-white/80 to-transparent" />
-          <button
-            onClick={onClose}
-            className="absolute right-4 top-4 grid h-9 w-9 place-items-center rounded-full bg-white/90 shadow-soft backdrop-blur"
-            aria-label="Закрыть"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-
-        <div className="relative z-10 rounded-t-[32px] bg-white px-5 pt-4">
-          <h2 className="text-xl font-semibold">{venue.name}</h2>
-          <p className="text-sm text-neutral-500">{venue.kind}</p>
+        <Photo src={venue.cover} className="aspect-[16/9] w-full" eager />
+        <div className="px-5 pb-6 pt-6">
+          <p className="t-micro">{venue.kind}</p>
+          <div className="mt-1.5 flex items-start justify-between gap-3">
+            <h2 className="t-title">{venue.name}</h2>
+            <Rating value={venue.rating} className="shrink-0 pt-2" />
+          </div>
+          <LiveStatus occupancy={venue.occupancy} className="mt-2.5" />
 
           {booked ? (
-            /* ── Успешная запись ──────────────────────────────────────── */
-            <div className="py-10 text-center">
-              <motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ type: "spring", stiffness: 300, damping: 18 }}
-                className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-emerald-500 text-white"
-              >
-                <Check className="h-7 w-7" strokeWidth={3} />
-              </motion.div>
-              <p className="mt-3 text-base font-semibold">Вы записаны!</p>
-              <p className="mt-1 text-xs text-neutral-500">
+            <div className="flex flex-col items-center py-10 text-center">
+              <SuccessMark />
+              <p className="t-headline mt-5">Вы записаны</p>
+              <p className="t-caption mt-1.5">
                 {venue.services[service].name} · завтра в {slot}
               </p>
-              <button
-                onClick={onClose}
-                className="mt-5 rounded-full bg-neutral-900 px-8 py-3 text-sm font-semibold text-white"
-              >
-                Отлично
-              </button>
             </div>
           ) : (
             <>
-              {/* ── Выбор услуги ──────────────────────────────────────── */}
-              <p className="mb-2 mt-4 text-[11px] font-semibold uppercase tracking-widest text-neutral-500">
-                Услуга
-              </p>
-              <div className="space-y-2">
-                {venue.services.map((s, i) => (
-                  <button
-                    key={s.name}
-                    onClick={() => setService(i)}
-                    className={`flex w-full items-center justify-between rounded-2xl p-3 text-left transition-all ${
-                      service === i ? "bg-neutral-900 text-white" : "bg-neutral-50 text-neutral-900"
-                    }`}
-                  >
-                    <div>
-                      <p className="text-sm font-semibold">{s.name}</p>
-                      <p
-                        className={`text-xs ${service === i ? "text-white/60" : "text-neutral-500"}`}
+              <p className="t-micro mb-2 mt-8">Услуга</p>
+              <div className="divide-hairline rounded-card bg-surface shadow-hairline">
+                {venue.services.map((s, i) => {
+                  const on = service === i;
+                  return (
+                    <button
+                      key={s.name}
+                      type="button"
+                      onClick={() => {
+                        hapticSelect();
+                        setService(i);
+                      }}
+                      className="press-soft flex w-full items-center gap-3.5 px-4 py-3.5 text-left"
+                    >
+                      <span
+                        className={`grid h-5 w-5 shrink-0 place-items-center rounded-full transition-colors ${
+                          on ? "bg-ink text-white" : "shadow-[inset_0_0_0_1.5px_var(--hs-line-strong)]"
+                        }`}
                       >
-                        {s.duration}
-                      </p>
-                    </div>
-                    <p className="text-sm font-semibold">{money(s.price)}</p>
-                  </button>
-                ))}
+                        {on && <Check className="h-3 w-3" strokeWidth={2.6} />}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-[15px]">{s.name}</span>
+                        <span className="block text-[12.5px] text-ink-3">{s.duration}</span>
+                      </span>
+                      <span className="t-num text-[15px] font-medium">{money(s.price)}</span>
+                    </button>
+                  );
+                })}
               </div>
 
-              {/* ── Выбор времени ─────────────────────────────────────── */}
-              <p className="mb-2 mt-4 text-[11px] font-semibold uppercase tracking-widest text-neutral-500">
-                Завтра
-              </p>
-              <div className="no-scrollbar flex gap-2 overflow-x-auto">
+              <div className="mb-2 mt-7 flex items-baseline justify-between">
+                <p className="t-micro">Завтра</p>
+                <p className="text-[12px] text-ink-3">Занятые — в лист ожидания</p>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
                 {slots.map((s) => {
                   const full = fullSlots.has(s);
                   const queued = isQueued(`${venue.id}-${s}`);
+                  const on = slot === s;
                   return (
-                    <button
+                    <motion.button
                       key={s}
+                      type="button"
+                      whileTap={{ scale: 0.94 }}
+                      transition={tapSpring}
                       onClick={() => {
                         if (full) {
-                          // Полностью занято → открываем очередь (Waitlist).
                           setWaitInput({
                             entityId: `${venue.id}-${s}`,
                             entityName: venue.name,
@@ -144,80 +124,44 @@ export function VenueBookingModal({ venue, onClose }: { venue: Venue; onClose: (
                           });
                           return;
                         }
+                        hapticSelect();
                         setSlot(s);
                       }}
-                      className={`relative shrink-0 rounded-2xl px-4 py-3 text-xs font-semibold transition-colors ${
-                        full
-                          ? queued
-                            ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200"
-                            : "bg-red-50/60 text-red-600 ring-1 ring-red-200"
-                          : slot === s
-                            ? "bg-primary text-white"
-                            : "bg-neutral-100 text-neutral-800"
+                      className={`t-num relative h-12 rounded-[14px] text-[14.5px] font-medium transition-colors ${
+                        on
+                          ? "bg-ink text-white"
+                          : full
+                            ? "bg-stone text-ink-3"
+                            : "bg-surface text-ink shadow-[inset_0_0_0_1px_var(--hs-line-strong)]"
                       }`}
                     >
                       {s}
-                      {/* Индикатор «полностью занято» — изящная красная точка + нижняя полоска */}
                       {full && (
-                        <>
-                          <span
-                            className={`absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full ${
-                              queued ? "bg-emerald-500" : "bg-red-500"
-                            }`}
-                          />
-                          <span
-                            className={`absolute inset-x-2 bottom-1 h-[2px] rounded-full ${
-                              queued ? "bg-emerald-500/70" : "bg-red-500/80"
-                            }`}
-                          />
-                        </>
+                        <span className="absolute inset-x-0 bottom-1.5 text-center text-[9.5px] font-medium uppercase tracking-[0.08em] text-ink-3">
+                          {queued ? "в очереди" : "занято"}
+                        </span>
                       )}
-                    </button>
+                    </motion.button>
                   );
                 })}
               </div>
-              <p className="mt-2 text-[10px] text-neutral-400">
-                <span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-red-500 align-middle" />
-                слот занят — нажмите, чтобы встать в очередь
-              </p>
             </>
           )}
         </div>
+      </BottomSheet>
 
-        {/* Floating CTA — над BottomNav */}
-        {!booked && (
-          <div className={`pointer-events-none absolute inset-x-0 z-40 px-5 ${CTA_BOTTOM}`}>
-            <motion.button
-              whileTap={{ scale: 0.97 }}
-              disabled={!slot}
-              onClick={() => setBooked(true)}
-              className="pointer-events-auto w-full rounded-full bg-neutral-900 py-4 text-sm font-semibold text-white shadow-float disabled:opacity-40"
-            >
-              Записаться · {money(venue.services[service].price)}
-            </motion.button>
-          </div>
+      <AnimatePresence>
+        {waitInput && (
+          <JoinWaitlistSheet
+            input={waitInput}
+            onClose={() => setWaitInput(null)}
+            onConfirm={(inp) => {
+              join(inp);
+              setWaitInput(null);
+            }}
+          />
         )}
-      </motion.div>
-
-      {/* Waitlist — поверх модалки записи (z-[120] внутри JoinWaitlistSheet).
-          stopPropagation, чтобы клик по подложке очереди не закрывал саму модалку. */}
-      <div
-        onClick={(e) => e.stopPropagation()}
-        onTouchStart={(e) => e.stopPropagation()}
-      >
-        <AnimatePresence>
-          {waitInput && (
-            <JoinWaitlistSheet
-              input={waitInput}
-              onClose={() => setWaitInput(null)}
-              onConfirm={(inp) => {
-                join(inp);
-                setWaitInput(null);
-              }}
-            />
-          )}
-        </AnimatePresence>
-      </div>
-    </motion.div>
+      </AnimatePresence>
+    </>
   );
 }

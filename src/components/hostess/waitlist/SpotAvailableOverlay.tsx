@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { PartyPopper, Timer } from "lucide-react";
 import { hapticSelect } from "@/lib/haptics";
+import { Button, LiveDot, Photo, softSpring } from "../system";
 import { useWaitlist } from "./WaitlistProvider";
 import type { WaitlistEntry } from "./types";
 
@@ -13,8 +13,8 @@ const fmt = (ms: number) => {
 };
 
 /**
- * Высокоприоритетный полноэкранный оверлей «освободился слот» (Task 6.3).
- * Живой обратный отсчёт 5:00 + три действия: подтвердить / пропустить / выйти.
+ * High-priority "your table is ready" moment. Light, calm, unmistakable:
+ * a large countdown, one primary action.
  */
 export function SpotAvailableOverlay({
   entry,
@@ -24,87 +24,67 @@ export function SpotAvailableOverlay({
   onClaim: (entry: WaitlistEntry) => void;
 }) {
   const { claim, pass, leave } = useWaitlist();
-  const [remaining, setRemaining] = useState(
-    () => (entry.claimDeadline ?? Date.now()) - Date.now(),
-  );
+  const [remaining, setRemaining] = useState(() => (entry.claimDeadline ?? Date.now()) - Date.now());
 
   useEffect(() => {
-    const t = setInterval(() => {
-      setRemaining((entry.claimDeadline ?? Date.now()) - Date.now());
-    }, 250);
+    const t = setInterval(() => setRemaining((entry.claimDeadline ?? Date.now()) - Date.now()), 250);
     return () => clearInterval(t);
   }, [entry.claimDeadline]);
 
-  const total = 5 * 60 * 1000;
-  const ratio = Math.max(0, Math.min(1, remaining / total));
+  const ratio = Math.max(0, Math.min(1, remaining / (5 * 60 * 1000)));
 
   return (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="absolute inset-0 z-[130] flex flex-col items-center justify-center bg-neutral-950/95 px-6 text-center backdrop-blur-md"
+      className="absolute inset-0 z-[130] flex flex-col bg-canvas px-6 pb-safe pt-safe"
     >
       <motion.div
-        initial={{ scale: 0.6, rotate: -12, opacity: 0 }}
-        animate={{ scale: 1, rotate: 0, opacity: 1 }}
-        transition={{ type: "spring", stiffness: 260, damping: 16 }}
-        className="grid h-20 w-20 place-items-center rounded-full bg-primary text-white shadow-[0_0_60px_rgba(249,115,22,0.6)]"
+        initial={{ y: 24, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ ...softSpring, delay: 0.05 }}
+        className="flex flex-1 flex-col items-center justify-center text-center"
       >
-        <PartyPopper className="h-9 w-9" />
-      </motion.div>
+        {entry.cover && (
+          <Photo src={entry.cover} className="h-24 w-24 rounded-hero shadow-float" eager />
+        )}
+        <p className="mt-6 flex items-center gap-2 text-[12px] font-medium uppercase tracking-[0.16em] text-live">
+          <LiveDot tone="live" pulse /> Место освободилось
+        </p>
+        <h1 className="t-display mt-3">{entry.entityName}</h1>
+        {entry.resource && <p className="t-body mt-1.5 text-ink-2">{entry.resource}</p>}
 
-      <p className="mt-6 text-[11px] font-semibold uppercase tracking-[0.2em] text-primary">
-        Место освободилось
-      </p>
-      <h1 className="mt-2 text-3xl font-semibold tracking-tight text-white">{entry.entityName}</h1>
-      {entry.resource && <p className="mt-1 text-sm text-white/60">{entry.resource}</p>}
-
-      {/* Обратный отсчёт */}
-      <div className="mt-8 flex flex-col items-center">
-        <span className="flex items-center gap-2 text-white/50">
-          <Timer className="h-4 w-4" />
-          <span className="text-xs uppercase tracking-widest">Осталось подтвердить</span>
-        </span>
-        <motion.p
-          key={fmt(remaining)}
-          initial={{ scale: 0.96, opacity: 0.6 }}
-          animate={{ scale: 1, opacity: 1 }}
-          className="mt-1 text-5xl font-semibold tabular-nums text-white"
-        >
-          {fmt(remaining)}
-        </motion.p>
-        <div className="mt-4 h-1.5 w-56 overflow-hidden rounded-full bg-white/15">
+        <p className="t-micro mt-10">Подтвердите в течение</p>
+        <p className="t-num mt-2 text-[64px] font-semibold leading-none tracking-[-0.04em]">{fmt(remaining)}</p>
+        <div className="mt-5 h-[3px] w-48 overflow-hidden rounded-full bg-stone-2">
           <motion.div
-            className="h-full rounded-full bg-primary"
+            className="h-full rounded-full bg-ink"
             animate={{ width: `${ratio * 100}%` }}
             transition={{ ease: "linear", duration: 0.25 }}
           />
         </div>
-      </div>
+      </motion.div>
 
-      {/* Действия */}
-      <div className="mt-10 w-full max-w-xs space-y-3">
-        <motion.button
-          whileTap={{ scale: 0.97 }}
+      <div className="space-y-2 pb-4">
+        <Button
+          block
+          size="lg"
           onClick={() => {
             hapticSelect();
             claim(entry.id);
             onClaim(entry);
           }}
-          className="w-full rounded-full bg-primary py-4 text-sm font-semibold text-white shadow-float"
         >
           Занять место
-        </motion.button>
+        </Button>
+        <Button block size="lg" variant="secondary" onClick={() => pass(entry.id)}>
+          Пропустить — ждать следующее
+        </Button>
         <button
-          onClick={() => pass(entry.id)}
-          className="w-full rounded-full bg-white/10 py-3.5 text-sm font-semibold text-white"
-        >
-          Подождать / пропустить
-        </button>
-        <button
+          type="button"
           onClick={() => leave(entry.id)}
-          className="w-full py-2 text-xs font-medium text-white/50"
+          className="press w-full py-3 text-[14px] font-medium text-ink-3"
         >
           Покинуть очередь
         </button>

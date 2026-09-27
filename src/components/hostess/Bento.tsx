@@ -26,7 +26,7 @@ export function BentoCard({
   return (
     <Tag
       className={cn(
-        "rounded-[24px] border border-border/60 bg-card shadow-soft",
+        "rounded-card bg-surface shadow-hairline",
         padded && "p-4",
         className,
       )}

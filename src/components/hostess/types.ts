@@ -2,6 +2,8 @@ import type { Dish, Restaurant } from "@/data/hostess";
 
 export type Screen = "map" | "catalog" | "ai" | "calendar" | "profile";
 
+export type SheetState = "collapsed" | "peek" | "half" | "full";
+
 export type PreorderItem = { dish: Dish; qty: number };
 
 export type BookingPayload = {

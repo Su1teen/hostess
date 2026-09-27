@@ -1,44 +1,61 @@
 import { motion } from "framer-motion";
-import { UserRound, Briefcase } from "lucide-react";
+import { Briefcase } from "lucide-react";
 import type { UserRole } from "../AuthContext";
+import { Button, Photo } from "../system";
 
 export function AuthScreen({ onLogin }: { onLogin: (role: Exclude<UserRole, null>) => void }) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 24 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -24 }}
-      transition={{ type: "spring", stiffness: 260, damping: 30 }}
-      className="flex h-full flex-col items-center justify-center px-6"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.4 }}
+      className="relative flex h-full flex-col bg-canvas"
     >
-      <div className="text-center">
-        <h1 className="text-4xl tracking-[-0.04em]">Hostess</h1>
-        <p className="mt-2 text-sm text-neutral-500">Super App · Астана</p>
+      <div className="relative flex-1 overflow-hidden">
+        <motion.div
+          initial={{ scale: 1.08 }}
+          animate={{ scale: 1 }}
+          transition={{ duration: 1.6, ease: [0.22, 1, 0.36, 1] }}
+          className="absolute inset-0"
+        >
+          <Photo
+            src="https://images.unsplash.com/photo-1537047902294-62a40c20a6ae?auto=format&fit=crop&w=1200&q=80"
+            className="h-full w-full"
+            eager
+          />
+        </motion.div>
+        <div className="absolute inset-0 bg-gradient-to-b from-black/35 via-transparent to-canvas" />
+        <p className="absolute inset-x-0 top-0 pt-safe text-center text-[15px] font-semibold tracking-[0.38em] text-white">
+          <span className="inline-block pl-[0.38em] pt-4">HOSTESS</span>
+        </p>
       </div>
 
-      <div className="mt-10 w-full max-w-sm space-y-3">
-        <button
-          type="button"
-          onClick={() => onLogin("guest")}
-          className="flex w-full items-center justify-center gap-3 rounded-[28px] bg-neutral-900 py-4 text-sm font-medium text-white shadow-float transition-transform active:scale-[0.98]"
-        >
-          <UserRound className="h-5 w-5" strokeWidth={1.5} />
-          Войти как Гость
-        </button>
+      <motion.div
+        initial={{ y: 24, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: 0.15, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+        className="px-6 pb-[calc(var(--sab)+24px)]"
+      >
+        <p className="t-micro">Астана</p>
+        <h1 className="t-display mt-3">
+          Лучшие столы города —<br />
+          <span className="text-ink-3">в одном касании.</span>
+        </h1>
+        <p className="t-body mt-3 text-ink-2">
+          Бронирование, предзаказ и живая загрузка заведений в реальном времени.
+        </p>
 
-        <button
-          type="button"
-          onClick={() => onLogin("business")}
-          className="flex w-full items-center justify-center gap-3 rounded-[28px] border-2 border-neutral-900 bg-white py-4 text-sm font-medium text-neutral-900 transition-transform active:scale-[0.98]"
-        >
-          <Briefcase className="h-5 w-5" strokeWidth={1.5} />
-          Войти как Хостес (Бизнес)
-        </button>
-      </div>
-
-      <p className="mt-8 text-center text-[11px] text-neutral-400">
-        Нажмите на удобную роль — данные не требуются.
-      </p>
+        <div className="mt-8 space-y-2.5">
+          <Button block size="lg" onClick={() => onLogin("guest")}>
+            Войти как гость
+          </Button>
+          <Button block size="lg" variant="secondary" onClick={() => onLogin("business")}>
+            <Briefcase className="h-4 w-4" strokeWidth={1.6} /> Войти как заведение
+          </Button>
+        </div>
+        <p className="mt-4 text-center text-[12px] text-ink-3">Демо-доступ · данные не требуются</p>
+      </motion.div>
     </motion.div>
   );
 }
