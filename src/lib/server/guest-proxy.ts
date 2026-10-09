@@ -34,18 +34,30 @@ export async function proxyHostessApi(
     return reply(404, "Операция недоступна");
   if (!["GET", "POST", "PATCH"].includes(request.method) || (exchange && request.method !== "GET"))
     return reply(405, "Метод недоступен");
-  const env = (runtime ??
-    (request as Request & { runtime?: { cloudflare?: { env?: Runtime } } }).runtime?.cloudflare
-      ?.env ??
-    {}) as Runtime;
+  const env = (runtime ?? {}) as Runtime;
+  const requestEnv = (request as Request & { runtime?: { cloudflare?: { env?: Runtime } } }).runtime
+    ?.cloudflare?.env;
   // Cloudflare bindings first; local Nitro preview uses server-only process.env.
   const configured = (key: keyof Runtime) =>
-    env[key] ?? (typeof process !== "undefined" ? process.env[key] : undefined);
+    env[key] ??
+    requestEnv?.[key] ??
+    (typeof process !== "undefined" ? process.env[key] : undefined);
   const upstream = configured(exchange ? "EXCHANGE_API_ORIGIN" : "BOOKING_API_ORIGIN");
   const serviceKey = configured("HOSTESS_BFF_KEY");
   if (!upstream || (booking && (!serviceKey || serviceKey.length < 32)))
     return reply(503, "Сервис пока не настроен");
-  const target = new URL(upstream);
+  let target: URL;
+  try {
+    // A Railway public hostname is an HTTPS origin, never a relative URL.
+    const origin = upstream.trim();
+    target = new URL(
+      /^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?\.up\.railway\.app$/i.test(origin)
+        ? `https://${origin}`
+        : origin,
+    );
+  } catch {
+    return reply(503, "Некорректная настройка сервиса");
+  }
   const local =
     target.protocol === "http:" &&
     ["localhost", "127.0.0.1"].includes(target.hostname) &&

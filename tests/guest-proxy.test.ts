@@ -7,6 +7,56 @@ const runtime = {
   HOSTESS_BFF_KEY: "b".repeat(64),
 };
 describe("Cloudflare same-origin BFF", () => {
+  test("uses request bindings even when adapter passes an empty runtime", async () => {
+    const request = new Request("https://hostess.test/api/exchange/current-round");
+    Object.assign(request, { runtime: { cloudflare: { env: runtime } } });
+    const original = globalThis.fetch;
+    let upstream = "";
+    globalThis.fetch = (async (input: RequestInfo | URL) => {
+      upstream = String(input);
+      return new Response("{}", { headers: { "content-type": "application/json" } });
+    }) as typeof fetch;
+    try {
+      expect((await proxyHostessApi(request, {}))?.status).toBe(200);
+      expect(upstream).toBe("https://exchange.test/api/v1/public/snapshot");
+    } finally {
+      globalThis.fetch = original;
+    }
+  });
+  test("accepts bare Railway hostname over HTTPS and rejects malformed origins", async () => {
+    const original = globalThis.fetch;
+    let upstream = "";
+    globalThis.fetch = (async (input: RequestInfo | URL) => {
+      upstream = String(input);
+      return new Response("{}", { headers: { "content-type": "application/json" } });
+    }) as typeof fetch;
+    try {
+      const request = new Request("https://hostess.test/api/exchange/current-round");
+      expect(
+        (
+          await proxyHostessApi(request, {
+            ...runtime,
+            EXCHANGE_API_ORIGIN: "hostess-xoxo-production.up.railway.app",
+          })
+        )?.status,
+      ).toBe(200);
+      expect(upstream).toBe(
+        "https://hostess-xoxo-production.up.railway.app/api/v1/public/snapshot",
+      );
+      for (const invalid of [
+        "invalid",
+        "https://",
+        "//evil.test",
+        "exchange.up.railway.app/path",
+      ]) {
+        expect(
+          (await proxyHostessApi(request, { ...runtime, EXCHANGE_API_ORIGIN: invalid }))?.status,
+        ).toBe(503);
+      }
+    } finally {
+      globalThis.fetch = original;
+    }
+  });
   test("fails visibly without production configuration", async () => {
     const result = await proxyHostessApi(
       new Request("https://hostess.test/api/exchange/current-round"),
