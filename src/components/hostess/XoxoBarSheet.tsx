@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { AnimatePresence } from "framer-motion";
-import { UserRound } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, Radio, UserRound, Wine } from "lucide-react";
 import { type Restaurant, money } from "@/data/hostess";
 import { useXoxoExchange } from "@/hooks/useXoxoExchange";
 import { VenueDetailShell } from "./VenueDetail";
@@ -66,22 +66,55 @@ export function XoxoBarSheet({ r, onClose }: { r: Restaurant; onClose: () => voi
           <p className="t-caption">{r.address}</p>
           <p className="t-body mt-3 text-ink-2">{r.description}</p>
         </div>
-        <div className="mx-5 mt-6 rounded-[24px] bg-surface p-5">
-          <p className="t-micro">Биржа напитков</p>
-          <div className="mt-3 flex items-center gap-2">
-            <LiveDot tone={exchange.connected ? "live" : "warn"} pulse={exchange.connected} />
-            <p className="font-medium">
-              {exchange.connected ? "Актуальные цены" : "Нет актуального соединения"}
-            </p>
+        <div className="relative mx-5 mt-6 overflow-hidden rounded-[26px] border border-amber-200/15 bg-[#111713] p-5 text-white shadow-[0_18px_50px_-24px_rgba(7,17,11,.8)]">
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute -right-10 -top-14 h-40 w-40 rounded-full border border-amber-200/10 bg-[radial-gradient(circle,rgba(189,151,86,.16),transparent_68%)]"
+          />
+          <div className="relative flex items-start justify-between gap-3">
+            <div>
+              <p className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[.2em] text-amber-100/65">
+                <Wine size={13} strokeWidth={1.7} /> Биржа напитков
+              </p>
+              <h2 className="t-title mt-2 text-white">Бар в движении</h2>
+            </div>
+            <div
+              className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-[.12em] ${
+                exchange.connected
+                  ? "border-emerald-300/20 bg-emerald-300/10 text-emerald-100"
+                  : "border-amber-200/20 bg-amber-100/10 text-amber-100"
+              }`}
+            >
+              <LiveDot tone={exchange.connected ? "live" : "warn"} pulse={exchange.connected} />
+              {exchange.connected ? "Торги идут" : "Связь"}
+            </div>
           </div>
-          <p className="mt-2 text-xs text-ink-3">
-            {exchange.connected
-              ? "Цена меняется вместе с раундом. Перед предзаказом подтвердите серверную цену."
-              : "Предзаказ временно недоступен. Последние полученные цены показаны справочно."}
-          </p>
+          <div className="relative mt-5 flex items-end justify-between border-t border-white/10 pt-4">
+            <div>
+              <p className="text-xs text-white/55">
+                {exchange.connected
+                  ? `${exchange.products.length} позиций · цены обновляются автоматически`
+                  : "Последние цены будут показаны справочно"}
+              </p>
+              <p className="mt-1.5 text-sm text-white/85">
+                {exchange.connected
+                  ? "Выберите напиток — цену подтвердим при оформлении"
+                  : "Предзаказ станет доступен после восстановления связи"}
+              </p>
+            </div>
+            <Radio
+              aria-hidden="true"
+              size={18}
+              className={
+                exchange.connected
+                  ? "mb-1 shrink-0 text-emerald-200"
+                  : "mb-1 shrink-0 text-amber-100/60"
+              }
+            />
+          </div>
           {exchange.updatedAt && (
-            <p className="mt-2 text-xs text-ink-3">
-              Обновлено{" "}
+            <p className="relative mt-3 text-[10px] tracking-wide text-white/40">
+              Снимок рынка ·{" "}
               {new Intl.DateTimeFormat("ru-RU", {
                 timeZone: "Asia/Almaty",
                 hour: "2-digit",
@@ -106,9 +139,23 @@ export function XoxoBarSheet({ r, onClose }: { r: Restaurant; onClose: () => voi
             <GuestBooking items={items} />
           ) : (
             <>
-              <h2 className="t-title">Сегодня в баре</h2>
+              <div className="flex items-end justify-between gap-3">
+                <div>
+                  <p className="t-micro">XOXO · LIVE MARKET</p>
+                  <h2 className="t-title mt-1">Сегодня в баре</h2>
+                </div>
+                {exchange.connected && exchange.products.length > 0 && (
+                  <span className="pb-1 text-[10px] uppercase tracking-[.16em] text-ink-3">
+                    {exchange.products.length} лотов
+                  </span>
+                )}
+              </div>
               {!exchange.products.length && (
-                <p className="mt-4 text-sm text-ink-3">Каталог появится после подключения биржи.</p>
+                <p className="mt-4 text-sm text-ink-3">
+                  {exchange.connected
+                    ? "В этом раунде пока нет доступных напитков."
+                    : "Каталог появится после подключения биржи."}
+                </p>
               )}
               <div className="mt-5 space-y-3">
                 {exchange.products.map((product) => {
@@ -118,7 +165,7 @@ export function XoxoBarSheet({ r, onClose }: { r: Restaurant; onClose: () => voi
                   return (
                     <article
                       key={product.id}
-                      className="rounded-[20px] bg-surface p-4 shadow-hairline"
+                      className="rounded-[20px] border border-line/70 bg-surface p-4 shadow-hairline transition-colors hover:border-amber-300/50"
                     >
                       <div className="flex gap-3">
                         {picture && (
@@ -131,13 +178,26 @@ export function XoxoBarSheet({ r, onClose }: { r: Restaurant; onClose: () => voi
                         )}
                         <div className="min-w-0 flex-1">
                           <h3 className="text-[15px] font-medium">{product.name}</h3>
-                          <p className="t-num mt-1 text-lg">
-                            {money(product.price)}{" "}
-                            <span className="text-xs text-ink-3">
-                              {product.changePercent > 0 ? "↗" : "↘"}{" "}
-                              {Math.abs(product.changePercent).toFixed(1)}%
+                          <div className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                            <p className="t-num text-lg">{money(product.price)}</p>
+                            <span
+                              className={`inline-flex items-center gap-0.5 text-xs font-medium ${
+                                product.changePercent > 0
+                                  ? "text-emerald-700"
+                                  : product.changePercent < 0
+                                    ? "text-rose-700"
+                                    : "text-ink-3"
+                              }`}
+                            >
+                              {product.changePercent > 0 ? (
+                                <ArrowUpRight size={13} />
+                              ) : product.changePercent < 0 ? (
+                                <ArrowDownRight size={13} />
+                              ) : null}
+                              {product.changePercent > 0 ? "+" : ""}
+                              {product.changePercent.toFixed(1)}%
                             </span>
-                          </p>
+                          </div>
                           <p className="mt-1 text-xs text-ink-3">
                             Минимум {money(product.minPrice)} · меню {money(product.originalPrice)}
                           </p>
