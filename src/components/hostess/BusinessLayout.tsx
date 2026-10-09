@@ -19,6 +19,9 @@ export function BusinessLayout({ onLogout }: { onLogout: () => void }) {
 
   return (
     <div className="relative h-full w-full overflow-hidden bg-gray-50">
+      <p className="absolute left-3 top-2 z-50 rounded-lg bg-white/95 px-3 py-2 text-xs text-slate-600">
+        Демонстрация · рабочие брони в Command Center
+      </p>
       <AnimatePresence mode="popLayout" custom={dir} initial={false}>
         <motion.div
           key={screen}

@@ -20,6 +20,7 @@ export function VenueBookingModal({ venue, onClose }: { venue: Venue; onClose: (
   const [waitInput, setWaitInput] = useState<JoinWaitlistInput | null>(null);
   const { join, isQueued } = useWaitlist();
   const slots = ["10:00", "11:30", "13:00", "15:30", "17:00", "19:30"];
+  const demo = import.meta.env.DEV && import.meta.env.VITE_DEMO_MODE === "true";
   const fullSlots = new Set(["13:00", "17:00"]);
 
   return (
@@ -35,17 +36,24 @@ export function VenueBookingModal({ venue, onClose }: { venue: Venue; onClose: (
             <Button
               block
               size="lg"
-              disabled={!slot}
+              disabled={!slot || !demo}
               onClick={() => {
                 hapticSuccess();
                 setBooked(true);
               }}
             >
-              {slot ? `Записаться на ${slot} · ${money(venue.services[service].price)}` : "Выберите время"}
+              {slot
+                ? `Записаться на ${slot} · ${money(venue.services[service].price)}`
+                : "Выберите время"}
             </Button>
           )
         }
       >
+        <p className="px-5 pt-5 text-sm text-ink-3">
+          {demo
+            ? "Демонстрация записи · заявка не отправляется"
+            : "Онлайн-запись этого заведения ещё не подключена"}
+        </p>
         <Photo src={venue.cover} className="aspect-[16/9] w-full" eager />
         <div className="px-5 pb-6 pt-6">
           <p className="t-micro">{venue.kind}</p>
@@ -81,7 +89,9 @@ export function VenueBookingModal({ venue, onClose }: { venue: Venue; onClose: (
                     >
                       <span
                         className={`grid h-5 w-5 shrink-0 place-items-center rounded-full transition-colors ${
-                          on ? "bg-ink text-white" : "shadow-[inset_0_0_0_1.5px_var(--hs-line-strong)]"
+                          on
+                            ? "bg-ink text-white"
+                            : "shadow-[inset_0_0_0_1.5px_var(--hs-line-strong)]"
                         }`}
                       >
                         {on && <Check className="h-3 w-3" strokeWidth={2.6} />}

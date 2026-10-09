@@ -48,13 +48,15 @@ export function AuthScreen({ onLogin }: { onLogin: (role: Exclude<UserRole, null
 
         <div className="mt-8 space-y-2.5">
           <Button block size="lg" onClick={() => onLogin("guest")}>
-            Войти как гость
+            Открыть Hostess
           </Button>
           <Button block size="lg" variant="secondary" onClick={() => onLogin("business")}>
-            <Briefcase className="h-4 w-4" strokeWidth={1.6} /> Войти как заведение
+            <Briefcase className="h-4 w-4" strokeWidth={1.6} /> Демо интерфейса заведения
           </Button>
         </div>
-        <p className="mt-4 text-center text-[12px] text-ink-3">Демо-доступ · данные не требуются</p>
+        <p className="mt-4 text-center text-[12px] text-ink-3">
+          Личный кабинет доступен по защищённой ссылке WhatsApp
+        </p>
       </motion.div>
     </motion.div>
   );

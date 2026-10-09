@@ -3,7 +3,16 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Check, ChevronLeft } from "lucide-react";
 import { money, friends } from "@/data/hostess";
 import { hapticSelect, hapticSuccess } from "@/lib/haptics";
-import { Button, Dock, IconButton, Photo, SuccessMark, Ticker, sheetSpring, softSpring } from "./system";
+import {
+  Button,
+  Dock,
+  IconButton,
+  Photo,
+  SuccessMark,
+  Ticker,
+  sheetSpring,
+  softSpring,
+} from "./system";
 import type { BookingPayload } from "./types";
 
 type Stage = "review" | "paying" | "success";
@@ -30,7 +39,14 @@ export function PaymentSheet({
         price: p.dish.price * p.qty,
       }));
     }
-    return [{ id: "deposit", name: "Депозит за стол", note: `${booking.guests} гостей`, price: booking.guests * 5000 }];
+    return [
+      {
+        id: "deposit",
+        name: "Депозит за стол",
+        note: `${booking.guests} гостей`,
+        price: booking.guests * 5000,
+      },
+    ];
   }, [booking]);
 
   const subtotal = items.reduce((s, i) => s + i.price, 0);
@@ -53,6 +69,23 @@ export function PaymentSheet({
     }, 2000);
   };
 
+  const demo = import.meta.env.DEV && import.meta.env.VITE_DEMO_MODE === "true";
+  if (!demo)
+    return (
+      <div className="absolute inset-0 z-[105] flex items-center justify-center bg-canvas px-5">
+        <div className="max-w-sm rounded-[24px] bg-surface p-6">
+          <p className="t-micro">Hostess</p>
+          <h2 className="t-title mt-3">Онлайн-оплата пока недоступна</h2>
+          <p className="mt-4 text-sm text-ink-3">
+            Платёжный сервис не подключён. Стоимость депозита и предзаказа нужно уточнить в
+            заведении.
+          </p>
+          <Button block className="mt-5" onClick={onClose}>
+            Вернуться
+          </Button>
+        </div>
+      </div>
+    );
   return (
     <motion.div
       initial={{ x: "100%" }}
@@ -62,8 +95,16 @@ export function PaymentSheet({
       className="absolute inset-0 z-[105] flex flex-col bg-canvas"
     >
       <div className="flex items-center justify-between px-4 pb-2 pt-safe">
-        <IconButton icon={ChevronLeft} label="Назад" variant="stone" onClick={onClose} iconSize={20} />
-        <p className="text-[15px] font-semibold tracking-[-0.01em]">Оплата и сплит</p>
+        <IconButton
+          icon={ChevronLeft}
+          label="Назад"
+          variant="stone"
+          onClick={onClose}
+          iconSize={20}
+        />
+        <p className="text-[15px] font-semibold tracking-[-0.01em]">
+          Демонстрация оплаты · без списания
+        </p>
         <span className="w-10" />
       </div>
 
@@ -71,17 +112,24 @@ export function PaymentSheet({
         <div className="flex items-center gap-3.5 px-5 pt-4">
           <Photo src={booking.restaurant.cover} className="h-14 w-14 shrink-0 rounded-[16px]" />
           <div className="min-w-0">
-            <p className="truncate text-[17px] font-semibold tracking-[-0.015em]">{booking.restaurant.name}</p>
+            <p className="truncate text-[17px] font-semibold tracking-[-0.015em]">
+              {booking.restaurant.name}
+            </p>
             <p className="t-num truncate text-[13px] text-ink-2">
-              {booking.day} · {booking.time} · {booking.guests} гостей{booking.table ? ` · стол ${booking.table}` : ""}
+              {booking.day} · {booking.time} · {booking.guests} гостей
+              {booking.table ? ` · стол ${booking.table}` : ""}
             </p>
           </div>
         </div>
 
         <div className="px-5 pt-8">
           <p className="t-micro">Итого к оплате</p>
-          <p className="t-num mt-2 text-[48px] font-semibold leading-none tracking-[-0.045em]">{money(total)}</p>
-          <p className="t-num mt-2 text-[13px] font-medium text-brass">+{bonus.toLocaleString("ru-RU")} бонусов Hostess</p>
+          <p className="t-num mt-2 text-[48px] font-semibold leading-none tracking-[-0.045em]">
+            {money(total)}
+          </p>
+          <p className="t-num mt-2 text-[13px] font-medium text-brass">
+            +{bonus.toLocaleString("ru-RU")} бонусов Hostess
+          </p>
         </div>
 
         <div className="mt-7 px-5">
@@ -109,7 +157,12 @@ export function PaymentSheet({
             {friends.map((f) => {
               const on = selected.includes(f.id);
               return (
-                <button key={f.id} type="button" onClick={() => toggleFriend(f.id)} className="w-16 shrink-0 snap-start text-center">
+                <button
+                  key={f.id}
+                  type="button"
+                  onClick={() => toggleFriend(f.id)}
+                  className="w-16 shrink-0 snap-start text-center"
+                >
                   <span className="relative mx-auto block h-14 w-14">
                     <motion.img
                       src={f.avatar}
@@ -131,7 +184,11 @@ export function PaymentSheet({
                       )}
                     </AnimatePresence>
                   </span>
-                  <span className={`mt-1.5 block truncate text-[12px] ${on ? "font-medium text-ink" : "text-ink-3"}`}>{f.name}</span>
+                  <span
+                    className={`mt-1.5 block truncate text-[12px] ${on ? "font-medium text-ink" : "text-ink-3"}`}
+                  >
+                    {f.name}
+                  </span>
                 </button>
               );
             })}
@@ -143,13 +200,22 @@ export function PaymentSheet({
             <p className="t-caption">Каждый платит</p>
             <p className="t-num text-[12.5px] text-ink-3">{people} чел.</p>
           </div>
-          <Ticker value={money(perPerson)} className="mt-1 text-[30px] font-semibold tracking-[-0.03em]" />
+          <Ticker
+            value={money(perPerson)}
+            className="mt-1 text-[30px] font-semibold tracking-[-0.03em]"
+          />
           <div className="mt-3 flex h-[5px] gap-1">
             {Array.from({ length: people }).map((_, i) => (
-              <motion.span key={i} layout className={`h-full flex-1 rounded-full ${i === 0 ? "bg-ink" : "bg-stone-2"}`} />
+              <motion.span
+                key={i}
+                layout
+                className={`h-full flex-1 rounded-full ${i === 0 ? "bg-ink" : "bg-stone-2"}`}
+              />
             ))}
           </div>
-          <p className="mt-2.5 text-[12px] text-ink-3">Ваша часть — первая. Друзья получат запрос в приложении.</p>
+          <p className="mt-2.5 text-[12px] text-ink-3">
+            Ваша часть — первая. Друзья получат запрос в приложении.
+          </p>
         </div>
       </div>
 
@@ -192,7 +258,9 @@ export function PaymentSheet({
                   <p className="t-caption mt-1">
                     {booking.restaurant.name} · {booking.day} · {booking.time}
                   </p>
-                  <p className="t-num mt-3 text-[13px] font-medium text-brass">+{bonus.toLocaleString("ru-RU")} бонусов</p>
+                  <p className="t-num mt-3 text-[13px] font-medium text-brass">
+                    +{bonus.toLocaleString("ru-RU")} бонусов
+                  </p>
                   <Button block size="lg" className="mt-6" onClick={onDone}>
                     Готово
                   </Button>

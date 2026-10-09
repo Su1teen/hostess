@@ -1,4 +1,6 @@
 import "./lib/error-capture";
+import { proxyHostessApi } from "./lib/server/guest-proxy";
+import { claimPage } from "./lib/server/guest-claim";
 
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
@@ -46,6 +48,10 @@ function isH3SwallowedErrorBody(body: string): boolean {
 
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
+    const claim = claimPage(request);
+    if (claim) return claim;
+    const proxy = await proxyHostessApi(request, env);
+    if (proxy) return proxy;
     try {
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);

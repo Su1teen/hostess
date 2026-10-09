@@ -23,9 +23,16 @@ type ExchangeState = {
   updatedAt: string | null;
   connected: boolean;
   roundKey: string | null;
+  validUntil: number;
 };
 
-const empty: ExchangeState = { products: [], updatedAt: null, connected: false, roundKey: null };
+const empty: ExchangeState = {
+  products: [],
+  updatedAt: null,
+  connected: false,
+  roundKey: null,
+  validUntil: 0,
+};
 
 export function normalizeExchangeName(value: string): string {
   return value
@@ -50,25 +57,46 @@ export function useXoxoExchange() {
   useEffect(() => {
     let active = true;
     let controller: AbortController | undefined;
-    const apiBase = (import.meta.env.VITE_API_URL || "http://localhost:3000").replace(/\/$/, "");
+    const apiPath = "/api/exchange/current-round";
 
     const refresh = async () => {
       controller?.abort();
       controller = new AbortController();
       try {
-        const response = await fetch(`${apiBase}/api/v1/public/current-round`, {
-          signal: controller.signal,
+        const response = await fetch(apiPath, {
+          signal: AbortSignal.any([controller.signal, AbortSignal.timeout(15_000)]),
           headers: { Accept: "application/json" },
         });
         if (!response.ok) throw new Error(`Exchange responded ${response.status}`);
         const payload = (await response.json()) as ExchangePayload;
-        if (!Array.isArray(payload.products)) throw new Error("Invalid exchange payload");
+        if (
+          !Array.isArray(payload.products) ||
+          !payload.products.every(
+            (p) =>
+              typeof p.id === "string" &&
+              typeof p.name === "string" &&
+              Number.isFinite(p.price) &&
+              p.price >= 0 &&
+              Number.isFinite(p.minPrice) &&
+              Number.isFinite(p.originalPrice) &&
+              Number.isFinite(p.changePercent),
+          )
+        )
+          throw new Error("Invalid exchange payload");
+        const fresh =
+          Math.abs(Date.now() - Date.parse(payload.generatedAt)) < 60_000 &&
+          payload.currentRound &&
+          Date.parse(payload.currentRound.endsAt) > Date.now();
         if (active) {
           setState({
             products: payload.products.filter((product) => product.isAvailable),
             updatedAt: payload.generatedAt,
-            connected: payload.status === "ok",
+            connected: payload.status === "ok" && Boolean(fresh),
             roundKey: payload.currentRound?.roundKey ?? null,
+            validUntil: Math.min(
+              Date.parse(payload.generatedAt) + 60_000,
+              Date.parse(payload.currentRound?.endsAt ?? ""),
+            ),
           });
         }
       } catch (error) {
@@ -79,8 +107,20 @@ export function useXoxoExchange() {
     };
 
     void refresh();
-    const timer = window.setInterval(() => void refresh(), 30_000);
+    const timer = window.setInterval(() => {
+      if (!document.hidden) void refresh();
+    }, 30_000);
+    const freshness = window.setInterval(
+      () =>
+        setState((previous) =>
+          previous.connected && previous.validUntil <= Date.now()
+            ? { ...previous, connected: false }
+            : previous,
+        ),
+      1000,
+    );
     return () => {
+      window.clearInterval(freshness);
       active = false;
       window.clearInterval(timer);
       controller?.abort();

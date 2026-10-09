@@ -5,7 +5,7 @@ import { BottomNav } from "./BottomNav";
 import { MapScreen } from "./screens/MapScreen";
 import { AIScreen } from "./screens/AIScreen";
 import { CalendarScreen } from "./screens/CalendarScreen";
-import { ProfileScreen } from "./screens/ProfileScreen";
+import { GuestPortal } from "./GuestPortal";
 import { RestaurantSheet } from "./RestaurantSheet";
 import { XoxoBarSheet } from "./XoxoBarSheet";
 import { PaymentSheet } from "./PaymentSheet";
@@ -83,23 +83,14 @@ export function B2CApp({ onLogout }: { onLogout: () => void }) {
             >
               {screen === "ai" && <AIScreen onOpenRestaurant={setRestaurant} />}
               {screen === "calendar" && (
-                <CalendarScreen onNavigateToMap={() => handleNavChange("map")} />
+                <div className="h-full overflow-y-auto overscroll-contain">
+                  <GuestPortal />
+                </div>
               )}
               {screen === "profile" && (
-                <ProfileScreen
-                  variant="guest"
-                  onLogout={onLogout}
-                  onSplitBill={() =>
-                    setPayment({
-                      restaurant: restaurants[0],
-                      table: 4,
-                      day: "Сегодня",
-                      time: "20:00",
-                      guests: 4,
-                      preorder: [],
-                    })
-                  }
-                />
+                <div className="h-full overflow-y-auto overscroll-contain">
+                  <GuestPortal />
+                </div>
               )}
             </motion.div>
           )}

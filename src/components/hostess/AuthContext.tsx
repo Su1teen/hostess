@@ -29,7 +29,7 @@ const AuthContext = createContext<AuthContextValue>({
 });
 
 /**
- * Глобальный стейт авторизации. Переживает перезагрузку через localStorage.
+ * Выбор интерфейса, не серверная авторизация. Доступ к данным проверяется guest API.
  * Роль резолвится в useEffect, чтобы SSR- и первый клиентский рендер совпадали.
  */
 export function AuthProvider({ children }: { children: ReactNode }) {
