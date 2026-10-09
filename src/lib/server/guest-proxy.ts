@@ -136,7 +136,21 @@ export async function proxyHostessApi(
     )
       outgoing.set("set-cookie", setCookie);
     return new Response(response.body, { status: response.status, headers: outgoing });
-  } catch {
-    return reply(503, "Соединение прервано. Проверьте бронь в кабинете перед повтором");
+  } catch (error) {
+    const response = reply(503, "Соединение прервано. Проверьте бронь в кабинете перед повтором");
+    const message = error instanceof Error ? error.message : "";
+    const category = /timeout|abort/i.test(message)
+      ? "timeout"
+      : /ssl|tls|certificate/i.test(message)
+        ? "tls"
+        : /dns|resolve/i.test(message)
+          ? "dns"
+          : /redirect/i.test(message)
+            ? "redirect"
+            : /illegal invocation|not a function/i.test(message)
+              ? "runtime"
+              : "network";
+    response.headers.set("x-hostess-upstream-error", category);
+    return response;
   }
 }
