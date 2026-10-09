@@ -51,7 +51,19 @@ export default {
     const claim = claimPage(request);
     if (claim) return claim;
     const proxy = await proxyHostessApi(request, env);
-    if (proxy) return proxy;
+    if (proxy) {
+      const requestEnv = (
+        request as Request & {
+          runtime?: { cloudflare?: { env?: { HOSTESS_BUILD_SHA?: unknown } } };
+        }
+      ).runtime?.cloudflare?.env;
+      const buildSha =
+        (env as { HOSTESS_BUILD_SHA?: unknown } | undefined)?.HOSTESS_BUILD_SHA ??
+        requestEnv?.HOSTESS_BUILD_SHA;
+      if (typeof buildSha === "string" && /^[a-f0-9]{40}$/.test(buildSha))
+        proxy.headers.set("x-hostess-build", buildSha);
+      return proxy;
+    }
     try {
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
