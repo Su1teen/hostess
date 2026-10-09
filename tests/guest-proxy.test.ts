@@ -7,6 +7,25 @@ const runtime = {
   HOSTESS_BFF_KEY: "b".repeat(64),
 };
 describe("Cloudflare same-origin BFF", () => {
+  test("rejects upstream redirects without forwarding credentials", async () => {
+    const original = globalThis.fetch;
+    let calls = 0;
+    globalThis.fetch = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+      calls++;
+      expect(init?.redirect).toBe("manual");
+      return new Response(null, { status: 302, headers: { location: "https://evil.test" } });
+    }) as typeof fetch;
+    try {
+      const response = await proxyHostessApi(
+        new Request("https://hostess.test/api/guest/v1/profile"),
+        runtime,
+      );
+      expect(response?.status).toBe(502);
+      expect(calls).toBe(1);
+    } finally {
+      globalThis.fetch = original;
+    }
+  });
   test("uses request bindings even when adapter passes an empty runtime", async () => {
     const request = new Request("https://hostess.test/api/exchange/current-round");
     Object.assign(request, { runtime: { cloudflare: { env: runtime } } });

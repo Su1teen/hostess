@@ -116,9 +116,11 @@ export async function proxyHostessApi(
       method: request.method,
       headers,
       body: body as BodyInit | undefined,
-      redirect: "error",
+      redirect: "manual",
       signal: AbortSignal.timeout(10_000),
     });
+    if (response.status >= 300 && response.status < 400)
+      return reply(502, "Перенаправление сервиса запрещено");
     if (!response.headers.get("content-type")?.includes("application/json"))
       return reply(502, "Сервис вернул некорректный ответ");
     const outgoing = new Headers({
