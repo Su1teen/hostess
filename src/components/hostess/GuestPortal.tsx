@@ -128,7 +128,7 @@ export function GuestPortal() {
                     <p className="t-micro">{statusLabel[r.status] ?? r.status}</p>
                     <h3 className="mt-3 text-lg font-medium">{venueDate(r.startsAt)}</h3>
                     <p className="mt-1 text-sm text-ink-2">
-                      {r.guests} гостей · {(r.tableIds ?? [r.tableId]).join(" + ")}
+                      {r.guests} гостей · {r.resourceName ?? (r.tableIds ?? [r.tableId]).join(" + ")}
                     </p>
                     <p className="mt-2 text-xs text-ink-3">
                       Бронь {r.id.slice(0, 8)}

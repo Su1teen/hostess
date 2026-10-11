@@ -32,14 +32,20 @@ export function GuestBooking({
     [phone, setPhone] = useState(""),
     [consent, setConsent] = useState(false);
   const [hall, setHall] = useState<Availability | null>(null),
-    [selected, setSelected] = useState<string[]>([]);
+    [selectedResourceId, setSelectedResourceId] = useState<string | null>(null),
+    [selectedZoneId, setSelectedZoneId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true),
     [pending, setPending] = useState(false),
     [error, setError] = useState("");
   const [quote, setQuote] = useState<Quote | null>(null),
     [result, setResult] = useState<GuestReservation | null>(null),
     [authenticated, setAuthenticated] = useState(false);
-  const attempt = useRef<{ holdId: string; quoteId?: string; idempotencyKey: string } | null>(null);
+  const attempt = useRef<{
+    holdId: string | null;
+    holdIdempotencyKey: string;
+    quoteId?: string;
+    idempotencyKey: string;
+  } | null>(null);
   const startsAt = new Date(`${date}T${time}:00+05:00`).toISOString();
   const endsAt = new Date(Date.parse(startsAt) + 2 * 3600_000).toISOString();
   const itemKey = JSON.stringify(items);
@@ -59,11 +65,10 @@ export function GuestBooking({
   }, []);
   useEffect(() => {
     if (!attempt.current) setQuote(null);
-  }, [startsAt, endsAt, guests, selected, itemKey]);
+  }, [startsAt, endsAt, guests, selectedResourceId, selectedZoneId, itemKey]);
   useEffect(() => {
     let active = true,
       controller: AbortController | undefined;
-    setSelected([]);
     setHall(null);
     setLoading(true);
     setError("");
@@ -71,7 +76,7 @@ export function GuestBooking({
       controller = new AbortController();
       try {
         const response = await guestApi<Availability>(
-          `/availability?startsAt=${encodeURIComponent(startsAt)}&endsAt=${encodeURIComponent(endsAt)}`,
+          `/availability?startsAt=${encodeURIComponent(startsAt)}&endsAt=${encodeURIComponent(endsAt)}&guests=${guests}`,
           undefined,
           "GET",
           controller.signal,
@@ -79,12 +84,26 @@ export function GuestBooking({
         if (active) {
           setHall(response);
           setError("");
-          setSelected((prev) => {
+          setSelectedResourceId((prev) => {
             if (attempt.current) return prev;
-            const next = prev.filter((id) =>
-              response.tables.some((t) => t.id === id && t.available),
-            );
-            return next.length === prev.length ? prev : next;
+            return prev && response.resources?.some(
+              (resource) => resource.id === prev && resource.available && resource.fitsGuestCount,
+            )
+              ? prev
+              : null;
+          });
+          setSelectedZoneId((prev) => {
+            if (attempt.current) return prev;
+            return prev && response.zones?.some(
+              (zone) =>
+                zone.id === prev &&
+                zone.resources.some(
+                  (resource) =>
+                    resource.bookable && resource.available && resource.capacity !== null && resource.capacity >= guests,
+                ),
+            )
+              ? prev
+              : null;
           });
         }
       } catch (e) {
@@ -105,11 +124,16 @@ export function GuestBooking({
       controller?.abort();
       clearInterval(timer);
     };
-  }, [startsAt, endsAt]);
-  const capacity = selected.reduce(
-    (n, id) => n + (hall?.tables.find((t) => t.id === id)?.seats ?? 0),
-    0,
+  }, [startsAt, endsAt, guests]);
+  const selectedResource = hall?.resources?.find((resource) => resource.id === selectedResourceId);
+  const selectedZone = hall?.zones?.find((zone) => zone.id === selectedZoneId);
+  const autoSelectionAvailable = Boolean(
+    selectedZone?.resources.some(
+      (resource) =>
+        resource.bookable && resource.available && resource.capacity !== null && resource.capacity >= guests,
+    ),
   );
+  const capacity = selectedResource?.capacity ?? 0;
   async function submit() {
     if (pending) return;
     setPending(true);
@@ -132,25 +156,37 @@ export function GuestBooking({
         throw new Error("Цена изменилась. Получите и подтвердите новую цену");
       }
       if (!attempt.current) {
-        const hold = await guestApi<{ id: string }>("/holds", {
-          startsAt,
-          endsAt,
-          guests,
-          tableIds: selected,
-        });
         attempt.current = {
-          holdId: hold.id,
+          holdId: null,
+          holdIdempotencyKey: crypto.randomUUID(),
           quoteId: quote?.id,
           idempotencyKey: crypto.randomUUID(),
         };
       }
+      if (!attempt.current.holdId) {
+        const hold = await guestApi<{ id: string }>("/holds", {
+          startsAt,
+          endsAt,
+          guests,
+          ...(selectedResourceId ? { resourceId: selectedResourceId } : {}),
+          ...(selectedZoneId ? { zoneId: selectedZoneId } : {}),
+          idempotencyKey: attempt.current.holdIdempotencyKey,
+        });
+        attempt.current = { ...attempt.current, holdId: hold.id };
+      }
+      const currentAttempt = attempt.current;
+      if (!currentAttempt?.holdId) throw new Error("Не удалось удержать выбранное место");
       const response = rescheduleId
         ? await guestApi<{ reservation: GuestReservation }>(
             `/reservations/${rescheduleId}`,
-            { action: "reschedule", holdId: attempt.current.holdId },
+            { action: "reschedule", holdId: currentAttempt.holdId },
             "PATCH",
           )
-        : await guestApi<{ reservation: GuestReservation }>("/reservations", attempt.current);
+        : await guestApi<{ reservation: GuestReservation }>("/reservations", {
+            holdId: currentAttempt.holdId,
+            quoteId: currentAttempt.quoteId,
+            idempotencyKey: currentAttempt.idempotencyKey,
+          });
       if (!response.reservation)
         throw new Error("Нет подтверждения сервера. Проверьте кабинет перед повтором");
       setResult(response.reservation);
@@ -163,7 +199,10 @@ export function GuestBooking({
       }
       if (
         (e as { code?: string }).code === "HOLD_EXPIRED" ||
-        (e as { code?: string }).code === "CONFLICT"
+        (e as { code?: string }).code === "CONFLICT" ||
+        (e as { code?: string }).code === "NO_AVAILABILITY" ||
+        (e as { code?: string }).code === "ZONE_UNVERIFIED" ||
+        (e as { code?: string }).code === "CAPACITY"
       )
         attempt.current = null;
     } finally {
@@ -176,7 +215,7 @@ export function GuestBooking({
         <p className="t-micro">XOXO · {statusLabel[result.status] ?? result.status}</p>
         <h2 className="t-title mt-3">{venueDate(result.startsAt)}</h2>
         <p className="mt-3 text-sm text-ink-2">
-          {result.guests} гостей · {result.tableIds.join(" + ")}
+          {result.guests} гостей · {result.resourceName ?? result.tableIds.join(" + ")}
         </p>
         <p className="mt-4 text-sm text-ink-3">
           Заявка сохранена в системе заведения. Подтверждение менеджера будет отражено в кабинете.
@@ -285,23 +324,30 @@ export function GuestBooking({
         ) : hall ? (
           <GuestFloor
             hall={hall}
-            selected={selected}
-            onSelect={(id) =>
-              setSelected((prev) =>
-                prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
-              )
-            }
+            selected={selectedResourceId}
+            selectedZoneId={selectedZoneId}
+            guests={guests}
+            onSelect={(id) => {
+              setSelectedResourceId(id);
+              setSelectedZoneId(null);
+            }}
+            onAutoSelect={(zoneId) => {
+              setSelectedResourceId(null);
+              setSelectedZoneId(zoneId);
+            }}
           />
         ) : (
           <p className="text-sm text-ink-3">
             Карта временно недоступна. Свободные места не подтверждены.
           </p>
         )}
-        {selected.length > 0 && (
+        {selectedResource && (
           <p className="text-sm">
-            {selected.join(" + ")} · {capacity} мест
-            {capacity < guests ? " · выберите больше мест" : ""}
+            {selectedResource.name} · до {capacity} гостей
           </p>
+        )}
+        {selectedZone && autoSelectionAvailable && !selectedResource && (
+          <p className="text-sm">Автоподбор места в зоне «{selectedZone.name}» для {guests} гостей</p>
         )}
         {!authenticated && (
           <label className="flex min-h-11 items-start gap-3 text-sm leading-relaxed">
@@ -341,7 +387,10 @@ export function GuestBooking({
         disabled={
           pending ||
           (!attempt.current &&
-            (!hall || !selected.length || capacity < guests || (!authenticated && !consent)))
+            (!hall ||
+              (!selectedResourceId && !autoSelectionAvailable) ||
+              (selectedResourceId && (!selectedResource?.available || capacity < guests)) ||
+              (!authenticated && !consent)))
         }
         className="min-h-13 w-full rounded-2xl bg-ink px-4 py-4 text-white disabled:opacity-40"
       >

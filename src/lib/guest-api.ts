@@ -7,6 +7,9 @@ export type GuestReservation = {
   status: string;
   tableId: string;
   tableIds: string[];
+  resourceId?: string | null;
+  resourceName?: string | null;
+  zoneName?: string | null;
   depositStatus: string;
   depositAmount: string;
   iikoSyncStatus: string;
@@ -39,6 +42,43 @@ export type Availability = {
     seats: number;
     available: boolean;
   }[];
+  zones?: AvailabilityZone[];
+  resources?: AvailabilityResource[];
+};
+export type AvailabilityResource = {
+  id: string;
+  zoneId: string;
+  zoneCode: string;
+  zoneName: string;
+  code: string;
+  name: string;
+  resourceType: "table" | "private_room" | "bar_seating";
+  capacity: number | null;
+  status: "free" | "reserved" | "unavailable";
+  available: boolean;
+  bookable: boolean;
+  fitsGuestCount: boolean;
+  unavailableReason: string | null;
+  layout: {
+    version: number;
+    x: number | null;
+    y: number | null;
+    width: number | null;
+    height: number | null;
+    shape: string | null;
+    rotation: number | null;
+    displayProperties: Record<string, unknown>;
+  };
+};
+export type AvailabilityZone = {
+  id: string;
+  code: string;
+  name: string;
+  type: "main_hall" | "secondary_hall" | "vip" | "shared_hall" | "bar";
+  description: string | null;
+  displayOrder: number;
+  isActive: boolean;
+  resources: AvailabilityResource[];
 };
 export type Quote = {
   id: string;
