@@ -1,0 +1,181 @@
+{
+  "observedAt": "2026-10-16T23:14:57.428Z",
+  "checks": [
+    {
+      "origin": "https://hostes.online",
+      "path": "/",
+      "status": 200,
+      "build": null,
+      "cache": null,
+      "referrer": null
+    },
+    {
+      "origin": "https://hostes.online",
+      "path": "/xoxo",
+      "status": 200,
+      "build": null,
+      "cache": null,
+      "referrer": null
+    },
+    {
+      "origin": "https://hostes.online",
+      "path": "/guest",
+      "status": 200,
+      "build": null,
+      "cache": null,
+      "referrer": null
+    },
+    {
+      "origin": "https://hostes.online",
+      "path": "/auth/claim",
+      "status": 200,
+      "build": null,
+      "cache": "no-store, no-transform",
+      "referrer": "no-referrer"
+    },
+    {
+      "origin": "https://hostes.online",
+      "path": "/api/exchange/current-round",
+      "status": 200,
+      "build": "9480b6a5e75204a179a8400b2e90292b65a5fc49",
+      "cache": "no-store",
+      "referrer": "no-referrer"
+    },
+    {
+      "origin": "https://hostes.online",
+      "path": "/api/guest/v1/profile",
+      "status": 503,
+      "build": "9480b6a5e75204a179a8400b2e90292b65a5fc49",
+      "cache": "no-store",
+      "referrer": "no-referrer",
+      "error": {
+        "code": "SERVICE_UNAVAILABLE",
+        "message": "Сервис пока не настроен"
+      }
+    },
+    {
+      "origin": "https://hostes.online",
+      "path": "/api/guest/v1/dine-in/menu?venue=xoxo",
+      "status": 503,
+      "build": "9480b6a5e75204a179a8400b2e90292b65a5fc49",
+      "cache": "no-store",
+      "referrer": "no-referrer",
+      "error": {
+        "code": "SERVICE_UNAVAILABLE",
+        "message": "Сервис пока не настроен"
+      }
+    },
+    {
+      "origin": "https://hostes.online",
+      "path": "/api/guest/v1/loyalty/wallet?venue=xoxo",
+      "status": 503,
+      "build": "9480b6a5e75204a179a8400b2e90292b65a5fc49",
+      "cache": "no-store",
+      "referrer": "no-referrer",
+      "error": {
+        "code": "SERVICE_UNAVAILABLE",
+        "message": "Сервис пока не настроен"
+      }
+    },
+    {
+      "origin": "https://hostess.sultansovetov2003.workers.dev",
+      "path": "/",
+      "status": 200,
+      "build": null,
+      "cache": null,
+      "referrer": null
+    },
+    {
+      "origin": "https://hostess.sultansovetov2003.workers.dev",
+      "path": "/xoxo",
+      "status": 200,
+      "build": null,
+      "cache": null,
+      "referrer": null
+    },
+    {
+      "origin": "https://hostess.sultansovetov2003.workers.dev",
+      "path": "/guest",
+      "status": 200,
+      "build": null,
+      "cache": null,
+      "referrer": null
+    },
+    {
+      "origin": "https://hostess.sultansovetov2003.workers.dev",
+      "path": "/auth/claim",
+      "status": 200,
+      "build": null,
+      "cache": "no-store, no-transform",
+      "referrer": "no-referrer"
+    },
+    {
+      "origin": "https://hostess.sultansovetov2003.workers.dev",
+      "path": "/api/exchange/current-round",
+      "status": 200,
+      "build": "9480b6a5e75204a179a8400b2e90292b65a5fc49",
+      "cache": "no-store",
+      "referrer": "no-referrer"
+    },
+    {
+      "origin": "https://hostess.sultansovetov2003.workers.dev",
+      "path": "/api/guest/v1/profile",
+      "status": 503,
+      "build": "9480b6a5e75204a179a8400b2e90292b65a5fc49",
+      "cache": "no-store",
+      "referrer": "no-referrer",
+      "error": {
+        "code": "SERVICE_UNAVAILABLE",
+        "message": "Сервис пока не настроен"
+      }
+    },
+    {
+      "origin": "https://hostess.sultansovetov2003.workers.dev",
+      "path": "/api/guest/v1/dine-in/menu?venue=xoxo",
+      "status": 503,
+      "build": "9480b6a5e75204a179a8400b2e90292b65a5fc49",
+      "cache": "no-store",
+      "referrer": "no-referrer",
+      "error": {
+        "code": "SERVICE_UNAVAILABLE",
+        "message": "Сервис пока не настроен"
+      }
+    },
+    {
+      "origin": "https://hostess.sultansovetov2003.workers.dev",
+      "path": "/api/guest/v1/loyalty/wallet?venue=xoxo",
+      "status": 503,
+      "build": "9480b6a5e75204a179a8400b2e90292b65a5fc49",
+      "cache": "no-store",
+      "referrer": "no-referrer",
+      "error": {
+        "code": "SERVICE_UNAVAILABLE",
+        "message": "Сервис пока не настроен"
+      }
+    },
+    {
+      "engine": "chromium",
+      "device": "Pixel 7",
+      "xoxoRendered": true,
+      "overflow": false,
+      "claimFragmentRemoved": true,
+      "claimTokenInRequestURL": false,
+      "pageErrors": []
+    },
+    {
+      "engine": "webkit",
+      "device": "iPhone 13",
+      "xoxoRendered": true,
+      "overflow": false,
+      "claimFragmentRemoved": true,
+      "claimTokenInRequestURL": false,
+      "pageErrors": []
+    }
+  ],
+  "qr": [
+    {
+      "status": "BLOCKED",
+      "reason": "No authorized production QR manifest/staff session; no tokens generated."
+    }
+  ]
+}
