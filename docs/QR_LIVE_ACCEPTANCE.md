@@ -85,10 +85,10 @@ PASS read-only на действующем домене в Chromium/Pixel 7 и W
 | Desktop Chromium fixtures | PASS, тот же набор и базовая keyboard navigation |
 | iOS WebKit fixtures | PASS, тот же набор; это эмуляция, не физический iPhone |
 | Длинные названия | PASS, fixture и horizontal overflow checks |
-| Command Center unit | PASS, 28 tests |
+| Command Center unit | PASS, 29 tests после merge актуального main |
 | Command Center booking PostgreSQL | PASS, 31 tests, включая WhatsApp/claim/ownership |
-| Command Center dining PostgreSQL + текущий consumer | PASS, 29 tests на Node/Vitest, реальные SQL/transactions/API |
-| Migration runner clean/replay | PASS, 0001–0006, 17 unchanged tokens в отдельной тестовой схеме |
+| Command Center dining PostgreSQL + текущий consumer | PASS, 35 tests после merge на Node/Vitest, включая настоящий Hostess BFF и XOXO receiver schema |
+| Migration runner clean/replay | PASS, 0001–0007 после merge, 17 unchanged tokens в отдельной тестовой схеме |
 | Command Center typecheck/lint/build | PASS, lint 0 errors / 9 warnings |
 | XOXO unit/contract | PASS, 183 tests; 15 receiver contract tests входят в это число |
 | XOXO PostgreSQL receiver | PASS, 16 tests на отдельной `qr_integration_test` |
@@ -98,6 +98,8 @@ PASS read-only на действующем домене в Chromium/Pixel 7 и W
 | Физические устройства, полный accessibility audit, bandwidth throttling | Не подтверждены этим проходом; не объявляются PASS |
 
 Windows Bun 1.3.13 зависал на parallel repeat-submit тесте и pool shutdown; тот же неизмененный backend suite прошел полностью на Node/Vitest. Временный адаптер менял только import `bun:test` на Vitest; `HOSTESS_CONSUMER_ROOT` указывал на текущий Hostess. Ошибка не маскируется заявлением «bun suite passed». GitHub Linux/PostgreSQL16 workflow остается отдельной проверкой.
+
+Перед push обнаружены новые upstream commits: Hostess `6144a23` (документация домена), Command Center `7481319`/`c2aeab1` (startup/CRM/physical mapping и отчет). Они сохранены обычным merge. Повторно выполнены backend unit/typecheck/lint/build, 35 PostgreSQL dining tests и migration replay 0001–0007; sibling test использовал настоящий новый Hostess BFF с receipt header и XOXO orderEventSchema. Удалены дубли import, возникшие при автоматическом merge. Параллельный [backend отчет](https://github.com/Su1teen/hostess-command-center/blob/main/docs/FINAL_INTEGRATION_AUDIT.md) содержит отдельные production SQL/QR наблюдения; этот проход не получал 17 секретных URL, поэтому собственная live-проверка всех URL остается BLOCKED.
 
 Реальная изолированная PostgreSQL проверила FIFO partial redemption, отдельные 14-дневные expirations, исключение просроченного баланса, double-spend, idempotency, rollback, cancellation compensation/debt, canonical merge и outbox retry/ACK. UI сохраняет «Заказ принят» / «К оплате официанту» при `assumed_paid`; банковская/Kaspi-оплата не утверждается. Fake localStorage loyalty в production flow не найдено.
 
