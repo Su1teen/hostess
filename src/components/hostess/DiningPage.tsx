@@ -93,6 +93,7 @@ export function DiningPage({
       if (current !== sessionGeneration.current) return;
       const identity = p.guest.id;
       if (sessionIdentity.current !== identity && !attempt.current) {
+        setWallet(null);
         setQuote(null);
         setRedeem(0);
       }
