@@ -18,7 +18,7 @@ The existing vite.config.ts keeps Cloudflare keep_vars=true and the two known Ra
 2. Bootstrap its 17 resources and persistent QR records once. Redeployments must retain the tokens.
 3. Compare the published server DINE_IN_API_CONTRACT with the explicit client interface in QR_ORDERING.md, including envelopes, numeric KZT units and anonymous binding.
 4. Pass tests/typecheck/lint and Nitro Cloudflare build; deploy Hostess with both origins and the shared key.
-5. Confirm hostess.online serves this Worker. Download/print the actual 17 QR panels from Command Center; Hostess does not create a second token set.
+5. Confirm hostes.online serves this Worker. Download/print the actual 17 QR panels from Command Center; Hostess does not create a second token set.
 6. Run real smoke tests before venue operation.
 
 ## Real smoke tests
