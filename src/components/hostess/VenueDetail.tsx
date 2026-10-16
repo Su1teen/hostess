@@ -98,7 +98,10 @@ export function VenueDetailShell({
         <div className="pointer-events-auto flex items-center gap-2">
           {topRight}
           <IconButton icon={Share} label="Поделиться" variant="photo" onClick={share} />
-          <motion.div animate={saved ? { scale: [1, 1.18, 1] } : { scale: 1 }} transition={{ duration: 0.35 }}>
+          <motion.div
+            animate={saved ? { scale: [1, 1.18, 1] } : { scale: 1 }}
+            transition={{ duration: 0.35 }}
+          >
             <IconButton
               icon={Heart}
               label={saved ? "Убрать из избранного" : "В избранное"}
@@ -136,7 +139,12 @@ export function VenueDetailShell({
                 />
               )}
               {images.map((src, i) => (
-                <Photo key={src + i} src={src} eager={i === 0 && !live} className="h-full w-full shrink-0 snap-center" />
+                <Photo
+                  key={src + i}
+                  src={src}
+                  eager={i === 0 && !live}
+                  className="h-full w-full shrink-0 snap-center"
+                />
               ))}
             </div>
           </motion.div>
@@ -164,7 +172,9 @@ export function VenueDetailShell({
             <div className="pointer-events-none absolute inset-x-4 bottom-10 flex items-center justify-between">
               <span className="flex items-center gap-2">
                 <LiveBadge media={live} playing={videoOn} />
-                {live.source && <span className="text-[11.5px] font-medium text-white/80">{live.source}</span>}
+                {live.source && (
+                  <span className="text-[11.5px] font-medium text-white/80">{live.source}</span>
+                )}
               </span>
               {videoOn && (
                 <span className="pointer-events-auto">
@@ -174,7 +184,12 @@ export function VenueDetailShell({
             </div>
           )}
           {heroOverlay && (
-            <div className={cn("pointer-events-none absolute inset-x-0", live ? "bottom-[84px]" : "bottom-14")}>
+            <div
+              className={cn(
+                "pointer-events-none absolute inset-x-0",
+                live ? "bottom-[84px]" : "bottom-14",
+              )}
+            >
               {heroOverlay}
             </div>
           )}
@@ -191,13 +206,19 @@ export function VenueDetailShell({
 }
 
 /** Three calm facts separated by hairlines (rating · check · hours). */
-export function FactsRow({ facts }: { facts: { label: string; value: ReactNode; sub?: ReactNode }[] }) {
+export function FactsRow({
+  facts,
+}: {
+  facts: { label: string; value: ReactNode; sub?: ReactNode }[];
+}) {
   return (
     <div className="mx-5 grid grid-cols-3 divide-x divide-line border-y border-line py-4">
       {facts.map((f) => (
         <div key={f.label} className="px-3 first:pl-0 last:pr-0">
           <p className="t-micro">{f.label}</p>
-          <p className="t-num mt-1.5 truncate text-[15px] font-semibold tracking-[-0.01em]">{f.value}</p>
+          <p className="t-num mt-1.5 truncate text-[15px] font-semibold tracking-[-0.01em]">
+            {f.value}
+          </p>
           {f.sub && <p className="t-num mt-0.5 truncate text-[11.5px] text-ink-3">{f.sub}</p>}
         </div>
       ))}

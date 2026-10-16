@@ -43,7 +43,9 @@ export function ActiveWaitlistWidget({ onOpen }: { onOpen?: () => void }) {
             <span className="t-num text-[13px] font-semibold">#{entry.position}</span>
           </ProgressRing>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-[14px] font-semibold tracking-[-0.01em]">{entry.entityName}</p>
+            <p className="truncate text-[14px] font-semibold tracking-[-0.01em]">
+              {entry.entityName}
+            </p>
             <p className="flex items-center gap-1.5 truncate text-[12px] text-white/60">
               <LiveDot tone="live" pulse size={6} />
               Лист ожидания · ~<span className="t-num">{fmt(entry.etaSec)}</span>

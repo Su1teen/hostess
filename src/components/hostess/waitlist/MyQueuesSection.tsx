@@ -18,7 +18,8 @@ const MOCK_QUEUES: WaitlistEntry[] = [
     entityId: "kinza",
     entityName: "Lou Lou",
     entityKind: "Ресторан",
-    cover: "https://images.unsplash.com/photo-1537047902294-62a40c20a6ae?auto=format&fit=crop&w=400&q=80",
+    cover:
+      "https://images.unsplash.com/photo-1537047902294-62a40c20a6ae?auto=format&fit=crop&w=400&q=80",
     resource: "Столик на 4 · 20:30",
     status: "waiting",
     position: 2,
@@ -31,7 +32,8 @@ const MOCK_QUEUES: WaitlistEntry[] = [
     entityId: "v1",
     entityName: "Barbershop TOMB",
     entityKind: "Барбершоп",
-    cover: "https://images.unsplash.com/photo-1585747860715-2ba37e788b70?auto=format&fit=crop&w=400&q=80",
+    cover:
+      "https://images.unsplash.com/photo-1585747860715-2ba37e788b70?auto=format&fit=crop&w=400&q=80",
     resource: "Стрижка + укладка",
     status: "waiting",
     position: 1,
@@ -44,7 +46,8 @@ const MOCK_QUEUES: WaitlistEntry[] = [
     entityId: "auyl",
     entityName: "Qazaq Gourmet",
     entityKind: "Ресторан",
-    cover: "https://images.unsplash.com/photo-1578474846511-04ba529f0b88?auto=format&fit=crop&w=400&q=80",
+    cover:
+      "https://images.unsplash.com/photo-1578474846511-04ba529f0b88?auto=format&fit=crop&w=400&q=80",
     resource: "Столик у окна · 21:00",
     status: "waiting",
     position: 4,
@@ -95,7 +98,9 @@ export function MyQueuesSection() {
                   </div>
                   <p className="mt-0.5 flex items-center gap-1.5 truncate text-[12.5px] text-ink-3">
                     <LiveDot tone={ready ? "live" : "warn"} pulse={ready} size={6} />
-                    {ready ? "Место готово — подтвердите" : `${q.resource ?? q.entityKind} · ${fmtEta(q.etaSec)}`}
+                    {ready
+                      ? "Место готово — подтвердите"
+                      : `${q.resource ?? q.entityKind} · ${fmtEta(q.etaSec)}`}
                   </p>
                   <div className="mt-2 h-[3px] overflow-hidden rounded-full bg-stone">
                     <motion.div

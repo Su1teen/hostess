@@ -9,7 +9,19 @@ function currentIndex(len: number) {
   return Math.max(0, Math.min(len - 1, (hour < 6 ? hour + 24 : hour) - 12));
 }
 
-function LoadBars({ values, idx, tone, height, animateIn }: { values: number[]; idx: number; tone: string; height: number; animateIn: boolean }) {
+function LoadBars({
+  values,
+  idx,
+  tone,
+  height,
+  animateIn,
+}: {
+  values: number[];
+  idx: number;
+  tone: string;
+  height: number;
+  animateIn: boolean;
+}) {
   return (
     <div className="flex items-end gap-[2px]" style={{ height }}>
       {values.map((v, i) => (
@@ -53,7 +65,9 @@ export function LiveNow({
   return (
     <div ref={ref} className={cn("flex items-center gap-3.5 border-y border-line py-4", className)}>
       <OccupancyRing value={occupancy} size={46} stroke={3} estimated={estimated}>
-        <span className="t-num text-[12px] font-semibold tracking-[-0.02em]">{estimated ? "≈" : `${occupancy}%`}</span>
+        <span className="t-num text-[12px] font-semibold tracking-[-0.02em]">
+          {estimated ? "≈" : `${occupancy}%`}
+        </span>
       </OccupancyRing>
       <div className="min-w-0 flex-1">
         <p className="text-[15px] font-semibold tracking-[-0.012em]">
@@ -106,7 +120,10 @@ export function VenueStats({
           <motion.span
             key={i}
             className="flex-1 origin-bottom rounded-[2px]"
-            style={{ height: `${v}%`, background: i === idx ? toneColor[tone] : "rgb(17 18 20 / 0.08)" }}
+            style={{
+              height: `${v}%`,
+              background: i === idx ? toneColor[tone] : "rgb(17 18 20 / 0.08)",
+            }}
             initial={{ scaleY: 0 }}
             animate={inView ? { scaleY: 1 } : {}}
             transition={{ delay: i * 0.02, type: "spring", stiffness: 260, damping: 26 }}

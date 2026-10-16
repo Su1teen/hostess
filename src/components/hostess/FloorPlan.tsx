@@ -189,9 +189,7 @@ const plans: Record<string, Plan> = {
             key={i}
             className="absolute text-[12px] leading-none"
             style={{ left: p.x, top: p.y, transform: "translate(-50%,-50%)" }}
-          >
-            
-          </span>
+          ></span>
         ))}
         <Label className="bottom-[14px] left-[20px] h-[26px] w-[70px] border border-neutral-200 bg-neutral-50/50 text-neutral-700/70">
           Бар-терраса

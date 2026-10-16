@@ -75,7 +75,12 @@ export function liveSignal(id: string, now = Date.now()): LiveSignal {
     return { occupancy: capacity.occupancy, source: "verified", updatedMin: 0, capacity };
   }
   const r = restaurants.find((x) => x.id === id);
-  if (r) return { occupancy: r.occupancy, source: "verified", updatedMin: r.live?.isLive ? 0 : (hashOf(id) % 4) + 1 };
+  if (r)
+    return {
+      occupancy: r.occupancy,
+      source: "verified",
+      updatedMin: r.live?.isLive ? 0 : (hashOf(id) % 4) + 1,
+    };
   const v = venues.find((x) => x.id === id);
   if (v) return { occupancy: v.occupancy, source: "verified", updatedMin: (hashOf(id) % 6) + 1 };
   return { occupancy: occupancyValue[occupancyForId(id)], source: "estimated", updatedMin: null };
@@ -87,7 +92,8 @@ export const occupancyOf = (id: string) => liveSignal(id).occupancy;
 /** One human status line for any signal (bays speak in bays, venues in load). */
 export function statusText(signal: LiveSignal): string {
   const c = signal.capacity;
-  if (c) return c.free > 0 ? `${c.free} из ${c.total} свободно` : `Все заняты · ≈${c.nextFreeMin} мин`;
+  if (c)
+    return c.free > 0 ? `${c.free} из ${c.total} свободно` : `Все заняты · ≈${c.nextFreeMin} мин`;
   const { label } = occupancyLevel(signal.occupancy);
   return signal.source === "estimated" ? `${label} · оценка` : label;
 }
@@ -101,7 +107,17 @@ export function freshness(signal: LiveSignal): string {
 
 /* ── Table availability (one grid for map chips and the venue sheet) ── */
 
-export const TABLE_TIMES = ["18:00", "18:30", "19:00", "19:30", "20:00", "20:30", "21:00", "21:30", "22:00"];
+export const TABLE_TIMES = [
+  "18:00",
+  "18:30",
+  "19:00",
+  "19:30",
+  "20:00",
+  "20:30",
+  "21:00",
+  "21:30",
+  "22:00",
+];
 
 export type TableSlot = { time: string; taken: boolean };
 

@@ -86,22 +86,27 @@ export function GuestBooking({
           setError("");
           setSelectedResourceId((prev) => {
             if (attempt.current) return prev;
-            return prev && response.resources?.some(
-              (resource) => resource.id === prev && resource.available && resource.fitsGuestCount,
-            )
+            return prev &&
+              response.resources?.some(
+                (resource) => resource.id === prev && resource.available && resource.fitsGuestCount,
+              )
               ? prev
               : null;
           });
           setSelectedZoneId((prev) => {
             if (attempt.current) return prev;
-            return prev && response.zones?.some(
-              (zone) =>
-                zone.id === prev &&
-                zone.resources.some(
-                  (resource) =>
-                    resource.bookable && resource.available && resource.capacity !== null && resource.capacity >= guests,
-                ),
-            )
+            return prev &&
+              response.zones?.some(
+                (zone) =>
+                  zone.id === prev &&
+                  zone.resources.some(
+                    (resource) =>
+                      resource.bookable &&
+                      resource.available &&
+                      resource.capacity !== null &&
+                      resource.capacity >= guests,
+                  ),
+              )
               ? prev
               : null;
           });
@@ -130,7 +135,10 @@ export function GuestBooking({
   const autoSelectionAvailable = Boolean(
     selectedZone?.resources.some(
       (resource) =>
-        resource.bookable && resource.available && resource.capacity !== null && resource.capacity >= guests,
+        resource.bookable &&
+        resource.available &&
+        resource.capacity !== null &&
+        resource.capacity >= guests,
     ),
   );
   const capacity = selectedResource?.capacity ?? 0;
@@ -347,7 +355,9 @@ export function GuestBooking({
           </p>
         )}
         {selectedZone && autoSelectionAvailable && !selectedResource && (
-          <p className="text-sm">Автоподбор места в зоне «{selectedZone.name}» для {guests} гостей</p>
+          <p className="text-sm">
+            Автоподбор места в зоне «{selectedZone.name}» для {guests} гостей
+          </p>
         )}
         {!authenticated && (
           <label className="flex min-h-11 items-start gap-3 text-sm leading-relaxed">

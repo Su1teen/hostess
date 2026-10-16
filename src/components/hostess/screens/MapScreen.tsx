@@ -98,7 +98,10 @@ function ringSvg(item: NearbyItem): SVGSVGElement {
     arc.setAttribute("stroke-dasharray", "1.8 2.6");
     arc.setAttribute("stroke-linecap", "butt");
   } else {
-    arc.setAttribute("stroke-dasharray", `${(c * Math.min(100, Math.max(6, item.occupancy))) / 100} ${c}`);
+    arc.setAttribute(
+      "stroke-dasharray",
+      `${(c * Math.min(100, Math.max(6, item.occupancy))) / 100} ${c}`,
+    );
   }
   svg.append(track, arc);
   return svg;
@@ -215,7 +218,9 @@ export function MapScreen({
   const sheetY = useMotionValue(containerH - peekV);
   const dragging = useRef(false);
   const radius = useTransform(sheetY, [0, 48], [0, 30]);
-  const overlayOpacity = useTransform(sheetY, (v) => Math.min(1, Math.max(0, (v - 40) / (containerH * 0.25))));
+  const overlayOpacity = useTransform(sheetY, (v) =>
+    Math.min(1, Math.max(0, (v - 40) / (containerH * 0.25))),
+  );
   const controlsY = useTransform(sheetY, (v) => v - 56);
   const controlsOpacity = useTransform(sheetY, (v) =>
     Math.min(1, Math.max(0, (v - containerH * 0.38) / 80)),
@@ -402,21 +407,30 @@ export function MapScreen({
         if (cell.points.length > 1 && !cell.points.some((p) => p.id === selectedRef.current)) {
           const lng = cell.sx / cell.points.length;
           const lat = cell.sy / cell.points.length;
-          const tones = cell.points.map((p) => occupancyLevel(liveSignal(p.id, now).occupancy).tone);
+          const tones = cell.points.map(
+            (p) => occupancyLevel(liveSignal(p.id, now).occupancy).tone,
+          );
           const share = (t: string) => (tones.filter((x) => x === t).length / tones.length) * 100;
           const el = document.createElement("button");
           el.type = "button";
           el.className = "hs-cl";
           el.style.setProperty("--g", `${share("live")}%`);
           el.style.setProperty("--a", `${share("live") + share("warn")}%`);
-          el.setAttribute("aria-label", `${cell.points.length} мест, свободно ${tones.filter((t) => t === "live").length}`);
+          el.setAttribute(
+            "aria-label",
+            `${cell.points.length} мест, свободно ${tones.filter((t) => t === "live").length}`,
+          );
           const label = document.createElement("span");
           label.textContent = String(cell.points.length);
           el.appendChild(label);
           el.onclick = (e) => {
             e.stopPropagation();
             markerClickAt.current = Date.now();
-            map.easeTo({ center: [lng, lat], zoom: Math.min(map.getZoom() + 1.8, 16), duration: 500 });
+            map.easeTo({
+              center: [lng, lat],
+              zoom: Math.min(map.getZoom() + 1.8, 16),
+              duration: 500,
+            });
           };
           pointMarkersRef.current.push(
             new mapboxgl.Marker({ element: el, anchor: "center" }).setLngLat([lng, lat]).addTo(map),
@@ -481,7 +495,9 @@ export function MapScreen({
       const me = document.createElement("div");
       me.className = "hs-me";
       friendMarkersRef.current.push(
-        new mapboxgl.Marker({ element: me, anchor: "center" }).setLngLat([ME.lng, ME.lat]).addTo(map),
+        new mapboxgl.Marker({ element: me, anchor: "center" })
+          .setLngLat([ME.lng, ME.lat])
+          .addTo(map),
       );
 
       friendMapLocations.forEach((f) => {
@@ -500,7 +516,9 @@ export function MapScreen({
         };
         el.appendChild(img);
         friendMarkersRef.current.push(
-          new mapboxgl.Marker({ element: el, anchor: "center" }).setLngLat([f.coords.lng, f.coords.lat]).addTo(map),
+          new mapboxgl.Marker({ element: el, anchor: "center" })
+            .setLngLat([f.coords.lng, f.coords.lat])
+            .addTo(map),
         );
       });
     });
@@ -587,7 +605,8 @@ export function MapScreen({
                   transition={{ duration: 0.18 }}
                   className="no-scrollbar absolute inset-x-0 top-full mt-2 max-h-80 origin-top overflow-y-auto rounded-card bg-white p-1.5 shadow-float"
                 >
-                  {loading && results.length === 0 &&
+                  {loading &&
+                    results.length === 0 &&
                     [0, 1, 2].map((i) => (
                       <div key={i} className="flex items-center gap-3 p-2.5">
                         <span className="skeleton h-9 w-9 rounded-[11px]" />
@@ -613,7 +632,9 @@ export function MapScreen({
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-[14.5px] font-medium">{r.label}</span>
-                        <span className="block truncate text-[12.5px] text-ink-3">{r.sublabel}</span>
+                        <span className="block truncate text-[12.5px] text-ink-3">
+                          {r.sublabel}
+                        </span>
                       </span>
                     </button>
                   ))}
@@ -638,7 +659,12 @@ export function MapScreen({
         </div>
 
         <div className="pointer-events-auto mt-2.5">
-          <CategoryRail activeValues={activeCategories} onSelect={handleCategorySelect} tone="surface" className="pb-3" />
+          <CategoryRail
+            activeValues={activeCategories}
+            onSelect={handleCategorySelect}
+            tone="surface"
+            className="pb-3"
+          />
         </div>
       </motion.div>
 
@@ -681,7 +707,11 @@ export function MapScreen({
                 onClick={() => openPoint(selectedPoint)}
                 className="flex w-full items-stretch gap-3.5 text-left"
               >
-                <Photo src={selectedItem.cover} className="h-[104px] w-[104px] shrink-0 rounded-[16px]" eager />
+                <Photo
+                  src={selectedItem.cover}
+                  className="h-[104px] w-[104px] shrink-0 rounded-[16px]"
+                  eager
+                />
                 <span className="flex min-w-0 flex-1 flex-col py-0.5">
                   <span className="t-micro">{categoryMeta[selectedItem.category]?.label}</span>
                   <span className="mt-1 flex items-start justify-between gap-2">
@@ -691,7 +721,8 @@ export function MapScreen({
                     <Rating value={selectedItem.rating} className="shrink-0 pt-1" />
                   </span>
                   <span className="mt-0.5 truncate text-[13px] text-ink-2">
-                    {selectedItem.distanceKm} км{selectedItem.price ? ` · ${selectedItem.price}` : ""}
+                    {selectedItem.distanceKm} км
+                    {selectedItem.price ? ` · ${selectedItem.price}` : ""}
                   </span>
                   <span className="mt-auto pt-2">
                     <span className="flex items-center gap-2">
@@ -701,12 +732,19 @@ export function MapScreen({
                         stroke={2.2}
                         estimated={selectedItem.signal.source === "estimated"}
                       />
-                      <span className="truncate text-[13px] font-medium">{selectedItem.status}</span>
-                      {selectedItem.signal.source === "verified" && !selectedItem.signal.capacity && (
-                        <span className="t-num shrink-0 text-[12.5px] text-ink-3">{selectedItem.occupancy}%</span>
-                      )}
+                      <span className="truncate text-[13px] font-medium">
+                        {selectedItem.status}
+                      </span>
+                      {selectedItem.signal.source === "verified" &&
+                        !selectedItem.signal.capacity && (
+                          <span className="t-num shrink-0 text-[12.5px] text-ink-3">
+                            {selectedItem.occupancy}%
+                          </span>
+                        )}
                     </span>
-                    <span className="mt-0.5 block truncate text-[11.5px] text-ink-3">{freshness(selectedItem.signal)}</span>
+                    <span className="mt-0.5 block truncate text-[11.5px] text-ink-3">
+                      {freshness(selectedItem.signal)}
+                    </span>
                   </span>
                 </span>
               </button>
@@ -777,7 +815,10 @@ export function MapScreen({
               <div
                 className={`no-scrollbar ${sheet === "half" ? "catalog-scroll overflow-y-auto" : "overflow-hidden"}`}
                 style={{
-                  height: Math.max(0, visibleOf(sheet) - HEADER_H - (sheet === "half" ? 0 : navSpace)),
+                  height: Math.max(
+                    0,
+                    visibleOf(sheet) - HEADER_H - (sheet === "half" ? 0 : navSpace),
+                  ),
                 }}
               >
                 <div className="rail gap-2.5 pb-3 pt-2">

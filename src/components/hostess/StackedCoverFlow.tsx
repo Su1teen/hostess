@@ -74,7 +74,8 @@ export function StackedCoverFlow({ items }: { items: StackedCoverFlowItem[] }) {
   const [cardW, setCardW] = useState(264);
 
   useEffect(() => {
-    const measure = () => setCardW(Math.round(Math.min(Math.max(window.innerWidth * 0.66, 236), 300)));
+    const measure = () =>
+      setCardW(Math.round(Math.min(Math.max(window.innerWidth * 0.66, 236), 300)));
     measure();
     window.addEventListener("resize", measure);
     return () => window.removeEventListener("resize", measure);
@@ -301,9 +302,15 @@ function DrumCard({
         <Photo src={item.image} className="absolute inset-0 h-full w-full" eager={index < 3} />
       )}
       <span className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-black/20" />
-      <motion.span className="pointer-events-none absolute inset-0 bg-[#0b0c0e]" style={{ opacity: shade }} />
+      <motion.span
+        className="pointer-events-none absolute inset-0 bg-[#0b0c0e]"
+        style={{ opacity: shade }}
+      />
 
-      <motion.span style={{ opacity: textOpacity }} className="pointer-events-none absolute inset-x-4 top-4 flex items-start justify-between gap-2">
+      <motion.span
+        style={{ opacity: textOpacity }}
+        className="pointer-events-none absolute inset-x-4 top-4 flex items-start justify-between gap-2"
+      >
         {item.badge ? (
           <span className="rounded-full bg-white px-2.5 py-1 text-[11px] font-medium tracking-[-0.005em] text-ink">
             {item.badge}
@@ -314,13 +321,18 @@ function DrumCard({
         {item.live && <LiveBadge media={item.live} playing={videoOn} />}
       </motion.span>
 
-      <motion.span style={{ opacity: textOpacity }} className="pointer-events-none absolute inset-x-5 bottom-5 block text-white">
+      <motion.span
+        style={{ opacity: textOpacity }}
+        className="pointer-events-none absolute inset-x-5 bottom-5 block text-white"
+      >
         {item.eyebrow && (
           <span className="block text-[10.5px] font-medium uppercase tracking-[0.14em] text-white/70">
             {item.eyebrow}
           </span>
         )}
-        <span className="mt-1.5 block text-[25px] font-semibold leading-[1.04] tracking-[-0.032em]">{item.title}</span>
+        <span className="mt-1.5 block text-[25px] font-semibold leading-[1.04] tracking-[-0.032em]">
+          {item.title}
+        </span>
         <span className="mt-1.5 block truncate text-[13px] text-white/75">{item.subtitle}</span>
         <span className="mt-3.5 flex items-center justify-between gap-3">
           {item.occupancy != null ? (

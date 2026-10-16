@@ -261,7 +261,9 @@ export function ListRow({
         >
           {title}
         </span>
-        {subtitle && <span className="mt-0.5 block truncate text-[13px] text-ink-3">{subtitle}</span>}
+        {subtitle && (
+          <span className="mt-0.5 block truncate text-[13px] text-ink-3">{subtitle}</span>
+        )}
       </span>
       {value && <span className="t-num shrink-0 text-[14px] text-ink-2">{value}</span>}
       {trailing}
@@ -307,7 +309,10 @@ export function LiveDot({
       {pulse && !hollow && (
         <span
           className="absolute inset-0 rounded-full"
-          style={{ background: color, animation: "hs-live-pulse 2.2s var(--ease-out-quint) infinite" }}
+          style={{
+            background: color,
+            animation: "hs-live-pulse 2.2s var(--ease-out-quint) infinite",
+          }}
         />
       )}
       <span
@@ -378,7 +383,10 @@ export function OccupancyRing({
   const c = 2 * Math.PI * r;
   const { tone } = occupancyLevel(value);
   return (
-    <span className={cn("relative inline-grid shrink-0 place-items-center", className)} style={{ width: size, height: size }}>
+    <span
+      className={cn("relative inline-grid shrink-0 place-items-center", className)}
+      style={{ width: size, height: size }}
+    >
       <svg width={size} height={size} className="absolute inset-0 -rotate-90">
         <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={track} strokeWidth={stroke} />
         <motion.circle
@@ -391,7 +399,9 @@ export function OccupancyRing({
           strokeLinecap="round"
           strokeDasharray={estimated ? "2 3.2" : c}
           initial={estimated ? false : { strokeDashoffset: c }}
-          animate={estimated ? undefined : { strokeDashoffset: c * (1 - Math.min(100, value) / 100) }}
+          animate={
+            estimated ? undefined : { strokeDashoffset: c * (1 - Math.min(100, value) / 100) }
+          }
           transition={{ type: "spring", stiffness: 90, damping: 20 }}
         />
       </svg>

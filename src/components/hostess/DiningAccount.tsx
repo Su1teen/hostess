@@ -167,7 +167,8 @@ export function DiningAccount({
     [error, setError] = useState(""),
     [claim, setClaim] = useState(""),
     [selected, setSelected] = useState<DiningOrder | null>(null);
-  const generation = useRef(0), identity = useRef<string | null>(null);
+  const generation = useRef(0),
+    identity = useRef<string | null>(null);
   const load = useCallback(async () => {
     const current = ++generation.current;
     setError("");
@@ -175,8 +176,13 @@ export function DiningAccount({
       const next = await diningApi.profile();
       if (current !== generation.current) return;
       if (identity.current !== next.guest.id) {
-        setWallet(null); setTransactions([]); setOrders([]); setSelected(null); setClaim("");
-        setCursor(null); setOrderCursor(null);
+        setWallet(null);
+        setTransactions([]);
+        setOrders([]);
+        setSelected(null);
+        setClaim("");
+        setCursor(null);
+        setOrderCursor(null);
       }
       identity.current = next.guest.id;
       setProfile(next);
@@ -223,7 +229,10 @@ export function DiningAccount({
     void load();
     const focus = () => void load();
     window.addEventListener("focus", focus);
-    return () => { generation.current++; window.removeEventListener("focus", focus); };
+    return () => {
+      generation.current++;
+      window.removeEventListener("focus", focus);
+    };
   }, [load]);
   if (loading)
     return (
@@ -298,7 +307,9 @@ export function DiningAccount({
                   className="mt-2 min-h-11 underline"
                   onClick={() =>
                     void guestApi<{ claimCode: string }>("/ownership", {})
-                      .then((r) => { if (profile.guest.id === identity.current) setClaim(r.claimCode); })
+                      .then((r) => {
+                        if (profile.guest.id === identity.current) setClaim(r.claimCode);
+                      })
                       .catch(() => setError("Не удалось получить код"))
                   }
                 >
@@ -318,7 +329,9 @@ export function DiningAccount({
                   onClick={() =>
                     void diningApi
                       .receipt(order.id)
-                      .then((r) => { if (profile.guest.id === identity.current) setSelected(r.order); })
+                      .then((r) => {
+                        if (profile.guest.id === identity.current) setSelected(r.order);
+                      })
                       .catch(() => setError("Не удалось открыть заказ"))
                   }
                 >
@@ -404,7 +417,8 @@ export function DiningAccount({
             onClick={() =>
               void guestApi("/logout", {})
                 .then(() => {
-                  generation.current++; identity.current = null;
+                  generation.current++;
+                  identity.current = null;
                   setProfile(null);
                   setWallet(null);
                   setTransactions([]);

@@ -35,7 +35,9 @@ function pickTopDishes(r: Restaurant, count = 4): Dish[] {
   });
   scored.sort((a, b) => b.score - a.score);
   const seen = new Set<string>();
-  return [...r.specials, ...scored.map((s) => s.d)].filter((d) => !seen.has(d.id) && seen.add(d.id)).slice(0, count);
+  return [...r.specials, ...scored.map((s) => s.d)]
+    .filter((d) => !seen.has(d.id) && seen.add(d.id))
+    .slice(0, count);
 }
 
 const guestWord = (n: number) => (n === 1 ? "гость" : n < 5 ? "гостя" : "гостей");
@@ -56,7 +58,10 @@ export function RestaurantSheet({
   const occupancy = occupancyOf(r.id);
   const [dayIdx, setDayIdx] = useState(0);
   const slots = useMemo(() => tableSlots(r.id, occupancy, dayIdx), [r.id, occupancy, dayIdx]);
-  const firstFree = Math.max(0, slots.findIndex((s) => !s.taken));
+  const firstFree = Math.max(
+    0,
+    slots.findIndex((s) => !s.taken),
+  );
   const [guests, setGuests] = useState(2);
   const [timeIdx, setTimeIdx] = useState(firstFree);
   const [zone, setZone] = useState("hall");
@@ -73,7 +78,10 @@ export function RestaurantSheet({
   const freeCount = slots.filter((s) => !s.taken).length;
   const slot = slots[timeIdx]?.taken ? slots[firstFree] : slots[timeIdx];
   const time = slot?.time ?? slots[0].time;
-  const todayFree = useMemo(() => tableSlots(r.id, occupancy, 0).filter((s) => !s.taken), [r.id, occupancy]);
+  const todayFree = useMemo(
+    () => tableSlots(r.id, occupancy, 0).filter((s) => !s.taken),
+    [r.id, occupancy],
+  );
 
   const preorderCount = preorder.reduce((s, p) => s + p.qty, 0);
   const preorderTotal = preorder.reduce((s, p) => s + p.dish.price * p.qty, 0);
@@ -85,19 +93,30 @@ export function RestaurantSheet({
   const changeDay = (i: number) => {
     setDayIdx(i);
     const next = tableSlots(r.id, occupancy, i);
-    setTimeIdx(Math.max(0, next.findIndex((s) => !s.taken)));
+    setTimeIdx(
+      Math.max(
+        0,
+        next.findIndex((s) => !s.taken),
+      ),
+    );
   };
 
   const pickToday = (t: string) => {
     hapticSelect();
     setDayIdx(0);
-    setTimeIdx(Math.max(0, tableSlots(r.id, occupancy, 0).findIndex((s) => s.time === t)));
+    setTimeIdx(
+      Math.max(
+        0,
+        tableSlots(r.id, occupancy, 0).findIndex((s) => s.time === t),
+      ),
+    );
     const sc = scrollRef.current;
     const el = bookRef.current;
     if (sc && el) sc.scrollTo({ top: el.offsetTop + 260, behavior: "smooth" });
   };
 
-  const proceed = () => onProceed({ restaurant: r, table, day: days[dayIdx], time, guests, preorder });
+  const proceed = () =>
+    onProceed({ restaurant: r, table, day: days[dayIdx], time, guests, preorder });
 
   return (
     <>
@@ -109,7 +128,11 @@ export function RestaurantSheet({
         live={r.live}
         dock={
           <>
-            <CartLine count={preorderCount} total={preorderTotal} onOpen={() => setCartOpen(true)} />
+            <CartLine
+              count={preorderCount}
+              total={preorderTotal}
+              onOpen={() => setCartOpen(true)}
+            />
             {fullyBooked ? (
               <WaitlistButton
                 input={{
@@ -129,7 +152,9 @@ export function RestaurantSheet({
                     {days[dayIdx]} · {time} · {guests} {guestWord(guests)}
                   </p>
                   <p className="truncate text-[16px] font-semibold tracking-[-0.015em]">
-                    {table ? `Стол ${table} · ${zones.find((z) => z.key === zone)?.label}` : "Любой стол"}
+                    {table
+                      ? `Стол ${table} · ${zones.find((z) => z.key === zone)?.label}`
+                      : "Любой стол"}
                   </p>
                 </div>
                 <Button size="lg" onClick={proceed} className="px-7">
@@ -188,7 +213,9 @@ export function RestaurantSheet({
               ))}
             </div>
           ) : (
-            <p className="t-caption px-5">Сегодня всё занято — лист ожидания сообщит, как только стол освободится.</p>
+            <p className="t-caption px-5">
+              Сегодня всё занято — лист ожидания сообщит, как только стол освободится.
+            </p>
           )}
         </div>
 
@@ -196,7 +223,11 @@ export function RestaurantSheet({
         <div className="mt-8 px-5">
           <p className={`t-body text-ink-2 ${moreText ? "" : "line-clamp-3"}`}>{r.description}</p>
           {!moreText && (
-            <button type="button" onClick={() => setMoreText(true)} className="mt-1 text-[14px] font-medium text-ink">
+            <button
+              type="button"
+              onClick={() => setMoreText(true)}
+              className="mt-1 text-[14px] font-medium text-ink"
+            >
               Читать дальше
             </button>
           )}
@@ -237,8 +268,8 @@ export function RestaurantSheet({
             </div>
             {fullyBooked ? (
               <p className="t-caption border-y border-line py-4">
-                Все столы на {days[dayIdx].toLowerCase()} заняты. Встаньте в лист ожидания — мы сообщим, как только
-                освободится место.
+                Все столы на {days[dayIdx].toLowerCase()} заняты. Встаньте в лист ожидания — мы
+                сообщим, как только освободится место.
               </p>
             ) : (
               <div className="grid grid-cols-3 gap-2">
@@ -273,7 +304,9 @@ export function RestaurantSheet({
           <div>
             <div className="flex items-baseline justify-between px-5 pb-3">
               <p className="t-micro">Зона и стол</p>
-              <p className="text-[12px] text-ink-3">{table ? `Выбран стол ${table}` : "Любой стол"}</p>
+              <p className="text-[12px] text-ink-3">
+                {table ? `Выбран стол ${table}` : "Любой стол"}
+              </p>
             </div>
             <div className="rail gap-2 pb-3">
               {zones.map((z) => (

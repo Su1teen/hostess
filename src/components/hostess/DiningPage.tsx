@@ -144,7 +144,8 @@ export function DiningPage({
         void diningApi
           .receipt(saved.receipt.id, saved.receipt.token)
           .then((r) => {
-            if (active && r.order.venueCode === venue && r.order.tableCode === table) setOrder(r.order);
+            if (active && r.order.venueCode === venue && r.order.tableCode === table)
+              setOrder(r.order);
           })
           .catch(() => {});
     } catch {

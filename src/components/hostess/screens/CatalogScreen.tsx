@@ -139,7 +139,11 @@ export function CatalogSections({
   }
 
   const stackTitle =
-    category === "food" ? "Сегодня вечером" : category === "concerts" ? "Афиша недели" : "Лучшее рядом";
+    category === "food"
+      ? "Сегодня вечером"
+      : category === "concerts"
+        ? "Афиша недели"
+        : "Лучшее рядом";
 
   const availableNow = [...restaurants]
     .filter((r) => r.occupancy < 98)

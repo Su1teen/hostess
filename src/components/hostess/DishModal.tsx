@@ -54,12 +54,16 @@ export function DishModal({
     >
       <Photo src={dish.image} alt={dish.name} className="aspect-[4/3] w-full" eager />
       <div className="px-5 pb-6 pt-6">
-        {hl && <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-brass">{hl}</p>}
+        {hl && (
+          <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-brass">{hl}</p>
+        )}
         <h2 className="t-title mt-1.5">{dish.name}</h2>
         <p className="t-body mt-3 text-ink-2">{dish.desc}</p>
 
         <div className="mt-4 flex items-baseline gap-3">
-          <span className="t-num text-[20px] font-semibold tracking-[-0.02em]">{money(dish.price)}</span>
+          <span className="t-num text-[20px] font-semibold tracking-[-0.02em]">
+            {money(dish.price)}
+          </span>
           {dish.weight > 0 && <span className="t-num text-[13px] text-ink-3">{dish.weight} г</span>}
         </div>
 
@@ -83,7 +87,9 @@ export function DishModal({
           <div className="mt-6">
             <p className="t-micro">Состав</p>
             <p className="t-callout mt-2 text-ink-2">
-              {dish.ingredients.map((s, i) => (i === 0 ? s[0].toUpperCase() + s.slice(1) : s)).join(", ")}
+              {dish.ingredients
+                .map((s, i) => (i === 0 ? s[0].toUpperCase() + s.slice(1) : s))
+                .join(", ")}
             </p>
           </div>
         )}
