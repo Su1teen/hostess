@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   diningApi,
   kzt,
@@ -167,15 +167,25 @@ export function DiningAccount({
     [error, setError] = useState(""),
     [claim, setClaim] = useState(""),
     [selected, setSelected] = useState<DiningOrder | null>(null);
+  const generation = useRef(0), identity = useRef<string | null>(null);
   const load = useCallback(async () => {
+    const current = ++generation.current;
     setError("");
     try {
-      setProfile(await diningApi.profile());
+      const next = await diningApi.profile();
+      if (current !== generation.current) return;
+      if (identity.current !== next.guest.id) {
+        setWallet(null); setTransactions([]); setOrders([]); setSelected(null); setClaim("");
+        setCursor(null); setOrderCursor(null);
+      }
+      identity.current = next.guest.id;
+      setProfile(next);
       const [w, t, o] = await Promise.allSettled([
         diningApi.wallet(),
         diningApi.transactions(),
         diningApi.orders(),
       ]);
+      if (current !== generation.current) return;
       if (w.status === "fulfilled") setWallet(w.value);
       else setWallet(null);
       if (t.status === "fulfilled") {
@@ -195,6 +205,8 @@ export function DiningAccount({
       if ([w, t, o].some((r) => r.status === "rejected"))
         setError("Часть данных пока недоступна. Обновите кабинет позже.");
     } catch (e) {
+      if (current !== generation.current) return;
+      identity.current = null;
       setProfile(null);
       setWallet(null);
       setTransactions([]);
@@ -204,14 +216,14 @@ export function DiningAccount({
       if (!(e instanceof GuestApiError && e.status === 401))
         setError("Не удалось проверить сессию. Попробуйте снова.");
     } finally {
-      setLoading(false);
+      if (current === generation.current) setLoading(false);
     }
   }, []);
   useEffect(() => {
     void load();
     const focus = () => void load();
     window.addEventListener("focus", focus);
-    return () => window.removeEventListener("focus", focus);
+    return () => { generation.current++; window.removeEventListener("focus", focus); };
   }, [load]);
   if (loading)
     return (
@@ -286,7 +298,7 @@ export function DiningAccount({
                   className="mt-2 min-h-11 underline"
                   onClick={() =>
                     void guestApi<{ claimCode: string }>("/ownership", {})
-                      .then((r) => setClaim(r.claimCode))
+                      .then((r) => { if (profile.guest.id === identity.current) setClaim(r.claimCode); })
                       .catch(() => setError("Не удалось получить код"))
                   }
                 >
@@ -306,7 +318,7 @@ export function DiningAccount({
                   onClick={() =>
                     void diningApi
                       .receipt(order.id)
-                      .then((r) => setSelected(r.order))
+                      .then((r) => { if (profile.guest.id === identity.current) setSelected(r.order); })
                       .catch(() => setError("Не удалось открыть заказ"))
                   }
                 >
@@ -327,6 +339,7 @@ export function DiningAccount({
                   void diningApi
                     .orders(orderCursor)
                     .then((r) => {
+                      if (profile.guest.id !== identity.current) return;
                       setOrders((old) => [
                         ...old,
                         ...r.orders.filter((o) => !old.some((x) => x.id === o.id)),
@@ -372,6 +385,7 @@ export function DiningAccount({
                   void diningApi
                     .transactions(cursor)
                     .then((r) => {
+                      if (profile.guest.id !== identity.current) return;
                       setTransactions((old) => [
                         ...old,
                         ...r.transactions.filter((t) => !old.some((x) => x.id === t.id)),
@@ -390,6 +404,7 @@ export function DiningAccount({
             onClick={() =>
               void guestApi("/logout", {})
                 .then(() => {
+                  generation.current++; identity.current = null;
                   setProfile(null);
                   setWallet(null);
                   setTransactions([]);

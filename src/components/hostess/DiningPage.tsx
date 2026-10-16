@@ -70,6 +70,7 @@ export function DiningPage({
     [uncertain, setUncertain] = useState(false);
   const attempt = useRef<Attempt | null>(null),
     lock = useRef(false),
+    sessionGeneration = useRef(0),
     sessionIdentity = useRef<string | undefined>(undefined);
   const fresh = menuFresh(menu, now),
     validQuote = quoteFresh(quote, menu, now);
@@ -86,8 +87,10 @@ export function DiningPage({
   );
 
   const refreshSession = useCallback(async () => {
+    const current = ++sessionGeneration.current;
     try {
       const p = await diningApi.profile();
+      if (current !== sessionGeneration.current) return;
       const identity = p.guest.id;
       if (sessionIdentity.current !== identity && !attempt.current) {
         setQuote(null);
@@ -97,11 +100,13 @@ export function DiningPage({
       setProfile(p);
       setSessionKnown(true);
       try {
-        setWallet(await diningApi.wallet());
+        const w = await diningApi.wallet();
+        if (current === sessionGeneration.current) setWallet(w);
       } catch {
-        setWallet(null);
+        if (current === sessionGeneration.current) setWallet(null);
       }
     } catch (e) {
+      if (current !== sessionGeneration.current) return;
       setProfile(null);
       setWallet(null);
       setRedeem(0);
@@ -139,7 +144,7 @@ export function DiningPage({
         void diningApi
           .receipt(saved.receipt.id, saved.receipt.token)
           .then((r) => {
-            if (active) setOrder(r.order);
+            if (active && r.order.venueCode === venue && r.order.tableCode === table) setOrder(r.order);
           })
           .catch(() => {});
     } catch {
@@ -212,6 +217,7 @@ export function DiningPage({
     window.addEventListener("focus", focus);
     return () => {
       active = false;
+      sessionGeneration.current++;
       controller?.abort();
       clearInterval(interval);
       clearInterval(tick);

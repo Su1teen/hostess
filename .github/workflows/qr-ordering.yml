@@ -1,0 +1,61 @@
+name: QR ordering checks
+on:
+  pull_request:
+  push:
+    branches: [main, codex/qr-table-ordering]
+permissions:
+  contents: read
+jobs:
+  normalize:
+    if: github.event_name == 'push' && github.ref_name == 'codex/qr-table-ordering'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      sha: ${{ steps.source.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/qr-table-ordering
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-audit --no-fund
+      - name: Normalize existing Prettier formatting
+        run: npx eslint . --fix
+      - id: source
+        name: Save formatting and identify exact source
+        run: |
+          if ! git diff --quiet -- . ':!package-lock.json'; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add src tests docs .prettierrc package.json public .github
+            git commit -m "Normalize formatting for QR ordering checks"
+            git push origin HEAD:codex/qr-table-ordering
+          fi
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+  verify:
+    needs: normalize
+    if: always() && (needs.normalize.result == 'success' || needs.normalize.result == 'skipped')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.normalize.outputs.sha || github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.13
+      - run: npm install --no-audit --no-fund
+      - run: echo "Testing source $(git rev-parse HEAD)"
+      - run: npm test
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run build
+      - name: Install isolated UI test dependency
+        run: npm install --no-save --package-lock=false playwright@1.51.1 && npx playwright install --with-deps chromium
+      - name: Mobile browser fixtures
+        run: node tests/dine-in.browser.mjs
