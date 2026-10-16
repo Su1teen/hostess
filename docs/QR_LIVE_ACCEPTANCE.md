@@ -120,3 +120,5 @@ Hostess: deployment docs, явное имя существующего Worker. C
 ## Проверка после push
 
 Данные добавляются только после фактического push и наблюдения ответа сервера; успешная сборка сама по себе не означает live acceptance.
+
+Первый push: Hostess `e284c8259940dbe6c9137bd4806594753458e5fd`, Command Center после сохранения нового upstream `97e9d91a47d9ae4211919dc5eb49e524235fad95`. GitHub Hostess unit/typecheck/lint/build прошли, browser steps еще выполнялись на момент наблюдения. Cloudflare build `7857c232-7ea8-4ed4-8759-f79710f64362` — **FAIL**, summary не содержит лога причины. На обоих hostname фактически остался SHA `6144a23baa822bdb8d72a3f06ae7178125ebd4d3`; guest BFF по-прежнему 503. Обнаружено, что при добавлении Playwright был обновлен npm lockfile, но не bun.lock; синхронизирован Bun lockfile и добавлена frozen-lockfile проверка в CI. Это подтвержденный дефект воспроизводимости установки, вероятная причина быстрой Cloudflare build failure; окончательная причина без Cloudflare log не утверждается.
