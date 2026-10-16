@@ -195,7 +195,7 @@ describe("Cloudflare same-origin BFF", () => {
   test("crawler GET renders inert claim page, no SSR/consume and no caching", () => {
     const response = claimPage(new Request("https://hostess.test/auth/claim"));
     expect(response?.status).toBe(200);
-    expect(response?.headers.get("cache-control")).toBe("no-store");
+    expect(response?.headers.get("cache-control")).toBe("no-store, no-transform");
     expect(response?.headers.get("content-security-policy")).toContain("frame-ancestors 'none'");
     expect(response?.headers.get("referrer-policy")).toBe("no-referrer");
   });

@@ -109,6 +109,16 @@ export async function proxyHostessApi(
     const ip = request.headers.get("cf-connecting-ip");
     // Trusted CF header is available on Workers; local preview shares a local bucket.
     headers.set("x-hostess-client-id", ip ?? "local");
+    // Receipt capabilities belong in a header, never in access-log URLs.
+    if (/^dine-in\/orders\/[a-f0-9-]{36}$/.test(resource)) {
+      const receipt =
+        request.headers.get("x-hostess-receipt-token") ?? url.searchParams.get("receiptToken");
+      url.searchParams.delete("receiptToken");
+      if (receipt) {
+        if (!/^[A-Za-z0-9_-]{43}$/.test(receipt)) return reply(400, "Некорректный доступ к заказу");
+        headers.set("x-hostess-receipt-token", receipt);
+      }
+    }
   }
   let body: Uint8Array | undefined;
   if (request.method !== "GET") {

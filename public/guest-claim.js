@@ -23,6 +23,20 @@
       const result = await response.json();
       if (!response.ok)
         throw new Error(result.error?.message || "Ссылка недоступна. Запросите новую в WhatsApp.");
+      // The claim can switch accounts. Keep carts, discard the previous identity's capabilities.
+      try {
+        for (const key of Object.keys(sessionStorage)) {
+          if (!key.startsWith("hostess:dining:") || key === "hostess:dining:return") continue;
+          try {
+            const saved = JSON.parse(sessionStorage.getItem(key));
+            sessionStorage.setItem(key, JSON.stringify({ cart: saved?.cart ?? {} }));
+          } catch {
+            sessionStorage.removeItem(key);
+          }
+        }
+      } catch {
+        /* Storage is optional in private browsing. */
+      }
       let returnTo = "/guest";
       try {
         const saved = sessionStorage.getItem("hostess:dining:return");

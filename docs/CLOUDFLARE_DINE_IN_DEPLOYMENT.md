@@ -2,6 +2,8 @@
 
 ## Server bindings
 
+Production custom domain: https://hostes.online (one s). Existing Worker: hostess; alternate address: https://hostess.sultansovetov2003.workers.dev. vite.config.ts explicitly fixes the Worker name to hostess to match the deployed service. HOSTESS_PUBLIC_ORIGIN on Command Center must be https://hostes.online for QR and WhatsApp magic links; changing this origin preserves every stored token.
+
 ```dotenv
 BOOKING_API_ORIGIN=https://hostess-command-center-production.up.railway.app
 EXCHANGE_API_ORIGIN=https://hostess-xoxo-production.up.railway.app
@@ -18,7 +20,7 @@ The existing vite.config.ts keeps Cloudflare keep_vars=true and the two known Ra
 2. Bootstrap its 17 resources and persistent QR records once. Redeployments must retain the tokens.
 3. Compare the published server DINE_IN_API_CONTRACT with the explicit client interface in QR_ORDERING.md, including envelopes, numeric KZT units and anonymous binding.
 4. Pass tests/typecheck/lint and Nitro Cloudflare build; deploy Hostess with both origins and the shared key.
-5. Confirm hostess.online serves this Worker. Download/print the actual 17 QR panels from Command Center; Hostess does not create a second token set.
+5. Confirm hostes.online serves this Worker. Download/print the actual 17 QR panels from Command Center; Hostess does not create a second token set.
 6. Run real smoke tests before venue operation.
 
 ## Real smoke tests
@@ -43,4 +45,4 @@ QR 404/410: ask staff to check validity. Profile/wallet 401: anonymous UI. Inval
 
 ## Evidence boundary
 
-Automated CI uses isolated API fixtures. No successful live Railway order, persisted 17-QR smoke run or Cloudflare deployment is asserted by this source change. The previous local browser failed to start and direct network probes were restricted. Record deployed SHA and real smoke evidence separately after backend rollout.
+See QR_LIVE_ACCEPTANCE.md for the dated deployment/header evidence, real read-only browser results and remaining blockers. Automated checkout tests use isolated fixtures/PostgreSQL. A passing CI run does not establish that Cloudflare's HOSTESS_BFF_KEY matches Railway or that real QR URLs and guest sessions work.

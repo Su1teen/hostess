@@ -11,6 +11,7 @@ import type { NitroConfig } from "nitro/types";
 const cloudflare: NonNullable<NitroConfig["cloudflare"]> = {
   nodeCompat: true,
   wrangler: {
+    name: "hostess",
     // Preserve dashboard settings across generated-config deployments.
     keep_vars: true,
     vars: {

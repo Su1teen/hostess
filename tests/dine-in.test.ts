@@ -111,6 +111,25 @@ describe("QR and price boundaries", () => {
 });
 
 describe("typed transport and server authority", () => {
+  test("receipt capability never appears in the request URL", async () => {
+    globalThis.fetch = (async (url: RequestInfo | URL, init?: RequestInit) => {
+      expect(String(url)).toBe("/api/guest/v1/dine-in/orders/order-1");
+      expect(new Headers(init?.headers).get("x-hostess-receipt-token")).toBe("a".repeat(43));
+      return json({
+        order: {
+          ...quote,
+          id: "order-1",
+          orderNumber: "1",
+          createdAt: new Date().toISOString(),
+          venueCode: "xoxo",
+          tableCode: "03",
+          status: "new",
+          paymentStatus: "assumed_paid",
+        },
+      });
+    }) as typeof fetch;
+    await diningApi.receipt("order-1", "a".repeat(43));
+  });
   test("quote sends IDs, quantities and requested redemption, never guestId or client totals", async () => {
     globalThis.fetch = (async (_url: RequestInfo | URL, init?: RequestInit) => {
       expect(JSON.parse(String(init?.body))).toEqual({
@@ -179,6 +198,54 @@ describe("typed transport and server authority", () => {
 });
 
 describe("dine-in BFF security", () => {
+  test("receipt header is scoped and legacy query is stripped before Railway", async () => {
+    globalThis.fetch = (async (url: RequestInfo | URL, init?: RequestInit) => {
+      expect(String(url)).not.toContain("receiptToken");
+      expect(new Headers(init?.headers).get("x-hostess-receipt-token")).toBe("r".repeat(43));
+      return json({ ok: true });
+    }) as typeof fetch;
+    const path =
+      "https://hostess.test/api/guest/v1/dine-in/orders/11111111-1111-4111-8111-111111111111";
+    expect(
+      (
+        await proxyHostessApi(
+          new Request(path, { headers: { "x-hostess-receipt-token": "r".repeat(43) } }),
+          runtime,
+        )
+      )?.status,
+    ).toBe(200);
+    expect(
+      (await proxyHostessApi(new Request(path + "?receiptToken=" + "r".repeat(43)), runtime))
+        ?.status,
+    ).toBe(200);
+    expect(
+      (
+        await proxyHostessApi(
+          new Request(path, { headers: { "x-hostess-receipt-token": "bad" } }),
+          runtime,
+        )
+      )?.status,
+    ).toBe(400);
+  });
+  test("multiple guest and anonymous Set-Cookie headers survive together including deletion", async () => {
+    globalThis.fetch = (async () => {
+      const headers = new Headers({ "content-type": "application/json" });
+      headers.append(
+        "set-cookie",
+        "__Host-hostess-guest=" + "g".repeat(43) + "; Path=/; Secure; HttpOnly; SameSite=Lax",
+      );
+      headers.append(
+        "set-cookie",
+        "__Host-hostess-dining=; Path=/; Secure; HttpOnly; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT",
+      );
+      return new Response("{}", { headers });
+    }) as typeof fetch;
+    const response = await proxyHostessApi(
+      new Request("https://hostess.test/api/guest/v1/profile"),
+      runtime,
+    );
+    expect(response?.headers.getSetCookie()).toHaveLength(2);
+  });
   test.each([
     ["dine-in/menu?venue=xoxo", "GET"],
     ["dine-in/tables/" + "a".repeat(43), "GET"],

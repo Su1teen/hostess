@@ -105,17 +105,20 @@ export async function guestApi<T>(
   body?: unknown,
   method = body ? "POST" : "GET",
   signal?: AbortSignal,
+  headers?: HeadersInit,
 ): Promise<T> {
   const response = await fetch(`/api/guest/v1${path}`, {
     method,
     credentials: "same-origin",
     cache: "no-store",
+    headers: {
+      ...Object.fromEntries(new Headers(headers)),
+      ...(body ? { "Content-Type": "application/json" } : {}),
+    },
     signal: signal
       ? AbortSignal.any([signal, AbortSignal.timeout(15_000)])
       : AbortSignal.timeout(15_000),
-    ...(body
-      ? { headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }
-      : {}),
+    ...(body ? { body: JSON.stringify(body) } : {}),
   });
   let data;
   try {

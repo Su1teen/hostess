@@ -68,7 +68,7 @@ export default {
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
       if (new URL(request.url).pathname.startsWith("/v/")) {
-        response.headers.set("cache-control", "no-store");
+        response.headers.set("cache-control", "no-store, no-transform");
         response.headers.set("referrer-policy", "no-referrer");
         response.headers.set("x-robots-tag", "noindex, nofollow, noarchive");
       }

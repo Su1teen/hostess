@@ -99,9 +99,10 @@ async function read<S extends z.ZodTypeAny>(
   path: string,
   body?: unknown,
   signal?: AbortSignal,
+  headers?: HeadersInit,
 ): Promise<z.infer<S>> {
   const result = schema.safeParse(
-    await guestApi<unknown>(path, body, body === undefined ? "GET" : "POST", signal),
+    await guestApi<unknown>(path, body, body === undefined ? "GET" : "POST", signal, headers),
   );
   if (!result.success)
     throw new GuestApiError(
@@ -146,7 +147,10 @@ export const diningApi = {
   receipt: (orderId: string, receiptToken?: string) =>
     read(
       z.object({ order: orderSchema }),
-      `/dine-in/orders/${encodeURIComponent(orderId)}${receiptToken ? `?receiptToken=${encodeURIComponent(receiptToken)}` : ""}`,
+      `/dine-in/orders/${encodeURIComponent(orderId)}`,
+      undefined,
+      undefined,
+      receiptToken ? { "x-hostess-receipt-token": receiptToken } : undefined,
     ),
 };
 export function matchesTable(context: DiningTable, venue: string, table: string) {
@@ -188,4 +192,6 @@ export const needsRequote = (error: unknown) =>
     "BALANCE_CHANGED",
     "INSUFFICIENT_BALANCE",
     "GUEST_CHANGED",
+    "OWNER_CHANGED",
+    "SESSION_CHANGED",
   ].includes(error.code);

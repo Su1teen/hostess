@@ -1,7 +1,9 @@
 // Isolated fixtures: this is not a production or PostgreSQL acceptance test.
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { chromium } from "playwright";
+import { chromium, webkit, devices } from "playwright";
+const engine = process.env.BROWSER_ENGINE ?? "chromium";
+const device = process.env.BROWSER_DEVICE ?? "mobile";
 const port = 5187,
   origin = "http://127.0.0.1:" + port;
 const server = spawn(
@@ -21,7 +23,7 @@ try {
   let up = false;
   for (let i = 0; i < 60; i++) {
     try {
-      const r = await fetch(origin + "/", { signal: AbortSignal.timeout(2000) });
+      const r = await fetch(origin + "/guest-claim.css", { signal: AbortSignal.timeout(2000) });
       if (r.ok) {
         up = true;
         break;
@@ -33,13 +35,16 @@ try {
     await new Promise((r) => setTimeout(r, 500));
   }
   assert(up, "Vite did not start: " + logs);
-  browser = await chromium.launch({ headless: true });
+  browser = await { chromium, webkit }[engine].launch({ headless: true });
   const context = await browser.newContext({
-    viewport: { width: 375, height: 812 },
+    ...(device === "desktop"
+      ? { viewport: { width: 1440, height: 900 } }
+      : devices[engine === "webkit" ? "iPhone 13" : "Pixel 7"]),
     reducedMotion: "reduce",
   });
   const page = await context.newPage(),
     failures = [];
+  page.setDefaultNavigationTimeout(60000);
   page.on("pageerror", (e) => failures.push(e.message));
   const tokens = new Map(
     Array.from({ length: 17 }, (_, i) => {
@@ -54,6 +59,7 @@ try {
     quotesN = 0,
     ordersN = 0,
     loseResponse = false,
+    menuOffline = false,
     expireNext = false,
     lastInput;
   const quotes = new Map(),
@@ -88,13 +94,14 @@ try {
             table: {
               resourceId: "resource-" + code,
               code,
-              name: "Стол " + code,
+              name: "Авторское имя стола " + code,
               zoneName: "Главный зал",
             },
           })
         : send({ error: { code: "QR_INVALID", message: "QR недействителен" } }, 410);
     }
-    if (p === "/dine-in/menu")
+    if (p === "/dine-in/menu") {
+      if (menuOffline) return send({ error: { code: "EXCHANGE_UNAVAILABLE" } }, 503);
       return send({
         generatedAt: new Date().toISOString(),
         status: "ok",
@@ -110,8 +117,15 @@ try {
             category: "Напитки",
           },
           { id: "disabled", name: "Нет в наличии", price: 1000, isAvailable: false },
+          {
+            id: "long-name",
+            name: "Очень длинное название авторского напитка с подробным описанием ингредиентов и способа приготовления",
+            price: 1900,
+            isAvailable: true,
+          },
         ],
       });
+    }
     if (p === "/loyalty/wallet")
       return profile
         ? send({
@@ -196,7 +210,9 @@ try {
   for (let n = 1; n <= 17; n++) {
     const c = String(n).padStart(2, "0");
     await page.goto(urlFor(c));
+    await page.waitForLoadState("networkidle");
     await page.getByText("Стол №" + c, { exact: true }).waitFor();
+    await page.getByText("Авторское имя стола " + c, { exact: true }).waitFor();
     assert(
       await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
       "horizontal overflow " + c,
@@ -240,6 +256,16 @@ try {
   await page.getByRole("button", { name: /^Заказать ·/ }).waitFor();
   assert.equal(lastInput.items[0].quantity, 3);
   assert.equal(lastInput.redeemAmount, 1000);
+  round = "round-2";
+  await page.getByRole("button", { name: /^Заказать ·/ }).click();
+  await page
+    .getByRole("alert")
+    .filter({ hasText: "Цена или бонусный баланс обновились" })
+    .waitFor();
+  assert.equal(ordersN, 1, "REQUOTE requires a new explicit acceptance");
+  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await page.getByRole("button", { name: "Проверить сумму", exact: true }).click();
+  await page.getByRole("button", { name: /^Заказать ·/ }).waitFor();
   await page.getByRole("button", { name: /^Заказать ·/ }).click();
   await page.getByRole("heading", { name: "Заказ #2 принят" }).waitFor();
   const o = [...orders.values()].at(-1);
@@ -250,9 +276,42 @@ try {
   await page.getByRole("button", { name: "Выйти из гостевого аккаунта", exact: true }).click();
   await page.getByText("Сохранить бонусы", { exact: true }).waitFor();
   assert.equal(await page.getByText("Тестовый гость", { exact: true }).count(), 0);
+  assert(
+    await page.evaluate(() =>
+      Object.keys(sessionStorage)
+        .filter((k) => k.startsWith("hostess:dining:") && k !== "hostess:dining:return")
+        .every((k) => {
+          const saved = JSON.parse(sessionStorage.getItem(k));
+          return !saved.receipt && !saved.pending;
+        }),
+    ),
+    "logout removes receipt capabilities and pending attempts for every table",
+  );
+  await page.reload();
+  assert(await page.getByRole("button", { name: /Корзина · 0/ }).isDisabled());
+  menuOffline = true;
+  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await page.getByRole("status").filter({ hasText: "Биржа временно недоступна" }).waitFor();
+  assert(
+    await page.getByRole("button", { name: "Добавить Напиток XOXO", exact: true }).isDisabled(),
+  );
+  menuOffline = false;
+  await page.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
+  await page.waitForFunction(() =>
+    [...document.querySelectorAll("button")].some(
+      (b) => b.getAttribute("aria-label") === "Добавить Напиток XOXO" && !b.disabled,
+    ),
+  );
+  if (device === "desktop") {
+    await page.keyboard.press("Tab");
+    assert(await page.evaluate(() => document.activeElement?.tagName === "BUTTON"));
+  }
+  await page.goto(origin + "/v/xoxo/t/03/" + "z".repeat(43));
+  await page.getByRole("alert").filter({ hasText: "QR недействителен" }).waitFor();
+  assert.equal(await page.getByRole("button", { name: /^Заказать ·/ }).count(), 0);
   assert.deepEqual(failures, []);
   console.log(
-    "Mobile QR UI PASS: 17 tables, direct load/reload, cart isolation, disabled item, anonymous checkout, interrupted response retry, bootstrap, expired quote, redemption, receipt, logout.",
+    `${engine}/${device} QR UI PASS: 17 fixture tables, direct load/reload, table names, cart isolation, disabled QR/item, anonymous checkout, interrupted response retry, bootstrap, expired quote, redemption, receipt, logout clears saved capabilities.`,
   );
 } finally {
   if (browser) await browser.close();

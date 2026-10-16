@@ -1,11 +1,14 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { guestApi, statusLabel, venueDate, type GuestProfile } from "@/lib/guest-api";
 import { GuestBooking } from "./GuestBooking";
 import { DiningAccount } from "./DiningAccount";
 import { restaurants } from "@/data/hostess";
+import { clearDiningSession } from "@/lib/dining-session";
 const venue = restaurants.find((r) => r.id === "xoxo")!;
 
 export function GuestPortal() {
+  const generation = useRef(0),
+    identity = useRef<string | null>(null);
   const [data, setData] = useState<GuestProfile | null>(null),
     [error, setError] = useState(""),
     [loading, setLoading] = useState(true),
@@ -13,14 +16,26 @@ export function GuestPortal() {
     [busy, setBusy] = useState(false),
     [claimCode, setClaimCode] = useState<string | null>(null);
   const load = async () => {
+    const current = ++generation.current;
     try {
-      setData(await guestApi<GuestProfile>("/profile"));
+      const next = await guestApi<GuestProfile>("/profile");
+      if (current !== generation.current) return;
+      if (identity.current !== next.guest.id) {
+        setClaimCode(null);
+        setReschedule(null);
+      }
+      identity.current = next.guest.id;
+      setData(next);
       setError("");
     } catch (e) {
+      if (current !== generation.current) return;
       setData(null);
+      identity.current = null;
+      setClaimCode(null);
+      setReschedule(null);
       setError(e instanceof Error ? e.message : "Кабинет недоступен");
     } finally {
-      setLoading(false);
+      if (current === generation.current) setLoading(false);
     }
   };
   useEffect(() => {
@@ -28,7 +43,10 @@ export function GuestPortal() {
     const timer = setInterval(() => {
       if (!document.hidden) void load();
     }, 30000);
-    return () => clearInterval(timer);
+    return () => {
+      generation.current++;
+      clearInterval(timer);
+    };
   }, []);
   if (loading)
     return (
@@ -106,7 +124,11 @@ export function GuestPortal() {
           )}
         </div>
       )}
-      <DiningAccount showIdentity={false} onSessionChanged={() => void load()} />
+      <DiningAccount
+        key={data.guest.id}
+        showIdentity={false}
+        onSessionChanged={() => void load()}
+      />
       {reschedule ? (
         <GuestBooking
           rescheduleId={reschedule}
@@ -212,6 +234,11 @@ export function GuestPortal() {
           className="min-h-11 text-sm text-ink-3"
           onClick={() => {
             void guestApi("/logout", {}).then(() => {
+              generation.current++;
+              identity.current = null;
+              setClaimCode(null);
+              setReschedule(null);
+              clearDiningSession();
               setData(null);
               setError("Вы вышли из кабинета");
             });

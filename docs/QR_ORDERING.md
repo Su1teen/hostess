@@ -9,9 +9,9 @@ XOXO owns exchange products and published rounds. Command Center owns QR tokens,
 
 ## Client API contract
 
-At implementation time Command Center main 51e61cf7b14cec92274c5acc911821a664dd087e had no dine-in implementation or docs/DINE_IN_API_CONTRACT.md. The following is an explicit client interface, not evidence that the external server has implemented it. Compare it with the server's final contract before venue use; adapt the typed boundary if its envelopes differ while preserving its ownership and pricing invariants.
+Audited against Command Center main 8fdac23fcfeb45b78f724f01ddb4e84a343fa2ee and its docs/DINE_IN_API_CONTRACT.md. Its real API integration suite also supports HOSTESS_CONSUMER_ROOT pointing to a Hostess checkout, so current consumer schemas can be tested directly. See QR_LIVE_ACCEPTANCE.md for the separate production evidence.
 
-All money amounts are numeric **major KZT units**, never tiyn integers or numeric strings. Every new response is validated by Zod in src/lib/dine-in-api.ts.
+Hostess reads numeric **major KZT display aliases**. Canonical backend fields ending Minor are tiyn (persisted bigint values are strings); the backend converts these once to KZT. Hostess never divides or multiplies display aliases by 100. Every new response is validated by Zod in src/lib/dine-in-api.ts.
 
 | Path under /api/guest/v1 | Method | Interface |
 | --- | --- | --- |
@@ -19,7 +19,7 @@ All money amounts are numeric **major KZT units**, never tiyn integers or numeri
 | /dine-in/menu?venue=xoxo | GET | {generatedAt,status:"ok" or "no_published_round",currentRound:{id,endsAt} or null,products:[{id,name,price,isAvailable,originalPrice?,changePercent?,category?,imageUrl?}]} |
 | /dine-in/quotes | POST | {qrToken,items:[{productId,quantity}],redeemAmount} → quote |
 | /dine-in/orders | POST | {quoteId,idempotencyKey,checkoutToken?} → {order} |
-| /dine-in/orders/:id?receiptToken=... | GET | {order}; requires guest ownership or limited anonymous capability |
+| /dine-in/orders/:id | GET | {order}; guest/anonymous cookie or x-hostess-receipt-token header; no capability in the URL |
 | /dine-in/orders?before=... | GET | {orders:[order],nextCursor?}; authenticated history collection |
 | /loyalty/wallet?venue=xoxo | GET | {balance,expiringAmount,nextExpiresAt,lots:[{id,remaining,expiresAt}]} |
 | /loyalty/transactions?venue=xoxo&before=... | GET | {transactions:[{id,type,amount,createdAt,expiresAt?,orderId?}],nextCursor?} |
@@ -42,13 +42,15 @@ GET /dine-in/orders is an additional collection read required by the account. An
 
 Menu polling runs every 20 seconds while visible and on focus. Local timers disable checkout after 60-second snapshot freshness, quote expiry or round end without waiting for another HTTP response. During exchange failure the last menu is read-only.
 
+Foreground visibility changes refresh immediately. Quote TTL is at most 120 seconds, bounded by the published round end; the backend refuses a quote in the last five seconds. Current Command Center uses the anonymous dining cookie and strict {quoteId,idempotencyKey} checkout body; it does not issue checkoutToken. Ledger cursors are timestamp|UUID opaque strings.
+
 ## Identity and privacy
 
 AuthContext's guest/business role is only interface selection. /profile determines anonymous/provisional/verified identity. Anonymous orders cannot spend or earn loyalty. /bootstrap creates a provisional session; entering another guest's phone cannot open that wallet. Existing ownership and WhatsApp claim endpoints establish contact ownership.
 
-Per-venue/table/token sessionStorage holds cart drafts, pending retries and limited anonymous receipt capabilities, never authoritative loyalty/payment state. The flow remounts when QR context changes. Restored receipts must match the current table/venue. The claim page can return to a strictly validated same-origin QR path. Logout clears personal data and stale asynchronous responses cannot repopulate another account. QR HTML and APIs use no-store/no-referrer and QR pages are excluded from indexing.
+Per-venue/table/token sessionStorage holds cart drafts, pending retries and limited anonymous receipt capabilities, never authoritative loyalty/payment state. The flow remounts when QR context changes. Restored receipts must match the current table/venue. The claim page can return to a strictly validated same-origin QR path. Logout/account switch clears saved receipt capabilities and pending quotes across tables, and stale responses cannot restore them. Claim and QR HTML use no-store, no-transform, no-referrer; QR pages are excluded from indexing. no-transform prevents automatic analytics insertion; claim also retains a restrictive CSP.
 
 ## Validation
 
 npm test (Bun 1.3.13), npm run typecheck, npm run lint, npm run build.
-GitHub Actions additionally exercises mobile UI with isolated fixtures. Unit, transport, SSR and browser fixtures are not proof of PostgreSQL persistence or production deployment. Real acceptance requires the deployed backend contract, shared key and a real order visible to staff. See CLOUDFLARE_DINE_IN_DEPLOYMENT.md.
+GitHub Actions additionally exercises desktop Chromium, Android Chromium and iOS WebKit with isolated fixtures. Playwright is pinned in package-lock.json; use npm ci and npx playwright install chromium webkit. Read-only production smoke is node tests/dine-in.live.mjs; HOSTESS_LIVE_EVIDENCE selects the output file. An optional authorized HOSTESS_QR_MANIFEST enables direct/reload checks of existing QR URLs, without generating tokens or creating orders. Unit/SSR/browser fixtures are not production acceptance. See QR_LIVE_ACCEPTANCE.md and CLOUDFLARE_DINE_IN_DEPLOYMENT.md.

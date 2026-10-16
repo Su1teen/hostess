@@ -7,7 +7,7 @@ export function claimPage(request: Request): Response | null {
     {
       headers: {
         "content-type": "text/html; charset=utf-8",
-        "cache-control": "no-store",
+        "cache-control": "no-store, no-transform",
         "referrer-policy": "no-referrer",
         "x-robots-tag": "noindex, nofollow, noarchive",
         "content-security-policy":

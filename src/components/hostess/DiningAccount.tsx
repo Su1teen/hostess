@@ -8,6 +8,7 @@ import {
   type Wallet,
 } from "@/lib/dine-in-api";
 import { guestApi, GuestApiError, venueDate } from "@/lib/guest-api";
+import { clearDiningSession } from "@/lib/dining-session";
 
 export function DiningReceipt({ order }: { order: DiningOrder }) {
   return (
@@ -418,6 +419,7 @@ export function DiningAccount({
               void guestApi("/logout", {})
                 .then(() => {
                   generation.current++;
+                  clearDiningSession();
                   identity.current = null;
                   setProfile(null);
                   setWallet(null);

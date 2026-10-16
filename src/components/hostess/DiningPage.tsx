@@ -34,6 +34,7 @@ import {
   type Wallet,
 } from "@/lib/dine-in-api";
 import { GuestApiError } from "@/lib/guest-api";
+import { clearDiningSession, diningSessionChanged } from "@/lib/dining-session";
 import { DiningAccount, DiningReceipt, GuestIdentity } from "./DiningAccount";
 
 type Attempt = { quote: DiningQuote; key: string };
@@ -70,6 +71,7 @@ export function DiningPage({
     [uncertain, setUncertain] = useState(false);
   const attempt = useRef<Attempt | null>(null),
     lock = useRef(false),
+    identityEpoch = useRef(0),
     sessionGeneration = useRef(0),
     sessionIdentity = useRef<string | undefined>(undefined);
   const fresh = menuFresh(menu, now),
@@ -92,6 +94,8 @@ export function DiningPage({
       const p = await diningApi.profile();
       if (current !== sessionGeneration.current) return;
       const identity = p.guest.id;
+      if (sessionIdentity.current !== undefined && sessionIdentity.current !== identity)
+        clearDiningSession();
       if (sessionIdentity.current !== identity && !attempt.current) {
         setWallet(null);
         setQuote(null);
@@ -108,6 +112,13 @@ export function DiningPage({
       }
     } catch (e) {
       if (current !== sessionGeneration.current) return;
+      if (
+        e instanceof GuestApiError &&
+        e.status === 401 &&
+        sessionIdentity.current &&
+        sessionIdentity.current !== "anonymous"
+      )
+        clearDiningSession();
       setProfile(null);
       setWallet(null);
       setRedeem(0);
@@ -115,6 +126,22 @@ export function DiningPage({
       if (sessionIdentity.current !== "anonymous" && !attempt.current) setQuote(null);
       sessionIdentity.current = "anonymous";
     }
+  }, []);
+
+  useEffect(() => {
+    const clear = () => {
+      identityEpoch.current++;
+      setOrder(null);
+      setQuote(null);
+      setWallet(null);
+      setProfile(null);
+      setSessionKnown(false);
+      setRedeem(0);
+      attempt.current = null;
+      setUncertain(false);
+    };
+    window.addEventListener(diningSessionChanged, clear);
+    return () => window.removeEventListener(diningSessionChanged, clear);
   }, []);
 
   useEffect(() => {
@@ -141,14 +168,21 @@ export function DiningPage({
         setUncertain(true);
         setCartOpen(true);
       }
-      if (typeof saved?.receipt?.id === "string")
+      if (typeof saved?.receipt?.id === "string") {
+        const epoch = identityEpoch.current;
         void diningApi
           .receipt(saved.receipt.id, saved.receipt.token)
           .then((r) => {
-            if (active && r.order.venueCode === venue && r.order.tableCode === table)
+            if (
+              active &&
+              epoch === identityEpoch.current &&
+              r.order.venueCode === venue &&
+              r.order.tableCode === table
+            )
               setOrder(r.order);
           })
           .catch(() => {});
+      }
     } catch {
       /* Missing/invalid drafts never become authoritative prices or receipts. */
     }
@@ -194,12 +228,13 @@ export function DiningPage({
       controller: AbortController | undefined;
     const refresh = async () => {
       controller?.abort();
-      controller = new AbortController();
+      const currentController = new AbortController();
+      controller = currentController;
       try {
-        const m = await diningApi.menu(venue, controller.signal);
-        if (active) setMenu(m);
+        const m = await diningApi.menu(venue, currentController.signal);
+        if (active && !currentController.signal.aborted) setMenu(m);
       } catch {
-        if (active && !controller.signal.aborted)
+        if (active && !currentController.signal.aborted)
           setMenu((previous) => (previous ? { ...previous, status: "no_published_round" } : null));
       }
     };
@@ -213,10 +248,12 @@ export function DiningPage({
     }, 20000);
     const tick = window.setInterval(() => setNow(Date.now()), 1000);
     const focus = () => {
+      if (document.hidden) return;
       void refresh();
       void refreshSession();
     };
     window.addEventListener("focus", focus);
+    document.addEventListener("visibilitychange", focus);
     return () => {
       active = false;
       sessionGeneration.current++;
@@ -224,6 +261,7 @@ export function DiningPage({
       clearInterval(interval);
       clearInterval(tick);
       window.removeEventListener("focus", focus);
+      document.removeEventListener("visibilitychange", focus);
     };
   }, [context, refreshSession, venue]);
 
@@ -241,8 +279,10 @@ export function DiningPage({
     setBusy(true);
     setError("");
     setQuote(null);
+    const epoch = identityEpoch.current;
     try {
       const q = await diningApi.quote(token, cart, profile ? redeem : 0);
+      if (epoch !== identityEpoch.current) return;
       setQuote(q);
       setNow(Date.now());
     } catch (e) {
@@ -263,6 +303,7 @@ export function DiningPage({
     }
     if (!attempt.current) attempt.current = { quote: quote!, key: crypto.randomUUID() };
     const current = attempt.current;
+    const epoch = identityEpoch.current;
     persist(cart, current);
     lock.current = true;
     setBusy(true);
@@ -270,6 +311,7 @@ export function DiningPage({
     setError("");
     try {
       const r = await diningApi.order(current.quote, current.key);
+      if (epoch !== identityEpoch.current) return;
       if (r.order.venueCode !== venue || r.order.tableCode !== table)
         throw new Error("Не удалось проверить стол в ответе. Повторите проверку заказа.");
       setOrder(r.order);
@@ -280,6 +322,7 @@ export function DiningPage({
       persist({}, null, { id: r.order.id, token: r.order.receiptToken });
       await refreshSession();
     } catch (e) {
+      if (epoch !== identityEpoch.current) return;
       if (needsRequote(e)) {
         attempt.current = null;
         setUncertain(false);
@@ -362,6 +405,7 @@ export function DiningPage({
             {context.table.zoneName ?? "Ваш вечер начинается здесь"}
           </p>
         </div>
+        <p className="mt-2 break-words text-sm text-ink-2">{context.table.name}</p>
         <p className="mt-5 max-w-xs text-sm leading-relaxed text-ink-2">
           Выбирайте напитки по биржевой цене. Мы зафиксируем сумму перед заказом.
         </p>
