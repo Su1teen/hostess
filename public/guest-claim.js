@@ -23,7 +23,15 @@
       const result = await response.json();
       if (!response.ok)
         throw new Error(result.error?.message || "Ссылка недоступна. Запросите новую в WhatsApp.");
-      location.replace("/guest");
+      let returnTo = "/guest";
+      try {
+        const saved = sessionStorage.getItem("hostess:dining:return");
+        if (saved && /^\/v\/xoxo\/t\/(?:0[1-9]|1[0-7])\/[A-Za-z0-9_-]{20,128}$/.test(saved))
+          returnTo = saved;
+      } catch {
+        /* Private mode can disable storage. */
+      }
+      location.replace(returnTo);
     } catch (error) {
       status.textContent = error.message || "Не удалось открыть кабинет";
       button.disabled = false;

@@ -110,12 +110,23 @@ export async function guestApi<T>(
     method,
     credentials: "same-origin",
     cache: "no-store",
-    signal,
+    signal: signal
+      ? AbortSignal.any([signal, AbortSignal.timeout(15_000)])
+      : AbortSignal.timeout(15_000),
     ...(body
       ? { headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }
       : {}),
   });
-  const data = await response.json();
+  let data;
+  try {
+    data = await response.json();
+  } catch {
+    throw new GuestApiError(
+      response.status || 502,
+      "INVALID_RESPONSE",
+      "Сервис временно недоступен. Попробуйте позже.",
+    );
+  }
   if (!response.ok)
     throw new GuestApiError(
       response.status,
