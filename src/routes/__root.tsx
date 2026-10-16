@@ -76,8 +76,20 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     links: [
       { rel: "stylesheet", href: appCss },
       { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
-      { rel: "preload", href: "/fonts/ClarityCity-Regular.woff2", as: "font", type: "font/woff2", crossOrigin: "" },
-      { rel: "preload", href: "/fonts/ClarityCity-SemiBold.woff2", as: "font", type: "font/woff2", crossOrigin: "" },
+      {
+        rel: "preload",
+        href: "/fonts/ClarityCity-Regular.woff2",
+        as: "font",
+        type: "font/woff2",
+        crossOrigin: "",
+      },
+      {
+        rel: "preload",
+        href: "/fonts/ClarityCity-SemiBold.woff2",
+        as: "font",
+        type: "font/woff2",
+        crossOrigin: "",
+      },
     ],
   }),
   shellComponent: RootShell,

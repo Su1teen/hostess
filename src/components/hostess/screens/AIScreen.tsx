@@ -4,7 +4,15 @@ import { ArrowUp, ConciergeBell, Mic, SquarePen } from "lucide-react";
 import { restaurants, type Restaurant } from "@/data/hostess";
 import { hapticSelect, hapticTick } from "@/lib/haptics";
 import { Rating, SlotChips } from "@/components/hostess/cards";
-import { Button, Chip, IconButton, LiveDot, LiveStatus, Photo, spring } from "@/components/hostess/system";
+import {
+  Button,
+  Chip,
+  IconButton,
+  LiveDot,
+  LiveStatus,
+  Photo,
+  spring,
+} from "@/components/hostess/system";
 import { slotsFor } from "@/components/hostess/venue";
 
 type Message = { id: string; role: "concierge" | "guest"; text: string; venueId?: string };
@@ -54,11 +62,13 @@ function recommend(text: string): { venueId: string; reply: string } {
   if (/завтрак|кофе|вино|уют/.test(t))
     return {
       venueId: "nedelka",
-      reply: "Eva Wine Cafe на Байтурсынова — comfort food, винотека и очень уютный свет. Свободно:",
+      reply:
+        "Eva Wine Cafe на Байтурсынова — comfort food, винотека и очень уютный свет. Свободно:",
     };
   return {
     venueId: "kinza",
-    reply: "Вот место, которое точно понравится: Lou Lou — европейская эстетика и хлеб собственной пекарни. Свободные столы:",
+    reply:
+      "Вот место, которое точно понравится: Lou Lou — европейская эстетика и хлеб собственной пекарни. Свободные столы:",
   };
 }
 
@@ -95,7 +105,10 @@ export function AIScreen({ onOpenRestaurant }: { onOpenRestaurant?: (r: Restaura
     timers.current.push(
       setTimeout(() => {
         setTyping(false);
-        setMessages((m) => [...m, { id: `c-${Date.now()}`, role: "concierge", text: reply, venueId }]);
+        setMessages((m) => [
+          ...m,
+          { id: `c-${Date.now()}`, role: "concierge", text: reply, venueId },
+        ]);
       }, 1300),
     );
   };
@@ -136,7 +149,9 @@ export function AIScreen({ onOpenRestaurant }: { onOpenRestaurant?: (r: Restaura
             </p>
           </div>
         </div>
-        {!empty && <IconButton icon={SquarePen} label="Новый запрос" variant="stone" onClick={reset} />}
+        {!empty && (
+          <IconButton icon={SquarePen} label="Новый запрос" variant="stone" onClick={reset} />
+        )}
       </div>
 
       {/* Conversation */}
@@ -158,8 +173,8 @@ export function AIScreen({ onOpenRestaurant }: { onOpenRestaurant?: (r: Restaura
                 <span className="text-ink-3">Куда отправимся?</span>
               </h1>
               <p className="t-body mt-4 max-w-[320px] text-ink-2">
-                Подберу стол, забронирую и предупрежу заведение о ваших пожеланиях — аллергиях, поводе,
-                любимом месте.
+                Подберу стол, забронирую и предупрежу заведение о ваших пожеланиях — аллергиях,
+                поводе, любимом месте.
               </p>
               <div className="mt-8 space-y-2.5">
                 {suggestions.map((s, i) => (
@@ -206,7 +221,11 @@ export function AIScreen({ onOpenRestaurant }: { onOpenRestaurant?: (r: Restaura
             </motion.div>
           ))}
           {typing && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center gap-1.5 py-2">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="flex items-center gap-1.5 py-2"
+            >
               {[0, 1, 2].map((i) => (
                 <span
                   key={i}
@@ -247,7 +266,12 @@ export function AIScreen({ onOpenRestaurant }: { onOpenRestaurant?: (r: Restaura
                       key={i}
                       className="w-[3px] rounded-full bg-ink"
                       animate={{ height: [4, 8 + ((i * 7) % 16), 4] }}
-                      transition={{ repeat: Infinity, duration: 0.9, delay: i * 0.05, ease: "easeInOut" }}
+                      transition={{
+                        repeat: Infinity,
+                        duration: 0.9,
+                        delay: i * 0.05,
+                        ease: "easeInOut",
+                      }}
                     />
                   ))}
                 </span>
@@ -270,11 +294,28 @@ export function AIScreen({ onOpenRestaurant }: { onOpenRestaurant?: (r: Restaura
           </AnimatePresence>
           <AnimatePresence mode="popLayout" initial={false}>
             {text.trim() ? (
-              <motion.div key="send" initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.6, opacity: 0 }} transition={spring}>
-                <IconButton icon={ArrowUp} label="Отправить" variant="ink" onClick={() => send(text)} />
+              <motion.div
+                key="send"
+                initial={{ scale: 0.6, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.6, opacity: 0 }}
+                transition={spring}
+              >
+                <IconButton
+                  icon={ArrowUp}
+                  label="Отправить"
+                  variant="ink"
+                  onClick={() => send(text)}
+                />
               </motion.div>
             ) : (
-              <motion.div key="mic" initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.6, opacity: 0 }} transition={spring}>
+              <motion.div
+                key="mic"
+                initial={{ scale: 0.6, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.6, opacity: 0 }}
+                transition={spring}
+              >
                 <IconButton
                   icon={Mic}
                   label="Голосовой запрос"

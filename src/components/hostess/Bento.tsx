@@ -25,11 +25,7 @@ export function BentoCard({
 
   return (
     <Tag
-      className={cn(
-        "rounded-card bg-surface shadow-hairline",
-        padded && "p-4",
-        className,
-      )}
+      className={cn("rounded-card bg-surface shadow-hairline", padded && "p-4", className)}
       {...props}
       {...buttonProps}
     >

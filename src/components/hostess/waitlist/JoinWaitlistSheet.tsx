@@ -40,7 +40,9 @@ export function JoinWaitlistSheet({
           {input.cover && <Photo src={input.cover} className="h-14 w-14 shrink-0 rounded-[16px]" />}
           <div className="min-w-0">
             <p className="t-micro">Лист ожидания</p>
-            <p className="mt-1 truncate text-[18px] font-semibold tracking-[-0.02em]">{input.entityName}</p>
+            <p className="mt-1 truncate text-[18px] font-semibold tracking-[-0.02em]">
+              {input.entityName}
+            </p>
             {input.resource && <p className="truncate text-[13px] text-ink-2">{input.resource}</p>}
           </div>
         </div>

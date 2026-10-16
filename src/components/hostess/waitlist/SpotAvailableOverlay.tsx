@@ -24,10 +24,15 @@ export function SpotAvailableOverlay({
   onClaim: (entry: WaitlistEntry) => void;
 }) {
   const { claim, pass, leave } = useWaitlist();
-  const [remaining, setRemaining] = useState(() => (entry.claimDeadline ?? Date.now()) - Date.now());
+  const [remaining, setRemaining] = useState(
+    () => (entry.claimDeadline ?? Date.now()) - Date.now(),
+  );
 
   useEffect(() => {
-    const t = setInterval(() => setRemaining((entry.claimDeadline ?? Date.now()) - Date.now()), 250);
+    const t = setInterval(
+      () => setRemaining((entry.claimDeadline ?? Date.now()) - Date.now()),
+      250,
+    );
     return () => clearInterval(t);
   }, [entry.claimDeadline]);
 
@@ -56,7 +61,9 @@ export function SpotAvailableOverlay({
         {entry.resource && <p className="t-body mt-1.5 text-ink-2">{entry.resource}</p>}
 
         <p className="t-micro mt-10">Подтвердите в течение</p>
-        <p className="t-num mt-2 text-[64px] font-semibold leading-none tracking-[-0.04em]">{fmt(remaining)}</p>
+        <p className="t-num mt-2 text-[64px] font-semibold leading-none tracking-[-0.04em]">
+          {fmt(remaining)}
+        </p>
         <div className="mt-5 h-[3px] w-48 overflow-hidden rounded-full bg-stone-2">
           <motion.div
             className="h-full rounded-full bg-ink"

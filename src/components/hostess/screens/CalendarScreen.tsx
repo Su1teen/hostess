@@ -2,7 +2,15 @@ import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { CalendarX, MapPin, QrCode, Search, Users } from "lucide-react";
 import { bookings, calendarEvents, money, type Booking } from "@/data/hostess";
-import { Button, EmptyState, LiveDot, Photo, SectionHeader, spring, type LiveTone } from "../system";
+import {
+  Button,
+  EmptyState,
+  LiveDot,
+  Photo,
+  SectionHeader,
+  spring,
+  type LiveTone,
+} from "../system";
 
 function statusOf(status: Booking["status"]): { label: string; tone: LiveTone | "muted" } {
   return {
@@ -58,11 +66,17 @@ export function CalendarScreen({ onNavigateToMap }: { onNavigateToMap?: () => vo
             className={`relative h-9 rounded-[11px] text-[14px] font-medium transition-colors ${active === k ? "text-ink" : "text-ink-3"}`}
           >
             {active === k && (
-              <motion.span layoutId="cal-seg" transition={spring} className="absolute inset-0 rounded-[11px] bg-surface shadow-soft" />
+              <motion.span
+                layoutId="cal-seg"
+                transition={spring}
+                className="absolute inset-0 rounded-[11px] bg-surface shadow-soft"
+              />
             )}
             <span className="relative">
               {k === "upcoming" ? "Предстоящие" : "Прошедшие"}
-              <span className="t-num ml-1.5 text-ink-3">{k === "upcoming" ? upcoming.length : past.length}</span>
+              <span className="t-num ml-1.5 text-ink-3">
+                {k === "upcoming" ? upcoming.length : past.length}
+              </span>
             </span>
           </button>
         ))}
@@ -100,7 +114,9 @@ export function CalendarScreen({ onNavigateToMap }: { onNavigateToMap?: () => vo
                       <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-white/70">
                         {active === "upcoming" ? "Следующая бронь" : "Последний визит"}
                       </p>
-                      <p className="mt-1 truncate text-[22px] font-semibold tracking-[-0.025em]">{next.place}</p>
+                      <p className="mt-1 truncate text-[22px] font-semibold tracking-[-0.025em]">
+                        {next.place}
+                      </p>
                     </div>
                   </div>
                   <div className="p-4">
@@ -129,8 +145,13 @@ export function CalendarScreen({ onNavigateToMap }: { onNavigateToMap?: () => vo
                     {active === "upcoming" && (
                       <>
                         <div className="mt-4 flex gap-2">
-                          <Button variant="secondary" className="flex-1" onClick={() => setQrOpen((v) => !v)}>
-                            <QrCode className="h-4 w-4" strokeWidth={1.6} /> {qrOpen ? "Скрыть код" : "Код для входа"}
+                          <Button
+                            variant="secondary"
+                            className="flex-1"
+                            onClick={() => setQrOpen((v) => !v)}
+                          >
+                            <QrCode className="h-4 w-4" strokeWidth={1.6} />{" "}
+                            {qrOpen ? "Скрыть код" : "Код для входа"}
                           </Button>
                           <Button variant="outline" onClick={() => cancel(next.id)}>
                             Отменить
@@ -174,7 +195,9 @@ export function CalendarScreen({ onNavigateToMap }: { onNavigateToMap?: () => vo
                     {rest.map((b) => (
                       <div key={b.id} className="relative flex gap-4 py-3">
                         <div className="w-[56px] shrink-0 pt-1 text-center">
-                          <p className="t-num relative z-[1] inline-block bg-canvas px-1 text-[15px] font-semibold">{b.time}</p>
+                          <p className="t-num relative z-[1] inline-block bg-canvas px-1 text-[15px] font-semibold">
+                            {b.time}
+                          </p>
                         </div>
                         <div className="min-w-0 flex-1 rounded-card bg-surface p-3.5 shadow-hairline">
                           <div className="flex items-start gap-3">
@@ -186,14 +209,20 @@ export function CalendarScreen({ onNavigateToMap }: { onNavigateToMap?: () => vo
                                 <span className="flex items-center gap-0.5">
                                   <Users className="h-3 w-3" strokeWidth={1.6} /> {b.guests}
                                 </span>
-                                {b.amount ? <span className="t-num">· {money(b.amount)}</span> : null}
+                                {b.amount ? (
+                                  <span className="t-num">· {money(b.amount)}</span>
+                                ) : null}
                               </p>
                             </div>
                           </div>
                           <div className="mt-3 flex items-center justify-between">
                             <StatusLabel status={b.status} />
                             {active === "upcoming" && (
-                              <button type="button" onClick={() => cancel(b.id)} className="press text-[12.5px] font-medium text-ink-3">
+                              <button
+                                type="button"
+                                onClick={() => cancel(b.id)}
+                                className="press text-[12.5px] font-medium text-ink-3"
+                              >
                                 Отменить
                               </button>
                             )}
@@ -232,7 +261,11 @@ export function CalendarScreen({ onNavigateToMap }: { onNavigateToMap?: () => vo
                 <div key={day} className="flex h-10 flex-col items-center justify-center">
                   <span
                     className={`t-num grid h-8 w-8 place-items-center rounded-full text-[13.5px] ${
-                      today ? "bg-ink font-semibold text-white" : events.length ? "font-semibold text-ink" : "text-ink-2"
+                      today
+                        ? "bg-ink font-semibold text-white"
+                        : events.length
+                          ? "font-semibold text-ink"
+                          : "text-ink-2"
                     }`}
                   >
                     {day}

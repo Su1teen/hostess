@@ -1,7 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Check, Plus } from "lucide-react";
-import { bayStatus, hhmm, money, washAvailability, type CarWash, type WashBox } from "@/data/hostess";
+import {
+  bayStatus,
+  hhmm,
+  money,
+  washAvailability,
+  type CarWash,
+  type WashBox,
+} from "@/data/hostess";
 import { useNow } from "@/hooks/useNow";
 import { hapticSelect, hapticSuccess } from "@/lib/haptics";
 import { cn } from "@/lib/utils";
@@ -12,7 +19,8 @@ import { BottomSheet, Button, Chip, OccupancyRing, Photo, SuccessMark } from "./
 
 const savedCar = { id: "car1", label: "Toyota Camry", plate: "777 ABA 01" };
 
-const durationText = (m: number) => (m >= 60 ? `${Math.floor(m / 60)} ч${m % 60 ? ` ${m % 60} мин` : ""}` : `${m} мин`);
+const durationText = (m: number) =>
+  m >= 60 ? `${Math.floor(m / 60)} ч${m % 60 ? ` ${m % 60} мин` : ""}` : `${m} мин`;
 
 /**
  * Car wash as realtime bay allocation: live capacity → pick a bay →
@@ -43,7 +51,9 @@ export function CarWashSheet({ wash, onClose }: { wash: CarWash; onClose: () => 
 
   const toggle = (id: string) => {
     hapticSelect();
-    setSelectedServices((prev) => (prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]));
+    setSelectedServices((prev) =>
+      prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id],
+    );
   };
 
   const onSelectBox = (b: WashBox) => {
@@ -115,7 +125,8 @@ export function CarWashSheet({ wash, onClose }: { wash: CarWash; onClose: () => 
             <SuccessMark />
             <p className="t-headline mt-5">Бокс {String(boxIndex).padStart(2, "0")} ваш</p>
             <p className="t-caption mt-1.5">
-              Подъезжайте к {hhmm(now + 10 * 60000)} · {customCar ? plate : savedCar.plate} · {money(total)}
+              Подъезжайте к {hhmm(now + 10 * 60000)} · {customCar ? plate : savedCar.plate} ·{" "}
+              {money(total)}
             </p>
           </div>
         ) : (
@@ -145,7 +156,12 @@ export function CarWashSheet({ wash, onClose }: { wash: CarWash; onClose: () => 
               <p className="t-micro">Боксы</p>
               <BayLegend />
             </div>
-            <WashBoxGrid boxes={wash.boxes} now={now} selected={box?.id ?? null} onSelect={onSelectBox} />
+            <WashBoxGrid
+              boxes={wash.boxes}
+              now={now}
+              selected={box?.id ?? null}
+              onSelect={onSelectBox}
+            />
 
             <div className="mb-1 mt-8 flex items-baseline justify-between">
               <p className="t-micro">Услуги</p>
@@ -166,7 +182,9 @@ export function CarWashSheet({ wash, onClose }: { wash: CarWash; onClose: () => 
                     <span
                       className={cn(
                         "grid h-[22px] w-[22px] shrink-0 place-items-center rounded-full transition-colors",
-                        on ? "bg-ink text-white" : "shadow-[inset_0_0_0_1.5px_var(--hs-line-strong)]",
+                        on
+                          ? "bg-ink text-white"
+                          : "shadow-[inset_0_0_0_1.5px_var(--hs-line-strong)]",
                       )}
                     >
                       {on && <Check className="h-3 w-3" strokeWidth={2.6} />}
@@ -186,7 +204,12 @@ export function CarWashSheet({ wash, onClose }: { wash: CarWash; onClose: () => 
               <Chip selected={!customCar} tone="outline" onClick={() => setCustomCar(false)}>
                 {savedCar.label} · <span className="t-num">{savedCar.plate}</span>
               </Chip>
-              <Chip selected={customCar} tone="outline" icon={Plus} onClick={() => setCustomCar(true)}>
+              <Chip
+                selected={customCar}
+                tone="outline"
+                icon={Plus}
+                onClick={() => setCustomCar(true)}
+              >
                 Другой
               </Chip>
             </div>

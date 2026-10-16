@@ -52,15 +52,23 @@ export function EventTicketModal({ event, onClose }: { event: CityEvent; onClose
             className="mx-auto max-w-[300px] overflow-hidden rounded-hero bg-ink text-white shadow-float"
           >
             <div className="p-5">
-              <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-white/55">Hostess · билет</p>
-              <p className="mt-3 text-[20px] font-semibold leading-tight tracking-[-0.02em]">{event.title}</p>
+              <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-white/55">
+                Hostess · билет
+              </p>
+              <p className="mt-3 text-[20px] font-semibold leading-tight tracking-[-0.02em]">
+                {event.title}
+              </p>
               <p className="t-num mt-1.5 text-[13px] text-white/65">
                 {event.date} · {event.time} · {qty} {qty === 1 ? "билет" : "билета"}
               </p>
             </div>
             <div className="flex items-end justify-center gap-[3px] border-t border-dashed border-white/20 px-5 py-4">
               {Array.from({ length: 34 }).map((_, i) => (
-                <span key={i} className="w-[3px] rounded-[1px] bg-white" style={{ height: 14 + ((i * 7) % 18) }} />
+                <span
+                  key={i}
+                  className="w-[3px] rounded-[1px] bg-white"
+                  style={{ height: 14 + ((i * 7) % 18) }}
+                />
               ))}
             </div>
           </motion.div>
@@ -69,17 +77,24 @@ export function EventTicketModal({ event, onClose }: { event: CityEvent; onClose
             <h2 className="t-title">{event.title}</h2>
             <div className="mt-6">
               <RowGroup>
-                <ListRow icon={CalendarDays} title={`${event.date}, ${event.time}`} subtitle="Дата и время" chevron={false} />
+                <ListRow
+                  icon={CalendarDays}
+                  title={`${event.date}, ${event.time}`}
+                  subtitle="Дата и время"
+                  chevron={false}
+                />
                 <ListRow icon={MapPin} title={event.place} subtitle="Место" chevron={false} />
               </RowGroup>
             </div>
             <p className="t-caption mt-4">
-              {free ? "Вход свободный по регистрации." : `Билет от ${money(event.price)}.`} Билет появится в разделе
-              «Брони» и в Wallet.
+              {free ? "Вход свободный по регистрации." : `Билет от ${money(event.price)}.`} Билет
+              появится в разделе «Брони» и в Wallet.
             </p>
           </>
         )}
-        {bought && <p className="t-caption mt-4 text-center">Билет добавлен в Wallet и раздел «Брони»</p>}
+        {bought && (
+          <p className="t-caption mt-4 text-center">Билет добавлен в Wallet и раздел «Брони»</p>
+        )}
       </div>
     </BottomSheet>
   );

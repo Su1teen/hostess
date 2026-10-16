@@ -146,9 +146,18 @@ export function LiveBadge({
             style={{ animation: "hs-live-pulse 2s var(--ease-out-quint) infinite" }}
           />
         )}
-        <span className={cn("relative h-full w-full rounded-full", media.isLive ? "bg-[#ff3b30]" : "bg-white/80")} />
+        <span
+          className={cn(
+            "relative h-full w-full rounded-full",
+            media.isLive ? "bg-[#ff3b30]" : "bg-white/80",
+          )}
+        />
       </span>
-      {media.isLive ? "LIVE" : <span className="normal-case tracking-normal">Сейчас · {media.updatedMin} мин</span>}
+      {media.isLive ? (
+        "LIVE"
+      ) : (
+        <span className="normal-case tracking-normal">Сейчас · {media.updatedMin} мин</span>
+      )}
     </span>
   );
 }
@@ -171,7 +180,11 @@ export function MuteToggle({ muted, onToggle }: { muted: boolean; onToggle: () =
           exit={{ opacity: 0, scale: 0.7 }}
           transition={{ duration: 0.15 }}
         >
-          {muted ? <VolumeX className="h-4 w-4" strokeWidth={1.8} /> : <Volume2 className="h-4 w-4" strokeWidth={1.8} />}
+          {muted ? (
+            <VolumeX className="h-4 w-4" strokeWidth={1.8} />
+          ) : (
+            <Volume2 className="h-4 w-4" strokeWidth={1.8} />
+          )}
         </motion.span>
       </AnimatePresence>
     </motion.button>

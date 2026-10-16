@@ -15,10 +15,24 @@ const allowed = new Set([
   "reservations",
   "ownership",
 ]);
+const dineInRoutes: [RegExp, string][] = [
+  [/^dine-in\/tables\/[A-Za-z0-9_-]{20,128}$/, "GET"],
+  [/^dine-in\/menu$/, "GET"],
+  [/^dine-in\/quotes$/, "POST"],
+  [/^dine-in\/orders$/, "GET POST"],
+  [/^dine-in\/orders\/[a-f0-9-]{36}$/, "GET"],
+  [/^loyalty\/(wallet|transactions)$/, "GET"],
+];
+const guestCookieNames = "(?:__Host-hostess-guest|__Host-hostess-dining|__Host-hostess-anonymous)";
 const reply = (status: number, message: string) =>
   new Response(JSON.stringify({ error: { code: "SERVICE_UNAVAILABLE", message } }), {
     status,
-    headers: { "content-type": "application/json", "cache-control": "no-store" },
+    headers: {
+      "content-type": "application/json",
+      "cache-control": "no-store",
+      "referrer-policy": "no-referrer",
+      "x-content-type-options": "nosniff",
+    },
   });
 export async function proxyHostessApi(
   request: Request,
@@ -30,9 +44,19 @@ export async function proxyHostessApi(
   if (!exchange && !booking) return null;
   if (url.search.length > 2000) return reply(414, "Запрос слишком большой");
   const resource = url.pathname.slice(guestPrefix.length);
-  if (booking && !allowed.has(resource) && !/^reservations\/[a-f0-9-]{36}$/.test(resource))
+  const dining = dineInRoutes.find(([path]) => path.test(resource));
+  if (
+    booking &&
+    !allowed.has(resource) &&
+    !/^reservations\/[a-f0-9-]{36}$/.test(resource) &&
+    !dining
+  )
     return reply(404, "Операция недоступна");
-  if (!["GET", "POST", "PATCH"].includes(request.method) || (exchange && request.method !== "GET"))
+  if (
+    !["GET", "POST", "PATCH"].includes(request.method) ||
+    (exchange && request.method !== "GET") ||
+    (dining && !dining[1].split(" ").includes(request.method))
+  )
     return reply(405, "Метод недоступен");
   const env = (runtime ?? {}) as Runtime;
   const requestEnv = (request as Request & { runtime?: { cloudflare?: { env?: Runtime } } }).runtime
@@ -80,8 +104,8 @@ export async function proxyHostessApi(
     const guest = (request.headers.get("cookie") ?? "")
       .split(";")
       .map((v) => v.trim())
-      .find((v) => /^__Host-hostess-guest=[A-Za-z0-9_-]{43}$/.test(v));
-    if (guest) headers.set("cookie", guest);
+      .filter((v) => new RegExp(`^${guestCookieNames}=[A-Za-z0-9_-]{43}$`).test(v));
+    if (guest.length) headers.set("cookie", guest.join("; "));
     const ip = request.headers.get("cf-connecting-ip");
     // Trusted CF header is available on Workers; local preview shares a local bucket.
     headers.set("x-hostess-client-id", ip ?? "local");
@@ -129,14 +153,21 @@ export async function proxyHostessApi(
       "referrer-policy": "no-referrer",
       "x-content-type-options": "nosniff",
     });
-    const setCookie = response.headers.get("set-cookie");
-    if (
-      booking &&
-      setCookie &&
-      /^__Host-hostess-guest=/.test(setCookie) &&
-      !/domain=/i.test(setCookie)
-    )
-      outgoing.set("set-cookie", setCookie);
+    const cookies =
+      response.headers.getSetCookie?.() ??
+      response.headers.get("set-cookie")?.split(/,(?=\s*__Host-)/) ??
+      [];
+    for (const cookie of cookies) {
+      if (
+        booking &&
+        new RegExp(`^${guestCookieNames}=(?:[A-Za-z0-9_-]{43})?;`).test(cookie.trim()) &&
+        !/;\s*domain=/i.test(cookie) &&
+        /;\s*path=\/(?:;|$)/i.test(cookie) &&
+        /;\s*secure(?:;|$)/i.test(cookie) &&
+        /;\s*httponly(?:;|$)/i.test(cookie)
+      )
+        outgoing.append("set-cookie", cookie);
+    }
     return new Response(response.body, { status: response.status, headers: outgoing });
   } catch (error) {
     const response = reply(503, "Соединение прервано. Проверьте бронь в кабинете перед повтором");

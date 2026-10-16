@@ -3,7 +3,16 @@ import { motion } from "framer-motion";
 import { ChevronRight, Plus, ShoppingBag } from "lucide-react";
 import { money, type Dish } from "@/data/hostess";
 import { cn } from "@/lib/utils";
-import { BottomSheet, Button, EmptyState, IconButton, Photo, Stepper, Ticker, tapSpring } from "./system";
+import {
+  BottomSheet,
+  Button,
+  EmptyState,
+  IconButton,
+  Photo,
+  Stepper,
+  Ticker,
+  tapSpring,
+} from "./system";
 import type { PreorderItem } from "./types";
 
 /* ──────────────────────────────────────────────────────────────────────
@@ -82,12 +91,20 @@ export function MenuRow({
   const hl = dishHighlight(dish);
   return (
     <div className="flex items-start gap-4 py-4">
-      <button type="button" onClick={onOpen} className="press-soft -m-1 flex min-w-0 flex-1 gap-3.5 rounded-[14px] p-1 text-left">
+      <button
+        type="button"
+        onClick={onOpen}
+        className="press-soft -m-1 flex min-w-0 flex-1 gap-3.5 rounded-[14px] p-1 text-left"
+      >
         <span className="min-w-0 flex-1">
           <span className="flex items-center gap-2">
-            <span className="truncate text-[15.5px] font-medium tracking-[-0.012em] text-ink">{dish.name}</span>
+            <span className="truncate text-[15.5px] font-medium tracking-[-0.012em] text-ink">
+              {dish.name}
+            </span>
             {hl && (
-              <span className="shrink-0 text-[10.5px] font-semibold uppercase tracking-[0.1em] text-accent-ink">{hl}</span>
+              <span className="shrink-0 text-[10.5px] font-semibold uppercase tracking-[0.1em] text-accent-ink">
+                {hl}
+              </span>
             )}
           </span>
           <span className="mt-1 line-clamp-2 text-[13px] leading-snug text-ink-3">{dish.desc}</span>
@@ -99,13 +116,22 @@ export function MenuRow({
             )}
           </span>
         </span>
-        {dish.image && <Photo src={dish.image} className="h-[68px] w-[68px] shrink-0 rounded-thumb" />}
+        {dish.image && (
+          <Photo src={dish.image} className="h-[68px] w-[68px] shrink-0 rounded-thumb" />
+        )}
       </button>
       <div className="flex h-[68px] shrink-0 items-center">
         {qty > 0 ? (
           <Stepper value={qty} onChange={onQty} min={0} max={20} size="sm" />
         ) : (
-          <IconButton icon={Plus} label={`Добавить ${dish.name}`} variant="stone" size={36} iconSize={16} onClick={() => onQty(1)} />
+          <IconButton
+            icon={Plus}
+            label={`Добавить ${dish.name}`}
+            variant="stone"
+            size={36}
+            iconSize={16}
+            onClick={() => onQty(1)}
+          />
         )}
       </div>
     </div>
@@ -179,7 +205,11 @@ export function MenuTeaser({
 }) {
   return (
     <div className={cn("px-5", className)}>
-      <button type="button" onClick={onOpen} className="flex w-full items-end justify-between gap-4 text-left">
+      <button
+        type="button"
+        onClick={onOpen}
+        className="flex w-full items-end justify-between gap-4 text-left"
+      >
         <span>
           <span className="t-headline block">Меню</span>
           <span className="t-num mt-1 block text-[13px] text-ink-3">
@@ -199,7 +229,9 @@ export function MenuTeaser({
             className="min-w-0 text-left"
           >
             <Photo src={d.image} className="aspect-square w-full rounded-[14px]" />
-            <span className="mt-2 block truncate text-[13px] font-medium tracking-[-0.01em]">{d.name}</span>
+            <span className="mt-2 block truncate text-[13px] font-medium tracking-[-0.01em]">
+              {d.name}
+            </span>
             <span className="t-num block text-[12px] text-ink-3">{money(d.price)}</span>
           </motion.button>
         ))}
@@ -241,7 +273,10 @@ export function MenuSheet({
   cartTotal: number;
   onClose: () => void;
 }) {
-  const jump = (i: number) => document.getElementById(`menu-sec-${i}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  const jump = (i: number) =>
+    document
+      .getElementById(`menu-sec-${i}`)
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
   return (
     <BottomSheet
       onClose={onClose}
@@ -270,9 +305,14 @@ export function MenuSheet({
         <div className="flex items-center gap-4">
           <div className="min-w-0 flex-1">
             <p className="t-num text-[12.5px] text-ink-3">
-              {cartCount ? `${cartCount} ${plural(cartCount, "позиция", "позиции", "позиций")} к столу` : "Предзаказ к вашему приходу"}
+              {cartCount
+                ? `${cartCount} ${plural(cartCount, "позиция", "позиции", "позиций")} к столу`
+                : "Предзаказ к вашему приходу"}
             </p>
-            <Ticker value={money(cartTotal)} className="text-[16px] font-semibold tracking-[-0.015em]" />
+            <Ticker
+              value={money(cartTotal)}
+              className="text-[16px] font-semibold tracking-[-0.015em]"
+            />
           </div>
           <Button size="lg" className="px-7" onClick={onClose}>
             {cartCount ? "Готово" : "Закрыть"}
@@ -286,8 +326,16 @@ export function MenuSheet({
           <SignatureDishes dishes={signatures} onOpen={onOpenDish} />
         </div>
       )}
-      <MenuSections sections={sections} qtyOf={qtyOf} onOpen={onOpenDish} onQty={onQty} idPrefix="menu-sec" />
-      <p className="t-caption px-5 pb-6 pt-6">Предзаказ подадут к вашему приходу. Оплата — вместе с бронью.</p>
+      <MenuSections
+        sections={sections}
+        qtyOf={qtyOf}
+        onOpen={onOpenDish}
+        onQty={onQty}
+        idPrefix="menu-sec"
+      />
+      <p className="t-caption px-5 pb-6 pt-6">
+        Предзаказ подадут к вашему приходу. Оплата — вместе с бронью.
+      </p>
     </BottomSheet>
   );
 }
@@ -324,7 +372,10 @@ export function CartLine({
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       onClick={onOpen}
-      className={cn("press-soft -mx-2 mb-2.5 flex w-[calc(100%+16px)] items-center gap-3 rounded-[14px] px-2 py-1.5 text-left", className)}
+      className={cn(
+        "press-soft -mx-2 mb-2.5 flex w-[calc(100%+16px)] items-center gap-3 rounded-[14px] px-2 py-1.5 text-left",
+        className,
+      )}
     >
       <span className="relative grid h-8 w-8 place-items-center rounded-full bg-stone">
         <ShoppingBag className="h-4 w-4" strokeWidth={1.6} />
@@ -378,7 +429,11 @@ export function CartSheet({
       }
     >
       {items.length === 0 ? (
-        <EmptyState icon={ShoppingBag} title="Пока пусто" text="Добавьте позиции из меню — их подготовят к вашему приходу." />
+        <EmptyState
+          icon={ShoppingBag}
+          title="Пока пусто"
+          text="Добавьте позиции из меню — их подготовят к вашему приходу."
+        />
       ) : (
         <div className="divide-hairline px-5 pb-4">
           {items.map((p) => (
@@ -386,7 +441,9 @@ export function CartSheet({
               <Photo src={p.dish.image} className="h-12 w-12 shrink-0 rounded-[12px]" />
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-[15px] font-medium">{p.dish.name}</span>
-                <span className="t-num text-[12.5px] text-ink-3">{money(priceOf(p.dish) * p.qty)}</span>
+                <span className="t-num text-[12.5px] text-ink-3">
+                  {money(priceOf(p.dish) * p.qty)}
+                </span>
               </span>
               <Stepper value={p.qty} onChange={(q) => onQty(p.dish, q)} min={0} size="sm" />
             </div>

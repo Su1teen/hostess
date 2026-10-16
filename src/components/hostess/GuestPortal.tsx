@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { guestApi, statusLabel, venueDate, type GuestProfile } from "@/lib/guest-api";
 import { GuestBooking } from "./GuestBooking";
+import { DiningAccount } from "./DiningAccount";
 import { restaurants } from "@/data/hostess";
 const venue = restaurants.find((r) => r.id === "xoxo")!;
 
@@ -105,6 +106,7 @@ export function GuestPortal() {
           )}
         </div>
       )}
+      <DiningAccount showIdentity={false} onSessionChanged={() => void load()} />
       {reschedule ? (
         <GuestBooking
           rescheduleId={reschedule}
@@ -128,7 +130,8 @@ export function GuestPortal() {
                     <p className="t-micro">{statusLabel[r.status] ?? r.status}</p>
                     <h3 className="mt-3 text-lg font-medium">{venueDate(r.startsAt)}</h3>
                     <p className="mt-1 text-sm text-ink-2">
-                      {r.guests} гостей · {r.resourceName ?? (r.tableIds ?? [r.tableId]).join(" + ")}
+                      {r.guests} гостей ·{" "}
+                      {r.resourceName ?? (r.tableIds ?? [r.tableId]).join(" + ")}
                     </p>
                     <p className="mt-2 text-xs text-ink-3">
                       Бронь {r.id.slice(0, 8)}

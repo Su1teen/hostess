@@ -36,7 +36,11 @@ export function WashBoxGrid({
         const on = selected === b.id && free;
         const meta = stateMeta[s.state];
         const title =
-          s.state === "in_use" ? (s.service ?? meta.label) : s.state === "reserved" ? `Бронь · ${s.at}` : meta.label;
+          s.state === "in_use"
+            ? (s.service ?? meta.label)
+            : s.state === "reserved"
+              ? `Бронь · ${s.at}`
+              : meta.label;
         const sub =
           s.state === "in_use"
             ? `≈ ${s.minutes} мин`
@@ -78,7 +82,10 @@ export function WashBoxGrid({
                   <Check className="h-3 w-3" strokeWidth={2.6} />
                 </span>
               ) : (
-                <span className="mt-1 h-[7px] w-[7px] rounded-full" style={{ background: meta.dot }} />
+                <span
+                  className="mt-1 h-[7px] w-[7px] rounded-full"
+                  style={{ background: meta.dot }}
+                />
               )}
             </span>
             <span className="mt-auto">
@@ -90,7 +97,12 @@ export function WashBoxGrid({
               >
                 {title}
               </span>
-              <span className={cn("t-num mt-0.5 block truncate text-[11.5px]", on ? "text-white/65" : "text-ink-3")}>
+              <span
+                className={cn(
+                  "t-num mt-0.5 block truncate text-[11.5px]",
+                  on ? "text-white/65" : "text-ink-3",
+                )}
+              >
                 {sub}
               </span>
             </span>

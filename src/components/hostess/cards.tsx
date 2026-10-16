@@ -11,7 +11,12 @@ import { LiveStatus, Photo, tapSpring } from "./system";
 
 export function Rating({ value, className }: { value: number; className?: string }) {
   return (
-    <span className={cn("t-num inline-flex items-center gap-1 text-[12.5px] font-medium text-ink", className)}>
+    <span
+      className={cn(
+        "t-num inline-flex items-center gap-1 text-[12.5px] font-medium text-ink",
+        className,
+      )}
+    >
       <Star className="h-3 w-3 fill-ink" strokeWidth={0} />
       {value.toFixed(1)}
     </span>
@@ -64,7 +69,12 @@ export function VenueRow({
           <span className="mt-0.5 block truncate text-[13px] text-ink-2">{subtitle}</span>
           <span className="mt-2 flex items-center gap-2">
             {occupancy != null && (
-              <LiveStatus occupancy={occupancy} label={status} estimated={estimated} showPercent={false} />
+              <LiveStatus
+                occupancy={occupancy}
+                label={status}
+                estimated={estimated}
+                showPercent={false}
+              />
             )}
             {meta && <span className="t-num truncate text-[12.5px] text-ink-3">· {meta}</span>}
           </span>
@@ -159,7 +169,13 @@ export function CompactVenueCard({
           <Rating value={rating} className="shrink-0" />
         </span>
         <span className="mt-0.5 block truncate text-[12.5px] text-ink-2">{subtitle}</span>
-        <LiveStatus occupancy={occupancy} label={status} estimated={estimated} className="mt-1.5" showPercent={false} />
+        <LiveStatus
+          occupancy={occupancy}
+          label={status}
+          estimated={estimated}
+          className="mt-1.5"
+          showPercent={false}
+        />
       </span>
     </motion.button>
   );
@@ -189,7 +205,9 @@ export function EditorialCard({
       style={{ width }}
     >
       <Photo src={image} className="aspect-[4/5] w-full rounded-card" />
-      <span className="mt-2.5 block truncate text-[15px] font-semibold tracking-[-0.015em]">{title}</span>
+      <span className="mt-2.5 block truncate text-[15px] font-semibold tracking-[-0.015em]">
+        {title}
+      </span>
       <span className="mt-0.5 block truncate text-[12.5px] text-ink-2">{caption}</span>
     </motion.button>
   );
@@ -227,7 +245,9 @@ export function EventCard({
       </span>
       <span className="mt-3 flex items-start justify-between gap-3">
         <span className="min-w-0">
-          <span className="block truncate text-[15px] font-semibold tracking-[-0.015em]">{title}</span>
+          <span className="block truncate text-[15px] font-semibold tracking-[-0.015em]">
+            {title}
+          </span>
           <span className="mt-0.5 block truncate text-[12.5px] text-ink-2">{subtitle}</span>
         </span>
         <span className="t-num shrink-0 pt-0.5 text-[12.5px] font-medium text-ink">{meta}</span>
