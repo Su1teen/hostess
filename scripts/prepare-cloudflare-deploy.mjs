@@ -165,6 +165,10 @@ const rawArgs = process.argv.slice(2);
 const isDeploy = rawArgs[0] === "deploy";
 const isVersionsUpload = rawArgs[0] === "versions" && rawArgs[1] === "upload";
 
+// Remove local .bin/wrangler wrappers immediately so npx (libnpmexec) never re-enters this shim.
+rmSync(join(binDir, "wrangler"), { force: true });
+rmSync(join(binDir, "wrangler.cmd"), { force: true });
+
 const envBffKey = normalizeSecret(process.env.HOSTESS_BFF_KEY);
 if (!existsSync(secretsFilePath) && envBffKey && envBffKey.length >= 32) {
   mkdirSync(dirname(secretsFilePath), { recursive: true });
@@ -196,7 +200,7 @@ let exitCode = 1;
 try {
   const npxCmd = process.platform === "win32" ? "npx.cmd" : "npx";
   const nodeMajor = Number.parseInt(process.versions.node.split(".")[0] || "22", 10);
-  const wranglerPkg = nodeMajor >= 22 ? "wrangler" : "wrangler@4.86.0";
+  const wranglerPkg = nodeMajor >= 22 ? "wrangler@4" : "wrangler@4.86.0";
   const result = spawnSync(
     npxCmd,
     ["--yes", wranglerPkg, ...rawArgs, ...extraArgs],
