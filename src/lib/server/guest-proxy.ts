@@ -1,8 +1,77 @@
-type Runtime = {
-  EXCHANGE_API_ORIGIN?: string;
-  BOOKING_API_ORIGIN?: string;
-  HOSTESS_BFF_KEY?: string;
-};
+import {
+  MIN_SERVICE_KEY_LENGTH,
+  resolveHostessRuntimeEnv,
+  type BindingSource,
+  type ResolvedHostessRuntime,
+} from "./runtime-env";
+
+export interface BffDiagnosticLog {
+  event: "hostess.bff.proxy";
+  method: string;
+  pathname: string;
+  bookingOriginAvailable: boolean;
+  exchangeOriginAvailable: boolean;
+  serviceKeyAvailable: boolean;
+  serviceKeySatisfiesMinLength: boolean;
+  bindingSource: BindingSource;
+  bindingSources: ResolvedHostessRuntime["sources"];
+  deployedBuildSha: string;
+  upstreamAttempted: boolean;
+  outcome:
+    | "upstream_response"
+    | "missing_upstream_origin"
+    | "missing_service_key"
+    | "short_service_key"
+    | "malformed_origin"
+    | "insecure_origin"
+    | "upstream_redirect_blocked"
+    | "upstream_non_json"
+    | "upstream_fetch_error";
+  status: number;
+  upstreamErrorCategory?: string;
+}
+
+let lastBffDiagnostic: BffDiagnosticLog | null = null;
+
+export function getLastBffDiagnosticForTests(): BffDiagnosticLog | null {
+  return lastBffDiagnostic;
+}
+
+function recordBffDiagnostic(
+  request: Request,
+  url: URL,
+  resolved: ResolvedHostessRuntime,
+  upstreamAttempted: boolean,
+  outcome: BffDiagnosticLog["outcome"],
+  status: number,
+  upstreamErrorCategory?: string,
+): BffDiagnosticLog {
+  const entry: BffDiagnosticLog = {
+    event: "hostess.bff.proxy",
+    method: request.method,
+    pathname: url.pathname,
+    bookingOriginAvailable: resolved.diagnostics.bookingOriginAvailable,
+    exchangeOriginAvailable: resolved.diagnostics.exchangeOriginAvailable,
+    serviceKeyAvailable: resolved.diagnostics.serviceKeyAvailable,
+    serviceKeySatisfiesMinLength: resolved.diagnostics.serviceKeySatisfiesMinLength,
+    bindingSource: resolved.diagnostics.bindingSource,
+    bindingSources: resolved.sources,
+    deployedBuildSha: resolved.diagnostics.deployedBuildSha,
+    upstreamAttempted,
+    outcome,
+    status,
+    ...(upstreamErrorCategory ? { upstreamErrorCategory } : {}),
+  };
+  lastBffDiagnostic = entry;
+  const serialized = JSON.stringify(entry);
+  if (outcome === "upstream_response" && status < 500) {
+    console.info("[hostess-bff]", serialized);
+  } else {
+    console.warn("[hostess-bff]", serialized);
+  }
+  return entry;
+}
+
 const guestPrefix = "/api/guest/v1/";
 const guestRoutes: [RegExp, string][] = [
   [/^availability$/, "GET"],
@@ -19,16 +88,31 @@ const dineInRoutes: [RegExp, string][] = [
   [/^loyalty\/(wallet|transactions)$/, "GET"],
 ];
 const guestCookieNames = "(?:__Host-hostess-guest|__Host-hostess-dining|__Host-hostess-anonymous)";
-const reply = (status: number, message: string) =>
-  new Response(JSON.stringify({ error: { code: "SERVICE_UNAVAILABLE", message } }), {
-    status,
-    headers: {
-      "content-type": "application/json",
-      "cache-control": "no-store",
-      "referrer-policy": "no-referrer",
-      "x-content-type-options": "nosniff",
-    },
+const reply = (
+  status: number,
+  message: string,
+  meta?: {
+    buildSha?: string;
+    configError?: string;
+    upstreamError?: string;
+    bindingSource?: BindingSource;
+  },
+) => {
+  const headers = new Headers({
+    "content-type": "application/json",
+    "cache-control": "no-store",
+    "referrer-policy": "no-referrer",
+    "x-content-type-options": "nosniff",
   });
+  if (meta?.buildSha) headers.set("x-hostess-build", meta.buildSha);
+  if (meta?.configError) headers.set("x-hostess-config-error", meta.configError);
+  if (meta?.upstreamError) headers.set("x-hostess-upstream-error", meta.upstreamError);
+  if (meta?.bindingSource) headers.set("x-hostess-binding-source", meta.bindingSource);
+  return new Response(JSON.stringify({ error: { code: "SERVICE_UNAVAILABLE", message } }), {
+    status,
+    headers,
+  });
+};
 export async function proxyHostessApi(
   request: Request,
   runtime: unknown,
@@ -46,18 +130,35 @@ export async function proxyHostessApi(
     (route && !route[1].split(" ").includes(request.method))
   )
     return reply(405, "Метод недоступен");
-  const env = (runtime ?? {}) as Runtime;
-  const requestEnv = (request as Request & { runtime?: { cloudflare?: { env?: Runtime } } }).runtime
-    ?.cloudflare?.env;
-  // Cloudflare bindings first; local Nitro preview uses server-only process.env.
-  const configured = (key: keyof Runtime) =>
-    env[key] ??
-    requestEnv?.[key] ??
-    (typeof process !== "undefined" ? process.env[key] : undefined);
-  const upstream = configured(exchange ? "EXCHANGE_API_ORIGIN" : "BOOKING_API_ORIGIN");
-  const serviceKey = configured("HOSTESS_BFF_KEY");
-  if (!upstream || (booking && (!serviceKey || serviceKey.length < 32)))
-    return reply(503, "Сервис пока не настроен");
+  const resolved = await resolveHostessRuntimeEnv(request, runtime);
+  const upstream = exchange ? resolved.exchangeOrigin : resolved.bookingOrigin;
+  const serviceKey = resolved.serviceKey;
+  const bindingSource = resolved.diagnostics.bindingSource;
+  const buildSha = resolved.buildSha;
+  if (!upstream) {
+    recordBffDiagnostic(request, url, resolved, false, "missing_upstream_origin", 503);
+    return reply(503, "Сервис пока не настроен", {
+      buildSha,
+      configError: "missing-upstream-origin",
+      bindingSource,
+    });
+  }
+  if (booking && !serviceKey) {
+    recordBffDiagnostic(request, url, resolved, false, "missing_service_key", 503);
+    return reply(503, "Сервис пока не настроен", {
+      buildSha,
+      configError: "missing-service-key",
+      bindingSource,
+    });
+  }
+  if (booking && serviceKey && serviceKey.length < MIN_SERVICE_KEY_LENGTH) {
+    recordBffDiagnostic(request, url, resolved, false, "short_service_key", 503);
+    return reply(503, "Сервис пока не настроен", {
+      buildSha,
+      configError: "short-service-key",
+      bindingSource,
+    });
+  }
   let target: URL;
   try {
     // A Railway public hostname is an HTTPS origin, never a relative URL.
@@ -68,16 +169,39 @@ export async function proxyHostessApi(
         : origin,
     );
   } catch {
-    return reply(503, "Некорректная настройка сервиса");
+    recordBffDiagnostic(request, url, resolved, false, "malformed_origin", 503);
+    return reply(503, "Некорректная настройка сервиса", {
+      buildSha,
+      configError: "malformed-origin",
+      bindingSource,
+    });
   }
   const local =
     target.protocol === "http:" &&
     ["localhost", "127.0.0.1"].includes(target.hostname) &&
     ["localhost", "127.0.0.1"].includes(url.hostname);
-  if (target.protocol !== "https:" && !local)
-    return reply(503, "Требуется защищённый адрес сервиса");
-  if (target.username || target.password || target.pathname !== "/" || target.search || target.hash)
-    return reply(503, "Некорректная настройка сервиса");
+  if (target.protocol !== "https:" && !local) {
+    recordBffDiagnostic(request, url, resolved, false, "insecure_origin", 503);
+    return reply(503, "Требуется защищённый адрес сервиса", {
+      buildSha,
+      configError: "insecure-origin",
+      bindingSource,
+    });
+  }
+  if (
+    target.username ||
+    target.password ||
+    target.pathname !== "/" ||
+    target.search ||
+    target.hash
+  ) {
+    recordBffDiagnostic(request, url, resolved, false, "malformed_origin", 503);
+    return reply(503, "Некорректная настройка сервиса", {
+      buildSha,
+      configError: "malformed-origin",
+      bindingSource,
+    });
+  }
   if (request.method !== "GET") {
     // No cross-site requests, even before login. Service key never reaches browser.
     if (request.headers.get("origin") !== url.origin)
@@ -145,16 +269,45 @@ export async function proxyHostessApi(
       redirect: "manual",
       signal: AbortSignal.timeout(10_000),
     });
-    if (response.status >= 300 && response.status < 400)
-      return reply(502, "Перенаправление сервиса запрещено");
-    if (!response.headers.get("content-type")?.includes("application/json"))
-      return reply(502, "Сервис вернул некорректный ответ");
+    if (response.status >= 300 && response.status < 400) {
+      recordBffDiagnostic(
+        request,
+        url,
+        resolved,
+        true,
+        "upstream_redirect_blocked",
+        502,
+        "redirect",
+      );
+      return reply(502, "Перенаправление сервиса запрещено", {
+        buildSha,
+        upstreamError: "redirect",
+        bindingSource,
+      });
+    }
+    if (!response.headers.get("content-type")?.includes("application/json")) {
+      recordBffDiagnostic(
+        request,
+        url,
+        resolved,
+        true,
+        "upstream_non_json",
+        502,
+        "invalid-content-type",
+      );
+      return reply(502, "Сервис вернул некорректный ответ", {
+        buildSha,
+        upstreamError: "invalid-content-type",
+        bindingSource,
+      });
+    }
     const outgoing = new Headers({
       "content-type": "application/json; charset=utf-8",
       "cache-control": "no-store",
       "referrer-policy": "no-referrer",
       "x-content-type-options": "nosniff",
     });
+    if (buildSha) outgoing.set("x-hostess-build", buildSha);
     const cookies =
       response.headers.getSetCookie?.() ??
       response.headers.get("set-cookie")?.split(/,(?=\s*__Host-)/) ??
@@ -173,9 +326,9 @@ export async function proxyHostessApi(
       )
         outgoing.append("set-cookie", cookie);
     }
+    recordBffDiagnostic(request, url, resolved, true, "upstream_response", response.status);
     return new Response(response.body, { status: response.status, headers: outgoing });
   } catch (error) {
-    const response = reply(503, "Соединение прервано. Проверьте бронь в кабинете перед повтором");
     const message = error instanceof Error ? error.message : "";
     const category = /timeout|abort/i.test(message)
       ? "timeout"
@@ -188,7 +341,11 @@ export async function proxyHostessApi(
             : /illegal invocation|not a function/i.test(message)
               ? "runtime"
               : "network";
-    response.headers.set("x-hostess-upstream-error", category);
-    return response;
+    recordBffDiagnostic(request, url, resolved, true, "upstream_fetch_error", 503, category);
+    return reply(503, "Соединение прервано. Проверьте бронь в кабинете перед повтором", {
+      buildSha,
+      upstreamError: category,
+      bindingSource,
+    });
   }
 }
