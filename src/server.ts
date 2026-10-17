@@ -1,6 +1,7 @@
 import "./lib/error-capture";
 import { proxyHostessApi } from "./lib/server/guest-proxy";
 import { claimPage } from "./lib/server/guest-claim";
+import { resolveHostessRuntimeEnv } from "./lib/server/runtime-env";
 
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
@@ -52,16 +53,12 @@ export default {
     if (claim) return claim;
     const proxy = await proxyHostessApi(request, env);
     if (proxy) {
-      const requestEnv = (
-        request as Request & {
-          runtime?: { cloudflare?: { env?: { HOSTESS_BUILD_SHA?: unknown } } };
+      if (!proxy.headers.has("x-hostess-build")) {
+        const resolved = await resolveHostessRuntimeEnv(request, env);
+        if (resolved.buildSha) {
+          proxy.headers.set("x-hostess-build", resolved.buildSha);
         }
-      ).runtime?.cloudflare?.env;
-      const buildSha =
-        (env as { HOSTESS_BUILD_SHA?: unknown } | undefined)?.HOSTESS_BUILD_SHA ??
-        requestEnv?.HOSTESS_BUILD_SHA;
-      if (typeof buildSha === "string" && /^[a-f0-9]{40}$/.test(buildSha))
-        proxy.headers.set("x-hostess-build", buildSha);
+      }
       return proxy;
     }
     try {
