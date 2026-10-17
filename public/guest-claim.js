@@ -1,7 +1,7 @@
 (() => {
-  const token =
-    new URLSearchParams(location.hash.slice(1)).get("token") ||
-    new URLSearchParams(location.search).get("token");
+  // Bearer tokens are accepted only in the fragment, never in query strings/logs.
+  const match = /^#token=([A-Za-z0-9_-]{43})$/.exec(location.hash);
+  const token = location.search ? null : match?.[1];
   history.replaceState(null, "", "/auth/claim");
   const button = document.getElementById("claim"),
     status = document.getElementById("status");
@@ -19,6 +19,8 @@
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token }),
         credentials: "same-origin",
+        cache: "no-store",
+        signal: AbortSignal.timeout(15_000),
       });
       const result = await response.json();
       if (!response.ok)
@@ -42,6 +44,7 @@
         const saved = sessionStorage.getItem("hostess:dining:return");
         if (saved && /^\/v\/xoxo\/t\/(?:0[1-9]|1[0-7])\/[A-Za-z0-9_-]{20,128}$/.test(saved))
           returnTo = saved;
+        sessionStorage.removeItem("hostess:dining:return");
       } catch {
         /* Private mode can disable storage. */
       }

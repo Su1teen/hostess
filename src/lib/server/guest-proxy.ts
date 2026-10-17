@@ -4,17 +4,12 @@ type Runtime = {
   HOSTESS_BFF_KEY?: string;
 };
 const guestPrefix = "/api/guest/v1/";
-const allowed = new Set([
-  "availability",
-  "bootstrap",
-  "claims",
-  "profile",
-  "logout",
-  "holds",
-  "quotes",
-  "reservations",
-  "ownership",
-]);
+const guestRoutes: [RegExp, string][] = [
+  [/^availability$/, "GET"],
+  [/^profile$/, "GET"],
+  [/^(bootstrap|claims|logout|holds|quotes|reservations|ownership)$/, "POST"],
+  [/^reservations\/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/, "PATCH"],
+];
 const dineInRoutes: [RegExp, string][] = [
   [/^dine-in\/tables\/[A-Za-z0-9_-]{20,128}$/, "GET"],
   [/^dine-in\/menu$/, "GET"],
@@ -44,18 +39,11 @@ export async function proxyHostessApi(
   if (!exchange && !booking) return null;
   if (url.search.length > 2000) return reply(414, "Запрос слишком большой");
   const resource = url.pathname.slice(guestPrefix.length);
-  const dining = dineInRoutes.find(([path]) => path.test(resource));
+  const route = [...guestRoutes, ...dineInRoutes].find(([path]) => path.test(resource));
+  if (booking && !route) return reply(404, "Операция недоступна");
   if (
-    booking &&
-    !allowed.has(resource) &&
-    !/^reservations\/[a-f0-9-]{36}$/.test(resource) &&
-    !dining
-  )
-    return reply(404, "Операция недоступна");
-  if (
-    !["GET", "POST", "PATCH"].includes(request.method) ||
     (exchange && request.method !== "GET") ||
-    (dining && !dining[1].split(" ").includes(request.method))
+    (route && !route[1].split(" ").includes(request.method))
   )
     return reply(405, "Метод недоступен");
   const env = (runtime ?? {}) as Runtime;
@@ -94,7 +82,7 @@ export async function proxyHostessApi(
     // No cross-site requests, even before login. Service key never reaches browser.
     if (request.headers.get("origin") !== url.origin)
       return reply(403, "Недопустимый источник запроса");
-    if (!request.headers.get("content-type")?.startsWith("application/json"))
+    if (!/^application\/json(?:\s*;|\s*$)/i.test(request.headers.get("content-type") ?? ""))
       return reply(415, "Нужен JSON");
   }
   const headers = new Headers({ accept: "application/json" });
@@ -126,15 +114,19 @@ export async function proxyHostessApi(
     const chunks: Uint8Array[] = [];
     let size = 0;
     if (!reader) return reply(400, "Пустой запрос");
-    while (true) {
-      const part = await reader.read();
-      if (part.done) break;
-      size += part.value.length;
-      if (size > 32768) {
-        await reader.cancel();
-        return reply(413, "Запрос слишком большой");
+    try {
+      while (true) {
+        const part = await reader.read();
+        if (part.done) break;
+        size += part.value.length;
+        if (size > 32768) {
+          await reader.cancel();
+          return reply(413, "Запрос слишком большой");
+        }
+        chunks.push(part.value);
       }
-      chunks.push(part.value);
+    } catch {
+      return reply(400, "Не удалось прочитать запрос");
     }
     body = new Uint8Array(size);
     let offset = 0;
@@ -174,7 +166,10 @@ export async function proxyHostessApi(
         !/;\s*domain=/i.test(cookie) &&
         /;\s*path=\/(?:;|$)/i.test(cookie) &&
         /;\s*secure(?:;|$)/i.test(cookie) &&
-        /;\s*httponly(?:;|$)/i.test(cookie)
+        /;\s*httponly(?:;|$)/i.test(cookie) &&
+        (/;\s*samesite=(?:lax|strict)(?:;|$)/i.test(cookie) ||
+          (/^__Host-hostess-(?:guest|dining|anonymous)=;/.test(cookie) &&
+            /;\s*max-age=0(?:;|$)/i.test(cookie)))
       )
         outgoing.append("set-cookie", cookie);
     }

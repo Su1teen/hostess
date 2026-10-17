@@ -10,6 +10,7 @@ export function claimPage(request: Request): Response | null {
         "cache-control": "no-store, no-transform",
         "referrer-policy": "no-referrer",
         "x-robots-tag": "noindex, nofollow, noarchive",
+        "x-content-type-options": "nosniff",
         "content-security-policy":
           "default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'",
       },

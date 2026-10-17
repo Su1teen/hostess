@@ -233,15 +233,17 @@ export function GuestPortal() {
         <button
           className="min-h-11 text-sm text-ink-3"
           onClick={() => {
-            void guestApi("/logout", {}).then(() => {
-              generation.current++;
-              identity.current = null;
-              setClaimCode(null);
-              setReschedule(null);
-              clearDiningSession();
-              setData(null);
-              setError("Вы вышли из кабинета");
-            });
+            void guestApi("/logout", {})
+              .then(() => {
+                generation.current++;
+                identity.current = null;
+                setClaimCode(null);
+                setReschedule(null);
+                clearDiningSession();
+                setData(null);
+                setError("Вы вышли из кабинета");
+              })
+              .catch(() => setError("Не удалось выйти. Повторите попытку."));
           }}
         >
           Выйти

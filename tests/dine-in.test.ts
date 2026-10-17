@@ -343,7 +343,7 @@ describe("dine-in BFF security", () => {
       new Response("{}", {
         headers: {
           "content-type": "application/json",
-          "set-cookie": "__Host-hostess-guest=; Path=/; Secure; HttpOnly; Max-Age=0",
+          "set-cookie": "__Host-hostess-guest=; Path=/; Secure; HttpOnly; SameSite=Lax; Max-Age=0",
         },
       })) as typeof fetch;
     expect(
