@@ -276,9 +276,11 @@ export function ListRow({
 
 /* ── Realtime status ─────────────────────────────────────────────── */
 
-export type LiveTone = "live" | "warn" | "busy";
+export type LiveTone = "live" | "warn" | "busy" | "unknown";
 
 export function occupancyLevel(occupancy: number): { tone: LiveTone; label: string } {
+  if (!Number.isFinite(occupancy) || occupancy < 0)
+    return { tone: "unknown", label: "Нет данных о загрузке" };
   if (occupancy >= 98) return { tone: "busy", label: "Полная посадка" };
   if (occupancy >= 80) return { tone: "busy", label: "Почти полно" };
   if (occupancy >= 55) return { tone: "warn", label: "Умеренно" };
@@ -286,6 +288,7 @@ export function occupancyLevel(occupancy: number): { tone: LiveTone; label: stri
 }
 
 export const toneColor: Record<LiveTone, string> = {
+  unknown: "#a9aca9",
   live: "var(--hs-live)",
   warn: "var(--hs-warn)",
   busy: "var(--hs-busy)",
@@ -349,7 +352,7 @@ export function LiveStatus({
     >
       <LiveDot tone={tone} pulse={tone === "live" && !estimated} hollow={estimated} />
       <span className="truncate">{labelOverride ?? label}</span>
-      {showPercent && !estimated && (
+      {showPercent && !estimated && occupancy >= 0 && (
         <span className={cn("t-num shrink-0 font-normal", light ? "text-white/65" : "text-ink-3")}>
           · {occupancy}%
         </span>
@@ -397,10 +400,12 @@ export function OccupancyRing({
           stroke={toneColor[tone]}
           strokeWidth={stroke}
           strokeLinecap="round"
-          strokeDasharray={estimated ? "2 3.2" : c}
-          initial={estimated ? false : { strokeDashoffset: c }}
+          strokeDasharray={value < 0 ? "2 3.2" : estimated ? "2 3.2" : c}
+          initial={estimated || value < 0 ? false : { strokeDashoffset: c }}
           animate={
-            estimated ? undefined : { strokeDashoffset: c * (1 - Math.min(100, value) / 100) }
+            estimated || value < 0
+              ? undefined
+              : { strokeDashoffset: c * (1 - Math.min(100, Math.max(0, value)) / 100) }
           }
           transition={{ type: "spring", stiffness: 90, damping: 20 }}
         />

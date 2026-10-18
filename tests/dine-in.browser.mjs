@@ -1,10 +1,12 @@
 // Isolated fixtures: this is not a production or PostgreSQL acceptance test.
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
 import { spawn } from "node:child_process";
 import { chromium, webkit, devices } from "playwright";
 const engine = process.env.BROWSER_ENGINE ?? "chromium";
 const device = process.env.BROWSER_DEVICE ?? "mobile";
-const port = 5187,
+const port = Number(process.env.BROWSER_PORT ?? 5187),
   origin = "http://127.0.0.1:" + port;
 const server = spawn(
   process.execPath,
@@ -40,11 +42,20 @@ try {
     ...(device === "desktop"
       ? { viewport: { width: 1440, height: 900 } }
       : devices[engine === "webkit" ? "iPhone 13" : "Pixel 7"]),
+    ...(process.env.BROWSER_VIEWPORT
+      ? {
+          viewport: {
+            width: Number(process.env.BROWSER_VIEWPORT.split("x")[0]),
+            height: Number(process.env.BROWSER_VIEWPORT.split("x")[1]),
+          },
+        }
+      : {}),
     reducedMotion: "reduce",
   });
   const page = await context.newPage(),
     failures = [];
   page.setDefaultNavigationTimeout(60000);
+  page.setDefaultTimeout(30000);
   page.on("pageerror", (e) => failures.push(e.message));
   const tokens = new Map(
     Array.from({ length: 17 }, (_, i) => {
@@ -62,6 +73,25 @@ try {
     menuOffline = false,
     expireNext = false,
     lastInput;
+  const regularId = "22222222-2222-4222-8222-222222222222";
+  const shots = process.env.SCREENSHOT_DIR;
+  if (shots) fs.mkdirSync(shots, { recursive: true });
+  const shot = async (name) => {
+    if (shots)
+      await page.screenshot({
+        path: path.join(shots, `${engine}-${process.env.BROWSER_VIEWPORT ?? device}-${name}.png`),
+        fullPage: true,
+      });
+  };
+  const openMarket = async () => {
+    await page.getByRole("button", { name: /XOXO MARKET Биржа напитков/ }).click();
+  };
+  await page.route("**/api/exchange/history?*", async (route) =>
+    route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({ generatedAt: new Date().toISOString(), currency: "KZT", rounds: [] }),
+    }),
+  );
   const quotes = new Map(),
     orders = new Map(),
     submissions = [];
@@ -100,6 +130,27 @@ try {
           })
         : send({ error: { code: "QR_INVALID", message: "QR недействителен" } }, 410);
     }
+    if (p === "/dine-in/regular-menu")
+      return send({
+        venueCode: "xoxo",
+        currency: "KZT",
+        updatedAt: new Date().toISOString(),
+        items: [
+          {
+            id: regularId,
+            name: "Бургер XOXO",
+            description: "Тестовая позиция из опубликованного меню",
+            category: "Кухня",
+            imageUrl: null,
+            portion: "320 г",
+            allergens: ["Глютен"],
+            price: 2400,
+            priceMinor: "240000",
+            isAvailable: true,
+            version: 1,
+          },
+        ],
+      });
     if (p === "/dine-in/menu") {
       if (menuOffline) return send({ error: { code: "EXCHANGE_UNAVAILABLE" } }, 503);
       return send({
@@ -112,6 +163,8 @@ try {
             name: "Напиток XOXO",
             price: 1590,
             originalPrice: 1700,
+            previousPrice: 1700,
+            minPrice: 1000,
             changePercent: -6.5,
             isAvailable: true,
             category: "Напитки",
@@ -149,15 +202,15 @@ try {
       assert(!("payable" in b));
       const lines = b.items.map((x) => ({
         ...x,
-        productName: "Напиток XOXO",
-        unitPrice: 1590,
-        total: x.quantity * 1590,
+        productName: x.itemType === "REGULAR_MENU" ? "Бургер XOXO" : "Напиток XOXO",
+        unitPrice: x.itemType === "REGULAR_MENU" ? 2400 : 1590,
+        total: x.quantity * (x.itemType === "REGULAR_MENU" ? 2400 : 1590),
       }));
       const subtotal = lines.reduce((n, l) => n + l.total, 0),
         discount = profile ? Math.min(1000, b.redeemAmount, subtotal) : 0;
       const q = {
         id: "quote-" + ++quotesN,
-        roundId: round,
+        roundId: b.items.every((x) => x.itemType === "REGULAR_MENU") ? null : round,
         expiresAt: new Date(Date.now() + (expireNext ? -1000 : 120000)).toISOString(),
         lines,
         subtotal,
@@ -177,7 +230,7 @@ try {
       if (!o) {
         const q = quotes.get(b.quoteId);
         assert(q);
-        if (Date.parse(q.expiresAt) <= Date.now() || q.roundId !== round)
+        if (Date.parse(q.expiresAt) <= Date.now() || (q.roundId && q.roundId !== round))
           return send({ error: { code: "REQUOTE", message: "Обновите цену" } }, 409);
         o = {
           ...q,
@@ -209,22 +262,36 @@ try {
   });
   for (let n = 1; n <= 17; n++) {
     const c = String(n).padStart(2, "0");
+    console.log(`Checking QR ${c}`);
     await page.goto(urlFor(c));
     await page.waitForLoadState("networkidle");
     await page.getByText("Стол №" + c, { exact: true }).waitFor();
     await page.getByText("Авторское имя стола " + c, { exact: true }).waitFor();
+    await page.getByRole("button", { name: /КУХНЯ & БАР Меню XOXO/ }).click();
+    await page.getByRole("button", { name: "Добавить Бургер XOXO" }).waitFor();
+    await page.getByRole("button", { name: "Меню и биржа", exact: true }).click();
+    await openMarket();
+    await page.getByRole("button", { name: "Добавить Напиток XOXO", exact: true }).waitFor();
+    await page.reload();
+    await page.getByText("Стол №" + c, { exact: true }).waitFor();
     assert(
       await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
       "horizontal overflow " + c,
     );
   }
   await page.goto(urlFor("03"));
+  await page.getByRole("button", { name: /КУХНЯ & БАР Меню XOXO/ }).waitFor();
+  await shot("qr-landing");
+  await openMarket();
+  await page.getByRole("button", { name: "Добавить Напиток XOXO", exact: true }).waitFor();
+  await shot("market");
   await page.getByRole("button", { name: "Добавить Напиток XOXO", exact: true }).click();
   await page.reload();
   await page.getByRole("button", { name: /Корзина · 1/ }).waitFor();
   await page.goto(urlFor("04"));
   assert(await page.getByRole("button", { name: /Корзина · 0/ }).isDisabled());
   await page.goto(urlFor("03"));
+  await openMarket();
   assert(
     await page.getByRole("button", { name: "Добавить Нет в наличии", exact: true }).isDisabled(),
   );
@@ -238,10 +305,13 @@ try {
   await page.getByRole("heading", { name: "Заказ #1 принят" }).waitFor();
   assert.equal(ordersN, 1);
   assert.deepEqual(submissions[0], submissions[1]);
+  await shot("receipt");
   await page.getByRole("button", { name: "Заказать ещё", exact: true }).click();
+  await openMarket();
   for (let n = 0; n < 3; n++)
     await page.getByRole("button", { name: "Добавить Напиток XOXO", exact: true }).click();
   await page.getByRole("button", { name: /Корзина · 3/ }).click();
+  await shot("cart");
   await page.getByRole("button", { name: "Создать гостевой профиль", exact: true }).click();
   await page.getByLabel("Имя", { exact: true }).fill("Тестовый гость");
   await page.getByLabel("Телефон", { exact: true }).fill("+77001234567");
@@ -254,6 +324,7 @@ try {
   assert.equal(ordersN, 1);
   await page.getByRole("button", { name: "Проверить сумму", exact: true }).click();
   await page.getByRole("button", { name: /^Заказать ·/ }).waitFor();
+  await shot("quote");
   assert.equal(lastInput.items[0].quantity, 3);
   assert.equal(lastInput.redeemAmount, 1000);
   round = "round-2";
@@ -289,6 +360,7 @@ try {
   );
   await page.reload();
   assert(await page.getByRole("button", { name: /Корзина · 0/ }).isDisabled());
+  await openMarket();
   menuOffline = true;
   await page.evaluate(() => window.dispatchEvent(new Event("focus")));
   await page.getByRole("status").filter({ hasText: "Биржа временно недоступна" }).waitFor();
@@ -302,6 +374,38 @@ try {
       (b) => b.getAttribute("aria-label") === "Добавить Напиток XOXO" && !b.disabled,
     ),
   );
+  // One basket survives both catalog directions and keeps each authoritative source.
+  await page.getByRole("button", { name: "Добавить Напиток XOXO", exact: true }).click();
+  await page.getByRole("button", { name: "Меню и биржа", exact: true }).click();
+  await page.getByRole("button", { name: /КУХНЯ & БАР Меню XOXO/ }).click();
+  await page.getByRole("button", { name: "Добавить Бургер XOXO" }).waitFor();
+  await shot("regular-menu");
+  await page.getByRole("button", { name: "Подробнее: Бургер XOXO" }).click();
+  await page.getByText("Аллергены: Глютен").waitFor();
+  await page.getByRole("dialog").getByRole("button", { name: "Добавить Бургер XOXO" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Close", exact: true }).click();
+  await page.getByRole("button", { name: /Корзина · 2/ }).click();
+  await page.getByRole("button", { name: "Проверить сумму", exact: true }).click();
+  await page.getByRole("button", { name: /^Заказать ·/ }).waitFor();
+  assert.deepEqual(lastInput.items, [
+    { productId, quantity: 1 },
+    { productId: regularId, quantity: 1, itemType: "REGULAR_MENU" },
+  ]);
+  await page.getByRole("button", { name: /^Заказать ·/ }).click();
+  await page.getByRole("heading", { name: "Заказ #3 принят" }).waitFor();
+  assert.equal([...orders.values()].at(-1).payable, 3990);
+  await page.getByRole("button", { name: "Заказать ещё", exact: true }).click();
+  menuOffline = true;
+  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await page.getByRole("button", { name: "Добавить Бургер XOXO" }).click();
+  await page.getByRole("button", { name: /Корзина · 1/ }).click();
+  await page.getByRole("button", { name: "Проверить сумму", exact: true }).click();
+  await page.getByRole("button", { name: /^Заказать ·/ }).click();
+  await page.getByRole("heading", { name: "Заказ #4 принят" }).waitFor();
+  assert.equal([...orders.values()].at(-1).roundId, null);
+  assert.equal([...orders.values()].at(-1).payable, 2400);
+  await page.getByRole("button", { name: "Заказать ещё", exact: true }).click();
+  menuOffline = false;
   if (device === "desktop") {
     await page.keyboard.press("Tab");
     assert(await page.evaluate(() => document.activeElement?.tagName === "BUTTON"));
@@ -311,7 +415,7 @@ try {
   assert.equal(await page.getByRole("button", { name: /^Заказать ·/ }).count(), 0);
   assert.deepEqual(failures, []);
   console.log(
-    `${engine}/${device} QR UI PASS: 17 fixture tables, direct load/reload, table names, cart isolation, disabled QR/item, anonymous checkout, interrupted response retry, bootstrap, expired quote, redemption, receipt, logout clears saved capabilities.`,
+    `${engine}/${device} QR UI PASS: 17 fixture tables, direct load/reload, table names, cart isolation, disabled QR/item, anonymous checkout, interrupted response retry, bootstrap, expired quote, redemption, receipt, logout clears saved capabilities, both catalogs on 17 QRs, product detail, mixed cart, regular-only with market offline.`,
   );
 } finally {
   if (browser) await browser.close();

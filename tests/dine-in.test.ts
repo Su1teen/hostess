@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import {
   changeQuantity,
+  cartKey,
+  cartItems,
+  cartCanQuote,
+  regularMenuSchema,
   diningApi,
   kzt,
   matchesTable,
@@ -47,6 +51,51 @@ const json = (data: unknown) =>
   new Response(JSON.stringify(data), { headers: { "content-type": "application/json" } });
 
 describe("QR and price boundaries", () => {
+  test("mixed baskets keep source IDs distinct and regular-only checkout survives exchange outage", () => {
+    const regular = regularMenuSchema.parse({
+      venueCode: "xoxo",
+      currency: "KZT",
+      updatedAt: new Date(now).toISOString(),
+      items: [
+        {
+          id: "product-1",
+          name: "Kitchen",
+          description: "",
+          category: "Food",
+          imageUrl: null,
+          portion: "200 г",
+          allergens: [],
+          price: 2400,
+          priceMinor: "240000",
+          isAvailable: true,
+          version: 2,
+        },
+      ],
+    });
+    const regularKey = cartKey("product-1", "REGULAR_MENU");
+    expect(regularKey).toBe("menu:product-1");
+    expect(cartItems({ "product-1": 2, [regularKey]: 1 })).toEqual([
+      { productId: "product-1", quantity: 2 },
+      { productId: "product-1", quantity: 1, itemType: "REGULAR_MENU" },
+    ]);
+    expect(cartCanQuote({ [regularKey]: 1 }, null, regular, now)).toBe(true);
+    expect(cartCanQuote({ "product-1": 1, [regularKey]: 1 }, null, regular, now)).toBe(false);
+    expect(cartCanQuote({ "product-1": 1, [regularKey]: 1 }, menu, regular, now)).toBe(true);
+    expect(cartCanQuote({ [regularKey]: 1 }, menu, null, now)).toBe(false);
+    const regularQuote = {
+      ...quote,
+      roundId: null,
+      lines: quote.lines.map((line) => ({
+        ...line,
+        itemType: "REGULAR_MENU" as const,
+        menuVersion: 2,
+      })),
+    };
+    expect(quoteFresh(regularQuote, null, now)).toBe(true);
+    expect(quoteFresh(regularQuote, null, now + 30000)).toBe(false);
+    expect(quoteFresh({ ...regularQuote, lines: quote.lines }, null, now)).toBe(false);
+    expect(quoteSchema.parse(regularQuote).roundId).toBeNull();
+  });
   test("17 server resource IDs map only to the matching QR table", async () => {
     for (let i = 1; i <= 17; i++) {
       const code = String(i).padStart(2, "0"),
@@ -248,6 +297,7 @@ describe("dine-in BFF security", () => {
   });
   test.each([
     ["dine-in/menu?venue=xoxo", "GET"],
+    ["dine-in/regular-menu?venue=xoxo", "GET"],
     ["dine-in/tables/" + "a".repeat(43), "GET"],
     ["dine-in/quotes", "POST"],
     ["dine-in/orders", "POST"],
@@ -275,6 +325,37 @@ describe("dine-in BFF security", () => {
     );
     expect(response?.status).toBe(200);
     expect(response?.headers.get("cache-control")).toBe("no-store");
+  });
+  test("public price history has bounded parameters and does not forward staff or BFF credentials", async () => {
+    globalThis.fetch = (async (url: RequestInfo | URL, init?: RequestInit) => {
+      expect(String(url)).toBe("https://exchange.test/api/v1/public/history?limit=12");
+      expect(new Headers(init?.headers).has("cookie")).toBe(false);
+      expect(new Headers(init?.headers).has("x-hostess-service-key")).toBe(false);
+      return json({ rounds: [] });
+    }) as typeof fetch;
+    const r = await proxyHostessApi(
+      new Request("https://hostess.test/api/exchange/history?limit=12&admin=true", {
+        headers: { cookie: "__Host-hostess-staff=private" },
+      }),
+      runtime,
+    );
+    expect(r?.status).toBe(200);
+    expect(
+      (
+        await proxyHostessApi(
+          new Request("https://hostess.test/api/exchange/history?limit=999"),
+          runtime,
+        )
+      )?.status,
+    ).toBe(400);
+    expect(
+      (
+        await proxyHostessApi(
+          new Request("https://hostess.test/api/exchange/history", { method: "POST" }),
+          runtime,
+        )
+      )?.status,
+    ).toBe(405);
   });
   test("no arbitrary API, cookie or method escalation", async () => {
     globalThis.fetch = (async () => {

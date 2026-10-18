@@ -1,3 +1,4 @@
+import { useOccupancy } from "@/hooks/useOccupancy";
 import { useState, type ReactNode } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
@@ -19,7 +20,6 @@ import {
   categoryMeta,
   curatedRestaurants,
   liveSignal,
-  occupancyOf,
   slotsFor,
   statusText,
 } from "@/components/hostess/venue";
@@ -94,6 +94,7 @@ export function CatalogSections({
     .filter((venue) => venue.category === category)
     .sort((a, b) => b.rating - a.rating);
 
+  const { signals } = useOccupancy();
   let stackItems: StackedCoverFlowItem[];
   if (category === "food") {
     stackItems = curatedRestaurants().map((r, index) => ({
@@ -103,7 +104,7 @@ export function CatalogSections({
       title: r.name,
       subtitle: `${r.district} · ${r.distanceKm} км`,
       meta: `~${money(r.avgCheck)}`,
-      occupancy: occupancyOf(r.id),
+      occupancy: liveSignal(r.id, Date.now(), signals[r.id]).occupancy,
       rating: r.rating,
       live: r.live,
       badge: index === 0 ? "Выбор недели" : r.id === "xoxo" ? "Сегодня трансляция" : undefined,
@@ -122,7 +123,7 @@ export function CatalogSections({
     }));
   } else {
     stackItems = categoryVenues.map((v) => {
-      const signal = liveSignal(v.id);
+      const signal = liveSignal(v.id, Date.now(), signals[v.id]);
       return {
         id: v.id,
         image: v.cover,
@@ -145,10 +146,7 @@ export function CatalogSections({
         ? "Афиша недели"
         : "Лучшее рядом";
 
-  const availableNow = [...restaurants]
-    .filter((r) => r.occupancy < 98)
-    .sort((a, b) => a.occupancy - b.occupancy)
-    .slice(0, 4);
+  const availableNow = curatedRestaurants().slice(0, 4);
 
   const topRated = [...restaurants].sort((a, b) => b.rating - a.rating);
 
@@ -166,7 +164,7 @@ export function CatalogSections({
       {category === "food" && (
         <>
           <Section>
-            <SectionHeader eyebrow="Ближайшие столы" title="Свободно сейчас" />
+            <SectionHeader eyebrow="Откройте место" title="Рестораны поблизости" />
             <div className="space-y-5">
               {availableNow.map((r) => (
                 <VenueRow
@@ -174,7 +172,7 @@ export function CatalogSections({
                   image={r.cover}
                   title={r.name}
                   subtitle={`${r.cuisine} · ${r.district}`}
-                  occupancy={r.occupancy}
+                  occupancy={liveSignal(r.id, Date.now(), signals[r.id]).occupancy}
                   rating={r.rating}
                   onClick={() => onOpenRestaurant(r)}
                   footer={
@@ -210,7 +208,7 @@ export function CatalogSections({
           <SectionHeader title="Все места" />
           <div className="space-y-5">
             {categoryVenues.map((v) => {
-              const signal = liveSignal(v.id);
+              const signal = liveSignal(v.id, Date.now(), signals[v.id]);
               return (
                 <VenueRow
                   key={v.id}

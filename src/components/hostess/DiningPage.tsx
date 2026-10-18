@@ -1,14 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  ArrowDownRight,
-  ArrowUpRight,
-  Check,
-  Minus,
-  Plus,
-  RefreshCw,
-  ShoppingBag,
-  UserRound,
-} from "lucide-react";
+import { Check, RefreshCw, ShoppingBag, UserRound } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -25,6 +16,8 @@ import {
   kzt,
   needsRequote,
   quoteSchema,
+  cartCanQuote,
+  cartKey,
   type Cart,
   type DiningMenu,
   type DiningQuote,
@@ -36,6 +29,14 @@ import {
 import { GuestApiError } from "@/lib/guest-api";
 import { clearDiningSession, diningSessionChanged } from "@/lib/dining-session";
 import { DiningAccount, DiningReceipt, GuestIdentity } from "./DiningAccount";
+import {
+  DiningCatalog,
+  DiningGateways,
+  ProductQuantity as Quantity,
+  type DiningSection,
+  type CatalogProduct,
+} from "./DiningCatalog";
+import { usePriceHistory, useRegularMenu } from "@/hooks/useDiningCatalog";
 
 type Attempt = { quote: DiningQuote; key: string };
 const actionClass =
@@ -52,6 +53,7 @@ export function DiningPage({
   const storageKey = `hostess:dining:${venue}:${table}:${token}`;
   const [context, setContext] = useState<DiningTable | null>(null),
     [menu, setMenu] = useState<DiningMenu | null>(null);
+  const [menuLoading, setMenuLoading] = useState(true);
   const [cart, setCart] = useState<Cart>({}),
     [ready, setReady] = useState(false),
     [now, setNow] = useState(Date.now());
@@ -67,8 +69,10 @@ export function DiningPage({
   const [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
     [tableError, setTableError] = useState("");
-  const [category, setCategory] = useState("Все"),
+  const [section, setSection] = useState<DiningSection>("home"),
     [uncertain, setUncertain] = useState(false);
+  const regular = useRegularMenu(venue);
+  const history = usePriceHistory(menu?.currentRound?.id);
   const attempt = useRef<Attempt | null>(null),
     lock = useRef(false),
     identityEpoch = useRef(0),
@@ -76,6 +80,16 @@ export function DiningPage({
     sessionIdentity = useRef<string | undefined>(undefined);
   const fresh = menuFresh(menu, now),
     validQuote = quoteFresh(quote, menu, now);
+  const canQuote = cartCanQuote(cart, menu, regular.available ? regular.menu : null, now);
+  const exchangeProducts: CatalogProduct[] = (menu?.products ?? []).map((p) => ({
+    ...p,
+    key: p.id,
+  }));
+  const regularProducts: CatalogProduct[] = (regular.menu?.items ?? []).map((p) => ({
+    ...p,
+    key: cartKey(p.id, "REGULAR_MENU"),
+  }));
+  const allProducts = [...exchangeProducts, ...regularProducts];
   const count = Object.values(cart).reduce((a, b) => a + b, 0);
   const persist = useCallback(
     (next: Cart, pending: Attempt | null, receipt?: { id: string; token?: string }) => {
@@ -147,6 +161,17 @@ export function DiningPage({
   useEffect(() => {
     let active = true;
     const controller = new AbortController();
+    // A client-side transition to another QR must never carry a previous table's basket.
+    identityEpoch.current++;
+    setContext(null);
+    setCart({});
+    setQuote(null);
+    setOrder(null);
+    setMenu(null);
+    setMenuLoading(true);
+    setSection("home");
+    setUncertain(false);
+    attempt.current = null;
     try {
       const saved = JSON.parse(sessionStorage.getItem(storageKey) ?? "null");
       if (
@@ -236,6 +261,8 @@ export function DiningPage({
       } catch {
         if (active && !currentController.signal.aborted)
           setMenu((previous) => (previous ? { ...previous, status: "no_published_round" } : null));
+      } finally {
+        if (active && !currentController.signal.aborted) setMenuLoading(false);
       }
     };
     void refresh();
@@ -274,7 +301,7 @@ export function DiningPage({
     persist(next, null);
   }
   async function requestQuote() {
-    if (lock.current || attempt.current || !context || !fresh || !count || !sessionKnown) return;
+    if (lock.current || attempt.current || !context || !canQuote || !count || !sessionKnown) return;
     lock.current = true;
     setBusy(true);
     setError("");
@@ -368,19 +395,18 @@ export function DiningPage({
         ))}
       </main>
     );
-  const categories = [
-    "Все",
-    ...new Set(menu?.products.map((p) => p.category).filter((c): c is string => Boolean(c))),
-  ];
-  const products =
-    menu?.products.filter((p) => category === "Все" || p.category === category) ?? [];
+
   return (
     <main className="mx-auto min-h-dvh w-full max-w-lg overflow-x-clip bg-canvas pb-[calc(120px+env(safe-area-inset-bottom))] text-ink">
-      <header className="sticky top-0 z-20 flex items-center justify-between border-b border-line bg-canvas/95 px-5 pb-4 pt-[calc(16px+env(safe-area-inset-top))] backdrop-blur-xl">
-        <div>
+      <header className="sticky top-0 z-20 flex items-center justify-between border-b border-line bg-canvas/95 px-5 pb-3 pt-[calc(12px+env(safe-area-inset-top))] backdrop-blur-xl">
+        <button
+          className="min-h-11 text-left"
+          onClick={() => setSection("home")}
+          aria-label="На главную XOXO"
+        >
           <p className="text-xs font-semibold tracking-[0.28em]">HOSTESS</p>
-          <p className="mt-1 text-xs text-ink-2">QR · Заказ за столом</p>
-        </div>
+          <p className="mt-1 text-[10px] text-ink-2">Ваш стол · ваш вечер</p>
+        </button>
         <button
           disabled={busy || uncertain}
           className="grid size-12 place-items-center rounded-full bg-stone disabled:opacity-40"
@@ -390,114 +416,72 @@ export function DiningPage({
           <UserRound size={20} />
         </button>
       </header>
-      <section className="px-5 pb-6 pt-7">
-        <div className="flex items-center justify-between">
-          <p className="t-micro">BAR & LIVE MARKET</p>
-          <span className={`flex items-center gap-2 text-xs ${fresh ? "text-live" : "text-ink-2"}`}>
-            <span className={`size-1.5 rounded-full ${fresh ? "bg-live" : "bg-ink-3"}`} />
-            {fresh ? "Биржа открыта" : "Цены обновляются"}
-          </span>
-        </div>
-        <h1 className="mt-3 text-5xl font-semibold tracking-[-0.06em]">{context.venue.name}</h1>
-        <div className="mt-5 flex items-center justify-between rounded-2xl bg-stone px-4 py-3">
-          <p className="text-sm font-medium">Стол №{context.table.code}</p>
-          <p className="max-w-[55%] text-right text-xs text-ink-2">
-            {context.table.zoneName ?? "Ваш вечер начинается здесь"}
-          </p>
-        </div>
-        <p className="mt-2 break-words text-sm text-ink-2">{context.table.name}</p>
-        <p className="mt-5 max-w-xs text-sm leading-relaxed text-ink-2">
-          Выбирайте напитки по биржевой цене. Мы зафиксируем сумму перед заказом.
-        </p>
-      </section>
-      {!fresh && (
-        <div
-          className="mx-5 mb-5 rounded-2xl border border-line p-4 text-sm text-ink-2"
-          role="status"
-        >
-          Биржа временно недоступна или раунд завершён. Меню доступно для просмотра, оформление
-          возобновится после обновления цен.
+      {section === "home" ? (
+        <>
+          <section className="dining-landing">
+            <p className="dining-landing-kicker">
+              <span>SPORTS & LOUNGE</span>
+              <span>АСТАНА</span>
+            </p>
+            <h1 className="dining-wordmark">{context.venue.name}</h1>
+            <p className="text-[10px] tracking-[.25em] text-ink-3">
+              ХОРОШИЙ ВЕЧЕР НАЧИНАЕТСЯ ЗДЕСЬ
+            </p>
+            <div className="dining-table-chip">
+              <strong>Стол №{context.table.code}</strong>
+              <span>{context.table.zoneName ?? context.table.name}</span>
+            </div>
+            <p className="mt-2 break-words text-xs text-ink-3">{context.table.name}</p>
+            <p className="dining-welcome">
+              {profile ? `Рады видеть вас, ${profile.guest.name}.` : "Располагайтесь поудобнее."}{" "}
+              Выберите что-нибудь к вашему вечеру — из меню или биржи напитков.
+            </p>
+          </section>
+          <div className="px-5">
+            <DiningGateways
+              onSelect={setSection}
+              productCount={exchangeProducts.filter((p) => p.isAvailable).length}
+              connected={fresh}
+              menuCount={regularProducts.length}
+              menuImage={regularProducts.find((p) => p.imageUrl)?.imageUrl}
+            />
+            <div className="dining-shortcuts">
+              <button onClick={() => setAccountOpen(true)}>
+                <ShoppingBag size={15} /> Мои заказы
+              </button>
+              <button onClick={() => setAccountOpen(true)}>
+                <UserRound size={15} /> {profile ? "Мои бонусы" : "Профиль и бонусы"}
+              </button>
+            </div>
+            <p className="pb-5 text-center text-[10px] leading-relaxed text-ink-3">
+              Меню и биржа — в одной корзине.
+              <br />
+              Окончательную сумму покажем до подтверждения.
+            </p>
+          </div>
+        </>
+      ) : (
+        <div className="px-5 pt-4">
+          <div className="mb-2 flex items-center justify-between text-xs text-ink-3">
+            <span>Стол №{context.table.code}</span>
+            <span>{context.table.zoneName}</span>
+          </div>
+          <DiningCatalog
+            key={section}
+            section={section}
+            products={section === "market" ? exchangeProducts : regularProducts}
+            loading={section === "market" ? menuLoading : regular.loading}
+            connected={section === "market" ? fresh : regular.available}
+            cart={cart}
+            onUpdate={update}
+            onBack={() => setSection("home")}
+            disabled={busy || uncertain}
+            roundEndsAt={menu?.currentRound?.endsAt}
+            history={history}
+            now={now}
+          />
         </div>
       )}
-      {categories.length > 1 && (
-        <nav
-          aria-label="Категории меню"
-          className="no-scrollbar mb-4 flex gap-2 overflow-x-auto px-5"
-        >
-          {categories.map((c) => (
-            <button
-              key={c}
-              onClick={() => setCategory(c)}
-              aria-pressed={category === c}
-              className={`min-h-11 shrink-0 rounded-full px-4 text-sm ${category === c ? "bg-ink text-white" : "bg-stone"}`}
-            >
-              {c}
-            </button>
-          ))}
-        </nav>
-      )}
-      <section aria-label="Биржевое меню" className="space-y-3 px-5">
-        {!menu ? (
-          <p role="status" className="py-8 text-sm text-ink-2">
-            Ждём доступный каталог…
-          </p>
-        ) : !products.length ? (
-          <p className="py-8 text-sm text-ink-2">В этой категории пока нет напитков.</p>
-        ) : (
-          products.map((p) => (
-            <article key={p.id} className="rounded-[24px] border border-line p-4">
-              <div className="flex gap-4">
-                {p.imageUrl && /^https:\/\//.test(p.imageUrl) && (
-                  <img
-                    src={p.imageUrl}
-                    referrerPolicy="no-referrer"
-                    alt=""
-                    loading="lazy"
-                    className="size-20 shrink-0 rounded-2xl bg-stone object-cover"
-                  />
-                )}
-                <div className="min-w-0 flex-1">
-                  <p className="text-[10px] uppercase tracking-[0.15em] text-ink-2">
-                    {p.category ?? "XOXO MARKET"}
-                  </p>
-                  <h2 className="mt-1 break-words text-base font-medium">{p.name}</h2>
-                  <div className="mt-3 flex flex-wrap items-center gap-2">
-                    <p className="text-lg font-semibold tracking-tight">{kzt(p.price)}</p>
-                    {typeof p.changePercent === "number" && (
-                      <span
-                        className={`inline-flex items-center text-xs ${p.changePercent > 0 ? "text-busy" : "text-live"}`}
-                      >
-                        {p.changePercent > 0 ? (
-                          <ArrowUpRight size={14} />
-                        ) : (
-                          <ArrowDownRight size={14} />
-                        )}
-                        {Math.abs(p.changePercent)}%
-                      </span>
-                    )}
-                    {p.originalPrice !== undefined && p.originalPrice !== p.price && (
-                      <span className="text-xs text-ink-3 line-through">
-                        {kzt(p.originalPrice)}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
-              <div className="mt-4 flex items-center justify-between border-t border-line pt-3">
-                <span className="text-xs text-ink-2">
-                  {!p.isAvailable ? "Временно недоступен" : "Цена текущего раунда"}
-                </span>
-                <Quantity
-                  name={p.name}
-                  value={cart[p.id] ?? 0}
-                  disabled={busy || uncertain || !fresh || !p.isAvailable}
-                  onChange={(delta) => update(p.id, delta)}
-                />
-              </div>
-            </article>
-          ))
-        )}
-      </section>
       <div className="fixed inset-x-0 bottom-0 z-30 mx-auto max-w-lg border-t border-line bg-canvas/95 px-5 pb-[calc(16px+env(safe-area-inset-bottom))] pt-4 backdrop-blur-xl">
         <button
           className={`${actionClass} w-full justify-between`}
@@ -553,19 +537,22 @@ export function DiningPage({
             </>
           ) : (
             <>
-              {!count && <p className="py-8 text-sm text-ink-2">Добавьте напитки из меню</p>}
+              {!count && (
+                <p className="py-8 text-sm text-ink-2">Добавьте блюда или напитки из меню</p>
+              )}
               {Object.entries(cart).map(([id, quantity]) => (
                 <div
                   key={id}
                   className="flex items-center justify-between gap-3 border-b border-line py-3"
                 >
                   <p className="min-w-0 break-words text-sm">
-                    {menu?.products.find((p) => p.id === id)?.name ??
-                      quote?.lines.find((l) => l.productId === id)?.productName ??
+                    {allProducts.find((p) => p.key === id)?.name ??
+                      quote?.lines.find((l) => cartKey(l.productId, l.itemType) === id)
+                        ?.productName ??
                       "Товар недоступен"}
                   </p>
                   <Quantity
-                    name={menu?.products.find((p) => p.id === id)?.name ?? "товар"}
+                    name={allProducts.find((p) => p.key === id)?.name ?? "товар"}
                     value={quantity}
                     disabled={busy || uncertain}
                     onChange={(delta) => update(id, delta)}
@@ -650,7 +637,10 @@ export function DiningPage({
                       : " · срок истёк"}
                   </p>
                   {quote.lines.map((l) => (
-                    <p key={l.productId} className="flex justify-between gap-3 text-sm">
+                    <p
+                      key={cartKey(l.productId, l.itemType)}
+                      className="flex justify-between gap-3 text-sm"
+                    >
                       <span>
                         {l.productName} · {l.quantity} × {kzt(l.unitPrice)}
                       </span>
@@ -686,6 +676,12 @@ export function DiningPage({
                   {error}
                 </p>
               )}
+              {count > 0 && !canQuote && !uncertain && !validQuote && (
+                <p role="status" className="text-sm leading-relaxed text-ink-2">
+                  Часть позиций временно недоступна или ждёт обновления цены. Можно убрать их из
+                  корзины и заказать остальные.
+                </p>
+              )}
               {uncertain ? (
                 <button disabled={busy} className={actionClass} onClick={() => void submit()}>
                   <RefreshCw size={16} />
@@ -701,7 +697,7 @@ export function DiningPage({
                 </button>
               ) : (
                 <button
-                  disabled={busy || !fresh || !count || !sessionKnown}
+                  disabled={busy || !canQuote || !count || !sessionKnown}
                   className={actionClass}
                   onClick={() => void requestQuote()}
                 >
@@ -731,40 +727,5 @@ export function DiningPage({
         </DialogContent>
       </Dialog>
     </main>
-  );
-}
-function Quantity({
-  name,
-  value,
-  disabled,
-  onChange,
-}: {
-  name: string;
-  value: number;
-  disabled: boolean;
-  onChange: (delta: number) => void;
-}) {
-  return (
-    <div className="flex shrink-0 items-center rounded-xl bg-stone">
-      <button
-        aria-label={`Убрать ${name}`}
-        disabled={disabled || !value}
-        onClick={() => onChange(-1)}
-        className="grid size-11 place-items-center disabled:opacity-30"
-      >
-        <Minus size={16} />
-      </button>
-      <span aria-live="polite" className="min-w-5 text-center text-sm tabular-nums">
-        {value}
-      </span>
-      <button
-        aria-label={`Добавить ${name}`}
-        disabled={disabled || value >= 20}
-        onClick={() => onChange(1)}
-        className="grid size-11 place-items-center disabled:opacity-30"
-      >
-        <Plus size={16} />
-      </button>
-    </div>
   );
 }

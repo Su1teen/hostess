@@ -1,13 +1,4 @@
-import { restaurants, venues, ASTANA } from "@/data/hostess";
-
-/**
- * Positionstack — геокодинг и поиск локаций.
- * Важно: Positionstack не предоставляет тайлы карт, поэтому рендер карты
- * остаётся на Mapbox, а этот сервис отвечает за forward-геокодинг поиска.
- * Free-план работает только по http, поэтому на https-деплое запрос
- * упадёт (mixed content) и мы мягко откатываемся на локальный поиск.
- */
-const POSITIONSTACK_KEY = "a740bde5fa6ecc4acd087627b6a42a3f";
+import { restaurants, venues, ASTANA, MAPBOX_TOKEN } from "@/data/hostess";
 
 export type GeoResult = {
   id: string;
@@ -17,7 +8,6 @@ export type GeoResult = {
   lat: number;
   kind: "place" | "venue" | "restaurant";
 };
-
 const localIndex: GeoResult[] = [
   ...restaurants.map((r) => ({
     id: r.id,
@@ -36,7 +26,7 @@ const localIndex: GeoResult[] = [
     kind: "venue" as const,
   })),
   {
-    id: "p1",
+    id: "bayterek",
     label: "Байтерек",
     sublabel: "Достопримечательность",
     lng: 71.4306,
@@ -44,15 +34,15 @@ const localIndex: GeoResult[] = [
     kind: "place",
   },
   {
-    id: "p2",
+    id: "khan-shatyr",
     label: "Хан Шатыр",
-    sublabel: "ТРЦ · Left Bank",
+    sublabel: "Торговый центр",
     lng: 71.4034,
     lat: 51.1325,
     kind: "place",
   },
   {
-    id: "p3",
+    id: "expo",
     label: "EXPO Нур Алем",
     sublabel: "Музей будущего",
     lng: 71.4165,
@@ -60,68 +50,66 @@ const localIndex: GeoResult[] = [
     kind: "place",
   },
   {
-    id: "p4",
+    id: "botanical",
     label: "Ботанический сад",
     sublabel: "Парк · Есиль",
     lng: 71.4162,
     lat: 51.1063,
     kind: "place",
   },
-  {
-    id: "p5",
-    label: "Триатлон-парк",
-    sublabel: "Парк · Набережная",
-    lng: 71.4573,
-    lat: 51.1417,
-    kind: "place",
-  },
 ];
-
 export function searchLocal(query: string): GeoResult[] {
-  const q = query.trim().toLowerCase();
-  if (!q) return [];
-  return localIndex.filter(
-    (i) => i.label.toLowerCase().includes(q) || i.sublabel.toLowerCase().includes(q),
-  );
+  const q = query.trim().toLocaleLowerCase("ru");
+  return q
+    ? localIndex.filter((item) =>
+        `${item.label} ${item.sublabel}`.toLocaleLowerCase("ru").includes(q),
+      )
+    : [];
 }
-
-type PositionstackHit = {
-  latitude: number;
-  longitude: number;
-  name: string;
-  label: string;
-  locality?: string;
-  region?: string;
-};
-
 export async function geocode(query: string, signal?: AbortSignal): Promise<GeoResult[]> {
   const local = searchLocal(query);
-  // На https positionstack (free) недоступен — сразу локальный поиск.
-  if (typeof window !== "undefined" && window.location.protocol === "https:") {
-    return local;
-  }
+  if (query.trim().length < 3) return local;
   try {
-    const url =
-      `http://api.positionstack.com/v1/forward?access_key=${POSITIONSTACK_KEY}` +
-      `&query=${encodeURIComponent(`${query}, Астана`)}&country=KZ&limit=5`;
-    const res = await fetch(url, { signal });
-    if (!res.ok) throw new Error(`positionstack ${res.status}`);
-    const json = (await res.json()) as { data?: PositionstackHit[] };
-    const remote: GeoResult[] = (json.data ?? [])
-      .filter((h) => h.latitude && h.longitude)
-      .map((h, i) => ({
-        id: `ps-${i}`,
-        label: h.name || h.label,
-        sublabel: h.locality || h.region || "Астана",
-        lng: h.longitude,
-        lat: h.latitude,
-        kind: "place" as const,
-      }));
-    // Локальные совпадения (рестораны/заведения) показываем первыми.
-    return [...local, ...remote.filter((r) => !local.some((l) => l.label === r.label))];
+    const params = new URLSearchParams({
+      q: `${query.trim()}, Астана`,
+      country: "kz",
+      language: "ru",
+      limit: "5",
+      proximity: `${ASTANA.lng},${ASTANA.lat}`,
+      bbox: "71.1,50.9,71.8,51.4",
+      access_token: MAPBOX_TOKEN,
+    });
+    const response = await fetch(`https://api.mapbox.com/search/geocode/v6/forward?${params}`, {
+      signal,
+    });
+    if (!response.ok) return local;
+    const data = (await response.json()) as {
+      features?: {
+        id?: string;
+        geometry?: { coordinates?: number[] };
+        properties?: { mapbox_id?: string; name?: string; place_formatted?: string };
+      }[];
+    };
+    const remote = (data.features ?? []).flatMap((feature): GeoResult[] => {
+      const [lng, lat] = feature.geometry?.coordinates ?? [];
+      if (!Number.isFinite(lng) || !Number.isFinite(lat) || !feature.properties?.name) return [];
+      return [
+        {
+          id: feature.properties.mapbox_id ?? feature.id ?? `${lng}:${lat}`,
+          label: feature.properties.name,
+          sublabel: feature.properties.place_formatted ?? "Астана",
+          lng,
+          lat,
+          kind: "place",
+        },
+      ];
+    });
+    return [
+      ...local,
+      ...remote.filter((item) => !local.some((match) => match.label === item.label)),
+    ];
   } catch {
     return local;
   }
 }
-
 export { ASTANA };

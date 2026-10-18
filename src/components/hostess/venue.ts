@@ -6,15 +6,14 @@ import {
   distanceKm,
   mapPoints,
   money,
-  occupancyForId,
   restaurants,
   venues,
-  washAvailability,
   type MapPoint,
   type Restaurant,
   type WashAvailability,
 } from "@/data/hostess";
 import { occupancyLevel } from "./system";
+import { isFreshOccupancy, type OccupancySignal, type OccupancySignals } from "@/lib/occupancy";
 
 /** Category metadata — icons only; colour lives in the shared neutral system. */
 export const categoryMeta: Record<string, { label: string; Icon: ComponentType<LucideProps> }> = {
@@ -41,68 +40,47 @@ export const curatedRestaurants = (): Restaurant[] =>
    detail all read from here, so they can never contradict each other.
    ────────────────────────────────────────────────────────────────────── */
 
-const occupancyValue = { available: 38, moderate: 68, busy: 92 } as const;
-/** FNV-1a — well-distributed, deterministic between renders. */
-const hashOf = (s: string) => {
-  let h = 0x811c9dc5;
-  for (let i = 0; i < s.length; i++) {
-    h ^= s.charCodeAt(i);
-    h = Math.imul(h, 0x01000193);
-  }
-  return h >>> 0;
-};
-
-/**
- * `verified` = reported by the venue (Hostess partner, POS/table system,
- * bay sensors). `estimated` = modelled from time of day & popularity —
- * the UI must never present it as exact live truth.
- */
-export type OccupancySource = "verified" | "estimated";
-
+/** Static catalogue values are not operational observations. -1 means unknown. */
+export type OccupancySource = "verified" | "unknown" | "stale";
 export type LiveSignal = {
   occupancy: number;
   source: OccupancySource;
-  /** Minutes since the last update (verified sources only). */
   updatedMin: number | null;
-  /** Physical-resource capacity (car-wash bays). */
   capacity?: WashAvailability;
+  observation?: OccupancySignal;
 };
-
-export function liveSignal(id: string, now = Date.now()): LiveSignal {
-  const wash = carWashById(id);
-  if (wash) {
-    const capacity = washAvailability(wash, now);
-    return { occupancy: capacity.occupancy, source: "verified", updatedMin: 0, capacity };
-  }
-  const r = restaurants.find((x) => x.id === id);
-  if (r)
+export function liveSignal(
+  _id: string,
+  now = Date.now(),
+  observation?: OccupancySignal,
+): LiveSignal {
+  if (isFreshOccupancy(observation, now))
     return {
-      occupancy: r.occupancy,
+      occupancy: observation!.valuePercent!,
       source: "verified",
-      updatedMin: r.live?.isLive ? 0 : (hashOf(id) % 4) + 1,
+      updatedMin: Math.max(0, Math.floor((now - Date.parse(observation!.updatedAt!)) / 60_000)),
+      observation,
     };
-  const v = venues.find((x) => x.id === id);
-  if (v) return { occupancy: v.occupancy, source: "verified", updatedMin: (hashOf(id) % 6) + 1 };
-  return { occupancy: occupancyValue[occupancyForId(id)], source: "estimated", updatedMin: null };
+  return {
+    occupancy: -1,
+    source:
+      observation?.updatedAt && observation.source === "staff_confirmed" ? "stale" : "unknown",
+    updatedMin: null,
+    observation,
+  };
 }
-
-/** Numeric occupancy for any point. */
 export const occupancyOf = (id: string) => liveSignal(id).occupancy;
-
-/** One human status line for any signal (bays speak in bays, venues in load). */
 export function statusText(signal: LiveSignal): string {
-  const c = signal.capacity;
-  if (c)
-    return c.free > 0 ? `${c.free} из ${c.total} свободно` : `Все заняты · ≈${c.nextFreeMin} мин`;
-  const { label } = occupancyLevel(signal.occupancy);
-  return signal.source === "estimated" ? `${label} · оценка` : label;
+  if (signal.source === "stale") return "Данные требуют обновления";
+  if (signal.source !== "verified") return "Загрузка пока неизвестна";
+  return `${occupancyLevel(signal.occupancy).label} · по столам`;
 }
-
-/** Freshness caption: "Обновлено 2 мин назад" / "Оценка по времени суток". */
 export function freshness(signal: LiveSignal): string {
-  if (signal.source === "estimated") return "Оценка по времени суток";
-  if (!signal.updatedMin) return "Обновлено только что";
-  return `Обновлено ${signal.updatedMin} мин назад`;
+  if (signal.source === "stale") return "Последнее обновление устарело";
+  if (signal.source !== "verified") return "Заведение пока не передаёт подтверждённые данные";
+  return !signal.updatedMin
+    ? "Подтверждено персоналом · только что"
+    : `Подтверждено персоналом · ${signal.updatedMin} мин назад`;
 }
 
 /* ── Table availability (one grid for map chips and the venue sheet) ── */
@@ -121,22 +99,14 @@ export const TABLE_TIMES = [
 
 export type TableSlot = { time: string; taken: boolean };
 
-/** Deterministic table availability for a day (0 = today, driven by live load). */
-export function tableSlots(id: string, occupancy: number, dayIdx = 0): TableSlot[] {
-  const load = dayIdx === 0 ? occupancy : 30 + (hashOf(`${id}-${dayIdx}`) % 70);
-  if (load >= 98) return TABLE_TIMES.map((time) => ({ time, taken: true }));
-  return TABLE_TIMES.map((time) => ({
-    time,
-    taken: hashOf(`${id}${time}${dayIdx}`) % 100 < Math.max(0, load - 25),
-  }));
+/** Occupancy cannot prove a future free slot; only a booking service may provide one. */
+export function tableSlots(_id: string, _occupancy: number, _dayIdx = 0): TableSlot[] {
+  return [];
 }
 
 /** Next free table times for today — same grid the venue sheet renders. */
-export function slotsFor(id: string, occupancy: number, count = 3): string[] {
-  return tableSlots(id, occupancy)
-    .filter((s) => !s.taken)
-    .slice(0, count)
-    .map((s) => s.time);
+export function slotsFor(_id: string, _occupancy: number, _count = 3): string[] {
+  return [];
 }
 
 export type NearbyItem = {
@@ -154,12 +124,16 @@ export type NearbyItem = {
 };
 
 /** Unified, enriched list of everything on the map for the sheet / cards. */
-export function nearbyItem(p: MapPoint, now = Date.now()): NearbyItem {
+export function nearbyItem(
+  p: MapPoint,
+  now = Date.now(),
+  observation?: OccupancySignal,
+): NearbyItem {
   const r = restaurants.find((x) => x.id === p.id);
   const v = venues.find((x) => x.id === p.id);
   const e = cityEvents.find((x) => x.id === p.id);
   const w = carWashById(p.id);
-  const signal = liveSignal(p.id, now);
+  const signal = liveSignal(p.id, now, observation);
   const live = { signal, status: statusText(signal), occupancy: signal.occupancy };
   const fallbackKm = Math.max(0.1, distanceKm(p.coords));
   if (r)
@@ -222,23 +196,12 @@ export function nearbyItem(p: MapPoint, now = Date.now()): NearbyItem {
   };
 }
 
-export const nearbyFor = (categories: readonly string[], now = Date.now()) =>
+export const nearbyFor = (
+  categories: readonly string[],
+  now = Date.now(),
+  signals: OccupancySignals = {},
+) =>
   mapPoints
     .filter((p) => categories.includes(p.category))
-    .map((p) => nearbyItem(p, now))
+    .map((p) => nearbyItem(p, now, signals[p.id]))
     .sort((a, b) => a.distanceKm - b.distanceKm);
-
-/** Hourly load curve (12:00 → 02:00) shaped around the venue's peak window. */
-export function hourlyLoad(peakHours: string, occupancy: number): number[] {
-  const [from, to] = peakHours.split("–").map((s) => parseInt(s.trim().slice(0, 2), 10));
-  const hours = Array.from({ length: 15 }, (_, i) => (12 + i) % 24);
-  return hours.map((h) => {
-    const hh = h < 6 ? h + 24 : h;
-    const f = from < 6 ? from + 24 : from;
-    const t = to < 6 ? to + 24 : to;
-    const mid = (f + t) / 2;
-    const width = Math.max(2, (t - f) / 2 + 1.5);
-    const curve = Math.exp(-((hh - mid) ** 2) / (2 * width * width));
-    return Math.round(Math.max(8, Math.min(100, curve * Math.max(occupancy, 60) + 10)));
-  });
-}

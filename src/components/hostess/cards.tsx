@@ -98,7 +98,15 @@ export function SlotChips({
   size?: "sm" | "md";
 }) {
   if (slots.length === 0)
-    return <span className="text-[12.5px] font-medium text-busy">Мест нет · лист ожидания</span>;
+    return (
+      <button
+        type="button"
+        onClick={() => onPick("")}
+        className="min-h-11 text-[12.5px] font-medium text-ink-2"
+      >
+        Уточнить доступность в карточке →
+      </button>
+    );
   return (
     <div className="flex flex-wrap gap-2">
       {slots.map((s) => {

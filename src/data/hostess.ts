@@ -1,4 +1,5 @@
 export const MAPBOX_TOKEN =
+  import.meta.env.VITE_MAPBOX_TOKEN ||
   "pk.eyJ1Ijoic3VsdGVlbiIsImEiOiJjbHVqbWJtYWkwNXhiMmxvMWwxOW9kZG9sIn0.8aHVOkgsFBDYnN9FBVNcPw";
 
 export const ASTANA = { lng: 71.4491, lat: 51.1694 };
@@ -1144,7 +1145,7 @@ export const restaurants: Restaurant[] = [
     peakHours: "22:00 – 01:00",
     cover: "/image/xobar1.png",
     gallery: ["/image/xobar1.png", "/image/xobar2.png", "/image/xobar3.png"],
-    coords: { lng: 71.4308, lat: 51.1284 },
+    coords: { lng: 71.381633, lat: 51.134284 },
     description:
       "Спорт-бар и лаунж с широким выбором напитков, коктейлей и закусок. Трансляции матчей, живая атмосфера.",
     tags: ["Sports Bar", "Лаунж", "Коктейли"],
@@ -2837,6 +2838,8 @@ export type MapPoint = {
   rating: number;
   cover: string;
   coords: { lng: number; lat: number };
+  /** Explicit discovery priority; never inferred from brand size or ratings. */
+  discovery?: { connected?: boolean; featured?: boolean };
   /** Short cuisine / kind line for map-only points. */
   kind?: string;
 };
@@ -2851,6 +2854,7 @@ export const mapPoints: MapPoint[] = [
     id: r.id,
     name: r.name,
     category: "food" as const,
+    discovery: { connected: r.id === "xoxo" },
     rating: r.rating,
     cover: r.cover,
     coords: r.coords,

@@ -13,12 +13,10 @@ import {
 import { ChevronDown, Loader2, LocateFixed, MapPin, Search, X } from "lucide-react";
 import {
   MAPBOX_TOKEN,
-  USER_LOCATION,
   restaurants,
   venues,
   cityEvents,
   mapPoints,
-  friendMapLocations,
   carWashById,
   type Restaurant,
   type Venue,
@@ -32,7 +30,7 @@ import { CarWashSheet } from "../CarWashSheet";
 import { VenueBookingModal } from "@/components/hostess/VenueBookingModal";
 import { EventTicketModal } from "@/components/hostess/EventTicketModal";
 import { CatalogSections, CategoryRail } from "@/components/hostess/screens/CatalogScreen";
-import { CompactVenueCard, Rating, SlotChips, VenueRow } from "@/components/hostess/cards";
+import { CompactVenueCard, VenueRow } from "@/components/hostess/cards";
 import {
   ICON_STROKE,
   IconButton,
@@ -41,71 +39,19 @@ import {
   Photo,
   sheetSpring,
   spring,
-  occupancyLevel,
-  toneColor,
 } from "@/components/hostess/system";
-import {
-  categoryMeta,
-  freshness,
-  liveSignal,
-  nearbyFor,
-  nearbyItem,
-  slotsFor,
-  type NearbyItem,
-} from "@/components/hostess/venue";
+import { categoryMeta, freshness, nearbyFor, nearbyItem } from "@/components/hostess/venue";
 import { useNow } from "@/hooks/useNow";
+import { useOccupancy } from "@/hooks/useOccupancy";
+import { createDiscoveryMarkers, styleDiscoveryMap } from "../discovery-map";
+import "../discovery-map.css";
 import type { SheetState } from "@/components/hostess/types";
 
 mapboxgl.accessToken = MAPBOX_TOKEN;
 
-const MAP_CENTER: [number, number] = [71.4335, 51.1335];
-const ME = USER_LOCATION;
+// Start on the connected venue; the location matches its verified address.
+const MAP_CENTER: [number, number] = [71.381633, 51.134284];
 const HEADER_H = 78;
-
-/** What the marker says: bays for washes, time for events, rating otherwise. */
-function markerValue(p: MapPoint, item: NearbyItem): string {
-  const c = item.signal.capacity;
-  if (c) return `${c.free}/${c.total}`;
-  const e = cityEvents.find((x) => x.id === p.id);
-  if (e) return e.time;
-  return item.rating.toFixed(1);
-}
-
-/** Thin occupancy ring: solid arc for verified load, dashed for estimated. */
-function ringSvg(item: NearbyItem): SVGSVGElement {
-  const ns = "http://www.w3.org/2000/svg";
-  const r = 7;
-  const c = 2 * Math.PI * r;
-  const svg = document.createElementNS(ns, "svg");
-  svg.setAttribute("viewBox", "0 0 18 18");
-  svg.setAttribute("class", "hs-mk__ring");
-  const circle = (cls: string) => {
-    const el = document.createElementNS(ns, "circle");
-    el.setAttribute("cx", "9");
-    el.setAttribute("cy", "9");
-    el.setAttribute("r", String(r));
-    el.setAttribute("fill", "none");
-    el.setAttribute("stroke-width", "2.4");
-    el.setAttribute("class", cls);
-    return el;
-  };
-  const track = circle("hs-mk__track");
-  track.setAttribute("stroke", "rgb(17 18 20 / 0.1)");
-  const arc = circle("hs-mk__arc");
-  arc.setAttribute("stroke", toneColor[occupancyLevel(item.occupancy).tone]);
-  arc.setAttribute("stroke-linecap", "round");
-  if (item.signal.source === "estimated") {
-    arc.setAttribute("stroke-dasharray", "1.8 2.6");
-    arc.setAttribute("stroke-linecap", "butt");
-  } else {
-    arc.setAttribute(
-      "stroke-dasharray",
-      `${(c * Math.min(100, Math.max(6, item.occupancy))) / 100} ${c}`,
-    );
-  }
-  svg.append(track, arc);
-  return svg;
-}
 
 function mapPointToVenue(point: MapPoint): Venue {
   const item = nearbyItem(point);
@@ -144,11 +90,17 @@ export function MapScreen({
 }) {
   const mapNode = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
-  const pointMarkersRef = useRef<mapboxgl.Marker[]>([]);
-  const pinElsRef = useRef(new Map<string, HTMLElement>());
-  const friendMarkersRef = useRef<mapboxgl.Marker[]>([]);
+  const userMarkerRef = useRef<mapboxgl.Marker | null>(null);
+  const controllerRef = useRef<ReturnType<typeof createDiscoveryMarkers> | null>(null);
   const renderClustersRef = useRef<() => void>(() => {});
-  const activeCategoriesRef = useRef(new Set<string>(["food"]));
+  const activeCategoriesRef = useRef<string[]>(["food"]);
+  const { signals, isPending: occupancyPending } = useOccupancy();
+  const signalsRef = useRef(signals);
+  signalsRef.current = signals;
+  const [mapError, setMapError] = useState(false);
+  const [locationMessage, setLocationMessage] = useState("");
+  const [locating, setLocating] = useState(false);
+  const [hasLocation, setHasLocation] = useState(false);
   const selectedRef = useRef<string | null>(null);
   const selectPointRef = useRef<(p: MapPoint) => void>(() => {});
   const markerClickAt = useRef(0);
@@ -280,17 +232,20 @@ export function MapScreen({
   };
 
   useEffect(() => {
-    activeCategoriesRef.current = new Set(activeCategories);
+    activeCategoriesRef.current = activeCategories;
     renderClustersRef.current();
   }, [activeCategories]);
 
-  const nearby = useMemo(() => nearbyFor(activeCategories, now), [activeCategories, now]);
-  const freeNow = nearby.filter((i) => occupancyLevel(i.occupancy).tone === "live").length;
+  const nearby = useMemo(
+    () => nearbyFor(activeCategories, now, signals),
+    [activeCategories, now, signals],
+  );
+  const freeNow = nearby.filter((i) => i.signal.source === "verified").length;
   // Bookable (verified) places first, then the calmest.
   const nowRail = [...nearby]
     .sort(
       (a, b) =>
-        Number(a.signal.source === "estimated") - Number(b.signal.source === "estimated") ||
+        Number(a.signal.source !== "verified") - Number(b.signal.source !== "verified") ||
         a.occupancy - b.occupancy,
     )
     .slice(0, 8);
@@ -315,24 +270,22 @@ export function MapScreen({
 
   useEffect(() => {
     selectedRef.current = selectedId;
-    pinElsRef.current.forEach((el, id) => {
-      const on = id === selectedId;
-      el.querySelector(".hs-mk")?.classList.toggle("hs-mk--sel", on);
-      el.style.zIndex = on ? "5" : "";
-    });
+    renderClustersRef.current();
   }, [selectedId]);
 
   // Realtime tick: bays finish, reservations start — markers follow.
   useEffect(() => {
     renderClustersRef.current();
-  }, [now]);
+  }, [now, signals]);
 
   useEffect(() => {
     if (sheet !== "collapsed") setSelectedId(null);
   }, [sheet]);
 
   const selectedPoint = selectedId ? mapPoints.find((p) => p.id === selectedId) : undefined;
-  const selectedItem = selectedPoint ? nearbyItem(selectedPoint, now) : undefined;
+  const selectedItem = selectedPoint
+    ? nearbyItem(selectedPoint, now, signals[selectedPoint.id])
+    : undefined;
 
   /* ── Search ───────────────────────────────────────────────────── */
   useEffect(() => {
@@ -348,7 +301,7 @@ export function MapScreen({
       try {
         setResults(await geocode(q, ctrl.signal));
       } finally {
-        setLoading(false);
+        if (!ctrl.signal.aborted) setLoading(false);
       }
     }, 280);
     return () => {
@@ -357,183 +310,76 @@ export function MapScreen({
     };
   }, [query]);
 
-  const onOpenRef = useRef(onOpenRestaurant);
-  onOpenRef.current = onOpenRestaurant;
-
-  /* ── Map init (once) ──────────────────────────────────────────── */
+  /* Mapbox owns camera updates; React only handles selection and controls. */
   useEffect(() => {
     if (!mapNode.current || mapRef.current) return;
-    const map = new mapboxgl.Map({
-      container: mapNode.current,
-      style: "mapbox://styles/mapbox/light-v11",
-      center: MAP_CENTER,
-      zoom: 12.9,
-      attributionControl: false,
-      pitch: 0,
-    });
+    let map: mapboxgl.Map;
+    try {
+      map = new mapboxgl.Map({
+        container: mapNode.current,
+        style: "mapbox://styles/mapbox/light-v11",
+        center: MAP_CENTER,
+        zoom: 11.3,
+        minZoom: 9,
+        maxZoom: 19,
+        attributionControl: false,
+        logoPosition: "bottom-left",
+        pitch: 0,
+      });
+    } catch {
+      setMapError(true);
+      return;
+    }
     mapRef.current = map;
-
-    const CELL = 64;
-    const renderClusters = () => {
-      pointMarkersRef.current.forEach((m) => m.remove());
-      pointMarkersRef.current = [];
-      pinElsRef.current.clear();
-
-      type Cell = { points: MapPoint[]; sx: number; sy: number };
-      const cells = new Map<string, Cell>();
-      const c = map.getCenter();
-      const active = mapPoints
-        .filter((point) => activeCategoriesRef.current.has(point.category))
-        .sort(
-          (a, b) =>
-            (a.coords.lng - c.lng) ** 2 +
-            (a.coords.lat - c.lat) ** 2 -
-            ((b.coords.lng - c.lng) ** 2 + (b.coords.lat - c.lat) ** 2),
-        )
-        .slice(0, 24);
-
-      active.forEach((p) => {
-        const px = map.project([p.coords.lng, p.coords.lat]);
-        const key = `${Math.floor(px.x / CELL)}:${Math.floor(px.y / CELL)}`;
-        const cell = cells.get(key) ?? { points: [], sx: 0, sy: 0 };
-        cell.points.push(p);
-        cell.sx += p.coords.lng;
-        cell.sy += p.coords.lat;
-        cells.set(key, cell);
-      });
-
-      const now = Date.now();
-      cells.forEach((cell) => {
-        if (cell.points.length > 1 && !cell.points.some((p) => p.id === selectedRef.current)) {
-          const lng = cell.sx / cell.points.length;
-          const lat = cell.sy / cell.points.length;
-          const tones = cell.points.map(
-            (p) => occupancyLevel(liveSignal(p.id, now).occupancy).tone,
-          );
-          const share = (t: string) => (tones.filter((x) => x === t).length / tones.length) * 100;
-          const el = document.createElement("button");
-          el.type = "button";
-          el.className = "hs-cl";
-          el.style.setProperty("--g", `${share("live")}%`);
-          el.style.setProperty("--a", `${share("live") + share("warn")}%`);
-          el.setAttribute(
-            "aria-label",
-            `${cell.points.length} мест, свободно ${tones.filter((t) => t === "live").length}`,
-          );
-          const label = document.createElement("span");
-          label.textContent = String(cell.points.length);
-          el.appendChild(label);
-          el.onclick = (e) => {
-            e.stopPropagation();
-            markerClickAt.current = Date.now();
-            map.easeTo({
-              center: [lng, lat],
-              zoom: Math.min(map.getZoom() + 1.8, 16),
-              duration: 500,
-            });
-          };
-          pointMarkersRef.current.push(
-            new mapboxgl.Marker({ element: el, anchor: "center" }).setLngLat([lng, lat]).addTo(map),
-          );
-          return;
-        }
-        cell.points.forEach((p) => {
-          const item = nearbyItem(p, now);
-          const sel = p.id === selectedRef.current;
-          const wrap = document.createElement("div");
-          const pin = document.createElement("button");
-          pin.type = "button";
-          pin.className = `hs-mk${sel ? " hs-mk--sel" : ""}`;
-          pin.setAttribute("aria-label", `${p.name}, ${item.status}`);
-          const name = document.createElement("span");
-          name.className = "hs-mk__name";
-          name.textContent = p.name;
-          const sep = document.createElement("span");
-          sep.className = "hs-mk__sep";
-          const value = document.createElement("span");
-          value.textContent = markerValue(p, item);
-          pin.append(ringSvg(item), name, sep, value);
-          pin.onclick = (e) => {
-            e.stopPropagation();
-            markerClickAt.current = Date.now();
-            selectPointRef.current(p);
-          };
-          wrap.appendChild(pin);
-          if (sel) wrap.style.zIndex = "5";
-          pinElsRef.current.set(p.id, wrap);
-          pointMarkersRef.current.push(
-            new mapboxgl.Marker({ element: wrap, anchor: "bottom", offset: [0, -5] })
-              .setLngLat([p.coords.lng, p.coords.lat])
-              .addTo(map),
-          );
-        });
-      });
-    };
-    renderClustersRef.current = renderClusters;
-
+    map.addControl(new mapboxgl.AttributionControl({ compact: true }), "bottom-left");
+    let resizeTimer: ReturnType<typeof setTimeout>;
     map.on("load", () => {
-      // Чистая нейтральная подложка: маркеры и кольца загрузки — главный слой.
-      const paint: [string, string, string][] = [
-        ["land", "background-color", "#f5f6f8"],
-        ["water", "fill-color", "#d3dfe9"],
-        ["landuse", "fill-color", "#eef0f3"],
-        ["national-park", "fill-color", "#e8efea"],
-        ["building", "fill-color", "#eceef1"],
-      ];
-      paint.forEach(([layer, prop, value]) => {
-        try {
-          if (map.getLayer(layer)) map.setPaintProperty(layer, prop as never, value as never);
-        } catch {
-          /* style variant without this layer */
-        }
-      });
-
-      map.resize();
-      setTimeout(() => map.resize(), 300);
-      renderClusters();
-
-      const me = document.createElement("div");
-      me.className = "hs-me";
-      friendMarkersRef.current.push(
-        new mapboxgl.Marker({ element: me, anchor: "center" })
-          .setLngLat([ME.lng, ME.lat])
-          .addTo(map),
+      setMapError(false);
+      styleDiscoveryMap(map);
+      controllerRef.current = createDiscoveryMarkers(
+        map,
+        mapPoints,
+        (point) => selectPointRef.current(point),
+        () => {
+          markerClickAt.current = Date.now();
+        },
       );
-
-      friendMapLocations.forEach((f) => {
-        const el = document.createElement("div");
-        el.className = "hs-friend";
-        el.title = `${f.name} · ${f.minutesAgo < 60 ? `${f.minutesAgo} мин` : `${Math.floor(f.minutesAgo / 60)} ч`}`;
-        const img = document.createElement("img");
-        img.src = f.avatar;
-        img.alt = "";
-        img.onerror = () => {
-          img.remove();
-          const fb = document.createElement("span");
-          fb.className = "hs-friend__fallback";
-          fb.textContent = f.name.slice(0, 1);
-          el.appendChild(fb);
-        };
-        el.appendChild(img);
-        friendMarkersRef.current.push(
-          new mapboxgl.Marker({ element: el, anchor: "center" })
-            .setLngLat([f.coords.lng, f.coords.lat])
-            .addTo(map),
+      renderClustersRef.current = () =>
+        controllerRef.current?.update(
+          activeCategoriesRef.current,
+          signalsRef.current,
+          selectedRef.current,
         );
-      });
+      renderClustersRef.current();
+      map.resize();
+      resizeTimer = setTimeout(() => map.resize(), 300);
     });
-
-    map.on("moveend", renderClusters);
+    map.on("error", () => {
+      if (!map.isStyleLoaded()) setMapError(true);
+    });
+    // The browser acceptance suite inspects connected and dense districts through this dev-only hook.
+    const testView = (event: Event) => {
+      if (import.meta.env.DEV) {
+        const { center, zoom } = (event as CustomEvent<{ center: [number, number]; zoom: number }>)
+          .detail;
+        map.jumpTo({ center, zoom });
+      }
+    };
+    if (import.meta.env.DEV) window.addEventListener("hostess-map-test-view", testView);
     map.on("click", () => {
       if (Date.now() - markerClickAt.current < 350) return;
       setSelectedId(null);
     });
-
+    const resize = new ResizeObserver(() => map.resize());
+    resize.observe(mapNode.current);
     return () => {
-      pointMarkersRef.current.forEach((m) => m.remove());
-      friendMarkersRef.current.forEach((m) => m.remove());
-      pointMarkersRef.current = [];
-      friendMarkersRef.current = [];
+      clearTimeout(resizeTimer);
+      if (import.meta.env.DEV) window.removeEventListener("hostess-map-test-view", testView);
+      resize.disconnect();
+      controllerRef.current?.destroy();
+      controllerRef.current = null;
+      userMarkerRef.current?.remove();
+      userMarkerRef.current = null;
       map.remove();
       mapRef.current = null;
       renderClustersRef.current = () => {};
@@ -550,16 +396,58 @@ export function MapScreen({
 
   const locate = () => {
     hapticSelect();
-    mapRef.current?.flyTo({ center: [ME.lng, ME.lat], zoom: 14.2, speed: 1.3 });
+    if (!navigator.geolocation) {
+      setLocationMessage("Геолокация недоступна. Показываем Астану.");
+      return;
+    }
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => {
+        setLocating(false);
+        const map = mapRef.current;
+        if (!map) return;
+        setHasLocation(true);
+        setLocationMessage("");
+        const position: [number, number] = [coords.longitude, coords.latitude];
+        if (!userMarkerRef.current) {
+          const element = document.createElement("div");
+          element.className = "hs-me";
+          element.setAttribute("aria-label", "Ваша геопозиция");
+          userMarkerRef.current = new mapboxgl.Marker({ element }).setLngLat(position).addTo(map);
+        } else userMarkerRef.current.setLngLat(position);
+        map.flyTo({ center: position, zoom: 14.2, speed: 1.3 });
+      },
+      () => {
+        setLocating(false);
+        setLocationMessage("Нет доступа к геопозиции. Выберите место на карте Астаны.");
+      },
+      { enableHighAccuracy: false, timeout: 10_000, maximumAge: 60_000 },
+    );
   };
 
   const activeLabels = activeCategories.map((c) => categoryMeta[c]?.label ?? c).join(", ");
   const nearMode = sheet !== "full";
 
   return (
-    <div ref={containerRef} className="relative h-full w-full overflow-hidden bg-[#f4f5f7]">
+    <div
+      ref={containerRef}
+      className="discovery-map relative h-full w-full overflow-hidden bg-[#f7f3ec]"
+    >
       <div ref={safeProbe} className="pointer-events-none absolute h-[var(--sab)] w-0" />
-      <div ref={mapNode} className="absolute inset-0 h-full w-full touch-manipulation" />
+      <div
+        ref={mapNode}
+        role="region"
+        aria-label="Карта заведений Астаны"
+        className="absolute inset-0 h-full w-full touch-manipulation"
+      />
+      {(mapError || locationMessage) && (
+        <p
+          role="status"
+          className="absolute inset-x-4 top-[145px] z-10 rounded-2xl bg-white/95 p-3 text-[13px] shadow-float"
+        >
+          {locationMessage || "Карта пока недоступна. Заведения можно выбрать в списке ниже."}
+        </p>
+      )}
 
       {/* ── Floating search + filters ─────────────────────────────── */}
       <motion.div
@@ -579,6 +467,7 @@ export function MapScreen({
                 onFocus={() => setShowResults(true)}
                 onBlur={() => setTimeout(() => setShowResults(false), 150)}
                 placeholder="Рестораны, бары, адреса"
+                aria-label="Найти заведение или адрес"
                 enterKeyHint="search"
                 className="min-w-0 flex-1 bg-transparent text-[15px] text-ink outline-none placeholder:text-ink-3"
               />
@@ -674,8 +563,9 @@ export function MapScreen({
         className="pointer-events-none absolute right-4 top-0 z-[15]"
       >
         <IconButton
-          icon={LocateFixed}
-          label="Где я"
+          icon={locating ? Loader2 : LocateFixed}
+          label={locating ? "Определяем местоположение" : "Где я"}
+          disabled={locating}
           variant="surface"
           size={44}
           className="pointer-events-auto shadow-float"
@@ -718,11 +608,9 @@ export function MapScreen({
                     <span className="truncate text-[18px] font-semibold leading-tight tracking-[-0.02em]">
                       {selectedItem.name}
                     </span>
-                    <Rating value={selectedItem.rating} className="shrink-0 pt-1" />
                   </span>
                   <span className="mt-0.5 truncate text-[13px] text-ink-2">
-                    {selectedItem.distanceKm} км
-                    {selectedItem.price ? ` · ${selectedItem.price}` : ""}
+                    {selectedItem.subtitle}
                   </span>
                   <span className="mt-auto pt-2">
                     <span className="flex items-center gap-2">
@@ -730,7 +618,7 @@ export function MapScreen({
                         value={selectedItem.occupancy}
                         size={18}
                         stroke={2.2}
-                        estimated={selectedItem.signal.source === "estimated"}
+                        estimated={selectedItem.signal.source !== "verified"}
                       />
                       <span className="truncate text-[13px] font-medium">
                         {selectedItem.status}
@@ -750,10 +638,13 @@ export function MapScreen({
               </button>
               {selectedItem.category === "food" && (
                 <div className="mt-3 flex items-center justify-between gap-3 border-t border-line pt-3">
-                  <SlotChips
-                    slots={slotsFor(selectedItem.id, selectedItem.occupancy)}
-                    onPick={() => openPoint(selectedPoint)}
-                  />
+                  <button
+                    type="button"
+                    onClick={() => openPoint(selectedPoint)}
+                    className="h-11 w-full rounded-[14px] bg-ink text-[14px] font-semibold text-white"
+                  >
+                    Открыть заведение
+                  </button>
                 </div>
               )}
             </div>
@@ -800,14 +691,16 @@ export function MapScreen({
                 <span className="mx-auto mt-2 h-[5px] w-9 rounded-full bg-[rgb(17_18_20/0.16)]" />
                 <div className="flex items-end justify-between gap-3 px-5 pt-3">
                   <div className="min-w-0">
-                    <p className="t-subhead font-semibold">Рядом с вами</p>
+                    <p className="t-subhead font-semibold">
+                      {hasLocation ? "Места на карте" : "Откройте Астану"}
+                    </p>
                     <p className="t-caption mt-0.5 truncate">
                       {nearby.length} мест · {activeLabels}
                     </p>
                   </div>
                   <span className="mb-0.5 inline-flex shrink-0 items-center gap-1.5 rounded-full bg-surface px-3 py-1.5 text-[12.5px] font-medium shadow-hairline">
-                    <LiveDot tone="live" pulse />
-                    <span className="t-num">{freeNow}</span> свободно
+                    <LiveDot tone={freeNow ? "live" : "unknown"} />
+                    {occupancyPending ? "Обновляем" : freeNow ? "Данные зала" : "Каталог"}
                   </span>
                 </div>
               </div>
@@ -832,7 +725,7 @@ export function MapScreen({
                         subtitle={item.subtitle}
                         occupancy={item.occupancy}
                         status={item.status}
-                        estimated={item.signal.source === "estimated"}
+                        estimated={item.signal.source !== "verified"}
                         rating={item.rating}
                         onClick={() => openPoint(p)}
                       />
@@ -853,9 +746,9 @@ export function MapScreen({
                           subtitle={item.subtitle}
                           occupancy={item.occupancy}
                           status={item.status}
-                          estimated={item.signal.source === "estimated"}
+                          estimated={item.signal.source !== "verified"}
                           rating={item.rating}
-                          meta={`${item.distanceKm} км`}
+                          meta="Астана"
                           onClick={() => openPoint(p)}
                         />
                       );

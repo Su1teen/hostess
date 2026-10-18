@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   diningApi,
+  cartKey,
   kzt,
   type DiningOrder,
   type DiningProfile,
@@ -20,11 +21,15 @@ export function DiningReceipt({ order }: { order: DiningOrder }) {
       <p className="text-sm text-ink-2">{venueDate(order.createdAt)}</p>
       <ul className="divide-y divide-line">
         {order.lines.map((line) => (
-          <li key={line.productId} className="flex justify-between gap-3 py-3 text-sm">
+          <li
+            key={cartKey(line.productId, line.itemType)}
+            className="flex justify-between gap-3 py-3 text-sm"
+          >
             <span className="min-w-0 break-words">
               {line.productName}
               <span className="mt-1 block text-ink-2">
-                {line.quantity} × {kzt(line.unitPrice)}
+                {line.quantity} × {kzt(line.unitPrice)} ·{" "}
+                {line.itemType === "REGULAR_MENU" ? "Меню" : "Биржа"}
               </span>
             </span>
             <span className="shrink-0">{kzt(line.total)}</span>

@@ -9,6 +9,9 @@ export type XoxoExchangeProduct = {
   previousPrice: number | null;
   changePercent: number;
   isAvailable: boolean;
+  imageUrl?: string | null;
+  category?: string | null;
+  volumeMl?: number | null;
 };
 
 type ExchangePayload = {
@@ -24,6 +27,8 @@ type ExchangeState = {
   connected: boolean;
   roundKey: string | null;
   validUntil: number;
+  endsAt: string | null;
+  loading: boolean;
 };
 
 const empty: ExchangeState = {
@@ -32,6 +37,8 @@ const empty: ExchangeState = {
   connected: false,
   roundKey: null,
   validUntil: 0,
+  endsAt: null,
+  loading: true,
 };
 
 export function normalizeExchangeName(value: string): string {
@@ -93,6 +100,8 @@ export function useXoxoExchange() {
             updatedAt: payload.generatedAt,
             connected: payload.status === "ok" && Boolean(fresh),
             roundKey: payload.currentRound?.roundKey ?? null,
+            endsAt: payload.currentRound?.endsAt ?? null,
+            loading: false,
             validUntil: Math.min(
               Date.parse(payload.generatedAt) + 60_000,
               Date.parse(payload.currentRound?.endsAt ?? ""),
@@ -101,12 +110,17 @@ export function useXoxoExchange() {
         }
       } catch (error) {
         if (active && !(error instanceof DOMException && error.name === "AbortError")) {
-          setState((previous) => ({ ...previous, connected: false }));
+          setState((previous) => ({ ...previous, connected: false, loading: false }));
         }
       }
     };
 
     void refresh();
+    const focus = () => {
+      if (!document.hidden) void refresh();
+    };
+    window.addEventListener("focus", focus);
+    document.addEventListener("visibilitychange", focus);
     const timer = window.setInterval(() => {
       if (!document.hidden) void refresh();
     }, 30_000);
@@ -124,6 +138,8 @@ export function useXoxoExchange() {
       active = false;
       window.clearInterval(timer);
       controller?.abort();
+      window.removeEventListener("focus", focus);
+      document.removeEventListener("visibilitychange", focus);
     };
   }, []);
 

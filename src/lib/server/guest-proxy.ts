@@ -75,6 +75,7 @@ function recordBffDiagnostic(
 const guestPrefix = "/api/guest/v1/";
 const guestRoutes: [RegExp, string][] = [
   [/^availability$/, "GET"],
+  [/^occupancy$/, "GET"],
   [/^profile$/, "GET"],
   [/^(bootstrap|claims|logout|holds|quotes|reservations|ownership)$/, "POST"],
   [/^reservations\/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/, "PATCH"],
@@ -82,6 +83,7 @@ const guestRoutes: [RegExp, string][] = [
 const dineInRoutes: [RegExp, string][] = [
   [/^dine-in\/tables\/[A-Za-z0-9_-]{20,128}$/, "GET"],
   [/^dine-in\/menu$/, "GET"],
+  [/^dine-in\/regular-menu$/, "GET"],
   [/^dine-in\/quotes$/, "POST"],
   [/^dine-in\/orders$/, "GET POST"],
   [/^dine-in\/orders\/[a-f0-9-]{36}$/, "GET"],
@@ -118,7 +120,7 @@ export async function proxyHostessApi(
   runtime: unknown,
 ): Promise<Response | null> {
   const url = new URL(request.url);
-  const exchange = url.pathname === "/api/exchange/current-round";
+  const exchange = ["/api/exchange/current-round", "/api/exchange/history"].includes(url.pathname);
   const booking = url.pathname.startsWith(guestPrefix);
   if (!exchange && !booking) return null;
   if (url.search.length > 2000) return reply(414, "Запрос слишком большой");
@@ -261,8 +263,17 @@ export async function proxyHostessApi(
     headers.set("content-type", "application/json");
   }
   try {
-    const path = exchange ? "/api/v1/public/snapshot" : url.pathname;
-    const response = await fetch(`${target.origin}${path}${exchange ? "" : url.search}`, {
+    const history = url.pathname === "/api/exchange/history";
+    const path = exchange
+      ? history
+        ? "/api/v1/public/history"
+        : "/api/v1/public/snapshot"
+      : url.pathname;
+    const limit = url.searchParams.get("limit") ?? "12";
+    if (history && !/^(?:[1-9]|[1-3][0-9]|4[0-8])$/.test(limit))
+      return reply(400, "Некорректный период истории");
+    const search = history ? `?limit=${limit}` : exchange ? "" : url.search;
+    const response = await fetch(`${target.origin}${path}${search}`, {
       method: request.method,
       headers,
       body: body as BodyInit | undefined,

@@ -74,10 +74,11 @@ export function RestaurantSheet({
   const scrollRef = useRef<HTMLDivElement>(null);
   const bookRef = useRef<HTMLDivElement>(null);
 
-  const fullyBooked = slots.every((s) => s.taken);
+  const availabilityUnknown = slots.length === 0;
+  const fullyBooked = !availabilityUnknown && slots.every((s) => s.taken);
   const freeCount = slots.filter((s) => !s.taken).length;
   const slot = slots[timeIdx]?.taken ? slots[firstFree] : slots[timeIdx];
-  const time = slot?.time ?? slots[0].time;
+  const time = slot?.time ?? slots[0]?.time ?? "";
   const todayFree = useMemo(
     () => tableSlots(r.id, occupancy, 0).filter((s) => !s.taken),
     [r.id, occupancy],
@@ -133,7 +134,11 @@ export function RestaurantSheet({
               total={preorderTotal}
               onOpen={() => setCartOpen(true)}
             />
-            {fullyBooked ? (
+            {availabilityUnknown ? (
+              <Button block size="lg" disabled>
+                Бронирование пока недоступно
+              </Button>
+            ) : fullyBooked ? (
               <WaitlistButton
                 input={{
                   entityId: r.id,
@@ -191,7 +196,11 @@ export function RestaurantSheet({
           <div className="flex items-baseline justify-between px-5 pb-3">
             <p className="text-[15px] font-semibold tracking-[-0.012em]">Столы сегодня</p>
             <p className="t-num text-[12.5px] text-ink-3">
-              {todayFree.length ? `${todayFree.length} из ${slots.length} слотов` : "мест нет"}
+              {availabilityUnknown
+                ? "Наличие уточняется"
+                : todayFree.length
+                  ? `${todayFree.length} из ${slots.length} слотов`
+                  : "мест нет"}
             </p>
           </div>
           {todayFree.length ? (
@@ -214,7 +223,7 @@ export function RestaurantSheet({
             </div>
           ) : (
             <p className="t-caption px-5">
-              Сегодня всё занято — лист ожидания сообщит, как только стол освободится.
+              Заведение пока не передаёт подтверждённые свободные слоты.
             </p>
           )}
         </div>
@@ -239,94 +248,103 @@ export function RestaurantSheet({
         </div>
 
         {/* Booking */}
-        <section ref={bookRef} className="mt-12 space-y-7">
-          <h2 className="t-headline px-5">Бронирование</h2>
-          <div className="rail gap-2">
-            {days.map((d, i) => (
-              <Chip key={d} selected={dayIdx === i} tone="outline" onClick={() => changeDay(i)}>
-                {d}
-              </Chip>
-            ))}
-          </div>
-
-          <div className="flex items-center justify-between px-5">
-            <div>
-              <p className="t-micro">Гости</p>
-              <p className="mt-1.5 text-[15px]">
-                <Ticker value={guests} /> {guestWord(guests)}
-              </p>
-            </div>
-            <Stepper value={guests} onChange={setGuests} min={1} max={20} />
-          </div>
-
-          <div className="px-5">
-            <div className="flex items-baseline justify-between pb-3">
-              <p className="t-micro">Время</p>
-              <p className="t-num text-[12px] text-ink-3">
-                {fullyBooked ? "На этот день мест нет" : `${freeCount} свободно`}
-              </p>
-            </div>
-            {fullyBooked ? (
-              <p className="t-caption border-y border-line py-4">
-                Все столы на {days[dayIdx].toLowerCase()} заняты. Встаньте в лист ожидания — мы
-                сообщим, как только освободится место.
-              </p>
-            ) : (
-              <div className="grid grid-cols-3 gap-2">
-                {slots.map((s, i) => {
-                  const on = time === s.time && !s.taken;
-                  return (
-                    <motion.button
-                      key={s.time}
-                      type="button"
-                      disabled={s.taken}
-                      whileTap={{ scale: 0.94 }}
-                      onClick={() => {
-                        hapticSelect();
-                        setTimeIdx(i);
-                      }}
-                      className={`t-num h-11 rounded-[12px] text-[14.5px] font-medium transition-colors ${
-                        on
-                          ? "bg-ink text-white"
-                          : s.taken
-                            ? "bg-stone text-ink-3/70 line-through decoration-ink-3/40"
-                            : "bg-white text-ink shadow-[inset_0_0_0_1px_var(--hs-line-strong)]"
-                      }`}
-                    >
-                      {s.time}
-                    </motion.button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          <div>
-            <div className="flex items-baseline justify-between px-5 pb-3">
-              <p className="t-micro">Зона и стол</p>
-              <p className="text-[12px] text-ink-3">
-                {table ? `Выбран стол ${table}` : "Любой стол"}
-              </p>
-            </div>
-            <div className="rail gap-2 pb-3">
-              {zones.map((z) => (
-                <Chip
-                  key={z.key}
-                  selected={zone === z.key}
-                  onClick={() => {
-                    setZone(z.key);
-                    setTable(null);
-                  }}
-                >
-                  {z.label}
+        {availabilityUnknown ? (
+          <section ref={bookRef} className="mt-12 px-5">
+            <h2 className="t-headline">Бронирование</h2>
+            <p className="t-caption mt-3">
+              Онлайн-бронирование этого заведения пока не подключено.
+            </p>
+          </section>
+        ) : (
+          <section ref={bookRef} className="mt-12 space-y-7">
+            <h2 className="t-headline px-5">Бронирование</h2>
+            <div className="rail gap-2">
+              {days.map((d, i) => (
+                <Chip key={d} selected={dayIdx === i} tone="outline" onClick={() => changeDay(i)}>
+                  {d}
                 </Chip>
               ))}
             </div>
-            <div className="px-5">
-              <FloorPlan zone={zone} selected={table} onSelect={setTable} />
+
+            <div className="flex items-center justify-between px-5">
+              <div>
+                <p className="t-micro">Гости</p>
+                <p className="mt-1.5 text-[15px]">
+                  <Ticker value={guests} /> {guestWord(guests)}
+                </p>
+              </div>
+              <Stepper value={guests} onChange={setGuests} min={1} max={20} />
             </div>
-          </div>
-        </section>
+
+            <div className="px-5">
+              <div className="flex items-baseline justify-between pb-3">
+                <p className="t-micro">Время</p>
+                <p className="t-num text-[12px] text-ink-3">
+                  {fullyBooked ? "На этот день мест нет" : `${freeCount} свободно`}
+                </p>
+              </div>
+              {fullyBooked ? (
+                <p className="t-caption border-y border-line py-4">
+                  Все столы на {days[dayIdx].toLowerCase()} заняты. Встаньте в лист ожидания — мы
+                  сообщим, как только освободится место.
+                </p>
+              ) : (
+                <div className="grid grid-cols-3 gap-2">
+                  {slots.map((s, i) => {
+                    const on = time === s.time && !s.taken;
+                    return (
+                      <motion.button
+                        key={s.time}
+                        type="button"
+                        disabled={s.taken}
+                        whileTap={{ scale: 0.94 }}
+                        onClick={() => {
+                          hapticSelect();
+                          setTimeIdx(i);
+                        }}
+                        className={`t-num h-11 rounded-[12px] text-[14.5px] font-medium transition-colors ${
+                          on
+                            ? "bg-ink text-white"
+                            : s.taken
+                              ? "bg-stone text-ink-3/70 line-through decoration-ink-3/40"
+                              : "bg-white text-ink shadow-[inset_0_0_0_1px_var(--hs-line-strong)]"
+                        }`}
+                      >
+                        {s.time}
+                      </motion.button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div>
+              <div className="flex items-baseline justify-between px-5 pb-3">
+                <p className="t-micro">Зона и стол</p>
+                <p className="text-[12px] text-ink-3">
+                  {table ? `Выбран стол ${table}` : "Любой стол"}
+                </p>
+              </div>
+              <div className="rail gap-2 pb-3">
+                {zones.map((z) => (
+                  <Chip
+                    key={z.key}
+                    selected={zone === z.key}
+                    onClick={() => {
+                      setZone(z.key);
+                      setTable(null);
+                    }}
+                  >
+                    {z.label}
+                  </Chip>
+                ))}
+              </div>
+              <div className="px-5">
+                <FloorPlan zone={zone} selected={table} onSelect={setTable} />
+              </div>
+            </div>
+          </section>
+        )}
 
         {/* Menu — collapsed by default */}
         <MenuTeaser
