@@ -51,6 +51,7 @@ type PooledMarker = {
   image: HTMLImageElement;
   label: HTMLSpanElement;
   count: HTMLSpanElement;
+  previews: HTMLImageElement[];
   visible: boolean;
   lastSeen: number;
 };
@@ -70,6 +71,8 @@ export function createDiscoveryMarkers(
   let frame = 0;
   let disposed = false;
   let revision = 0;
+  const clusterPhotos = new Map<number, string[]>();
+  const loadingClusters = new Set<number>();
   map.addSource(DISCOVERY_SOURCE, {
     type: "geojson",
     data: discoveryFeatures(points, categories),
@@ -108,13 +111,25 @@ export function createDiscoveryMarkers(
     count.className = "discovery-marker__count";
     const label = document.createElement("span");
     label.className = "discovery-marker__label";
-    photo.append(fallback, image, count);
-    button.append(photo, label);
+    const previews = Array.from({ length: 2 }, (_, index) => {
+      const preview = document.createElement("img");
+      preview.className = `discovery-marker__preview discovery-marker__preview--${index}`;
+      preview.alt = "";
+      preview.hidden = true;
+      preview.addEventListener("error", () => {
+        preview.hidden = true;
+      });
+      button.append(preview);
+      return preview;
+    });
+    photo.append(fallback, image);
+    button.append(photo, count, label);
     element.append(button);
     const item = {
       element,
       button,
       image,
+      previews,
       count,
       label,
       visible: false,
@@ -181,18 +196,79 @@ export function createDiscoveryMarkers(
       const active = count === 1 && point.id === selected;
       const item = pool.get(key) ?? create(key);
       const pixel = map.project(coordinates);
+      let offsetX = 0,
+        offsetY = 0;
       let size =
         count > 1 ? Math.min(60, markerSize(zoom, 0)) : markerSize(zoom, discoveryPriority(point));
       if (active) size = Math.max(size, 78);
+      if (count === 1 && zoom >= 17) {
+        // Fan out coincident entrances without changing their geographic coordinates.
+        const step = size + 14;
+        const offsets = [
+          { x: 0, y: 0 },
+          ...Array.from({ length: 24 }, (_, index) => {
+            const ring = Math.floor(index / 8) + 1;
+            const angle = ((index % 8) * Math.PI) / 4;
+            return { x: Math.cos(angle) * step * ring, y: Math.sin(angle) * step * ring };
+          }),
+        ];
+        const free = offsets.find((offset) =>
+          occupied.every(
+            (other) =>
+              Math.abs(other.x - pixel.x - offset.x) >= other.radius + size / 2 + 8 ||
+              Math.abs(other.y - pixel.y - offset.y) >= other.radius + size / 2 + 8,
+          ),
+        );
+        if (free) {
+          offsetX = free.x;
+          offsetY = free.y;
+        }
+      }
       const crowded =
         !active &&
         occupied.some(
           (other) =>
-            Math.abs(other.x - pixel.x) < other.radius + size / 2 + 6 &&
-            Math.abs(other.y - pixel.y) < other.radius + size / 2 + 12,
+            Math.abs(other.x - pixel.x - offsetX) < other.radius + size / 2 + 12 &&
+            Math.abs(other.y - pixel.y - offsetY) < other.radius + size / 2 + 12,
         );
-      if (crowded) size = 32;
-      occupied.push({ x: pixel.x, y: pixel.y, radius: size / 2 });
+      if (crowded && count === 1 && zoom < 17) size = 32;
+      occupied.push({
+        x: pixel.x + offsetX,
+        y: pixel.y + offsetY,
+        radius: size / 2 + (count > 1 ? 20 : 0),
+      });
+      item.marker.setOffset([offsetX, offsetY - 6]);
+      if (
+        clusterId !== undefined &&
+        !clusterPhotos.has(clusterId) &&
+        !loadingClusters.has(clusterId)
+      ) {
+        loadingClusters.add(clusterId);
+        const categoryKey = categories.join("|");
+        (map.getSource(DISCOVERY_SOURCE) as GeoJSONSource).getClusterLeaves(
+          clusterId,
+          8,
+          0,
+          (error, leaves) => {
+            loadingClusters.delete(clusterId);
+            if (error || disposed || !leaves || categories.join("|") !== categoryKey) return;
+            clusterPhotos.set(
+              clusterId,
+              leaves
+                .map((leaf) => byId.get(String(leaf.properties?.venueId)))
+                .filter((venue): venue is MapPoint => Boolean(venue) && venue?.id !== point.id)
+                .slice(0, 2)
+                .map((venue) => venue.cover),
+            );
+            schedule();
+          },
+        );
+      }
+      item.previews.forEach((preview, index) => {
+        const cover = clusterId !== undefined ? clusterPhotos.get(clusterId)?.[index] : undefined;
+        preview.hidden = !cover;
+        if (cover && preview.getAttribute("src") !== cover) preview.src = cover;
+      });
       item.element.style.setProperty("--photo-size", `${size.toFixed(1)}px`);
       item.element.style.setProperty(
         "--occupancy-color",
@@ -201,19 +277,23 @@ export function createDiscoveryMarkers(
       item.element.classList.toggle("is-selected", active);
       item.element.classList.toggle("is-cluster", count > 1);
       item.element.classList.toggle("is-compact", crowded);
-      item.element.classList.toggle("has-label", active || (!crowded && zoom >= 14.2));
+      item.element.classList.toggle("has-label", count > 1 || active || (!crowded && zoom >= 14.2));
       item.element.style.zIndex = active ? "10" : String(discoveryPriority(point) + 1);
       if (item.image.getAttribute("src") !== point.cover) {
         item.image.style.opacity = "1";
         item.image.src = point.cover;
       }
-      item.label.textContent = count > 1 ? `${count} мест` : point.name;
-      item.count.textContent = count > 1 ? String(count) : "";
+      item.label.textContent = count > 1 ? "Нажмите, чтобы разделить" : point.name;
+      item.count.textContent =
+        count > 1
+          ? `${count} ${count % 10 === 1 && count % 100 !== 11 ? "место" : count % 10 >= 2 && count % 10 <= 4 && (count % 100 < 12 || count % 100 > 14) ? "места" : "мест"} рядом`
+          : "";
       item.count.hidden = count <= 1;
       const signal = signals[point.id];
-      const state = isFreshOccupancy(signal)
-        ? `занято ${signal.valuePercent}% столов`
-        : "нет актуальных данных о загрузке";
+      const state =
+        signal?.source === "catalog" || isFreshOccupancy(signal)
+          ? `занято ${signal.valuePercent}% столов`
+          : "нет актуальных данных о загрузке";
       item.button.setAttribute(
         "aria-label",
         count > 1
@@ -260,6 +340,7 @@ export function createDiscoveryMarkers(
     update(nextCategories: string[], nextSignals: OccupancySignals, nextSelected: string | null) {
       if (categories.join("|") !== nextCategories.join("|")) {
         categories = [...nextCategories];
+        clusterPhotos.clear();
         (map.getSource(DISCOVERY_SOURCE) as GeoJSONSource).setData(
           discoveryFeatures(points, categories),
         );

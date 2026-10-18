@@ -102,7 +102,7 @@ export function XoxoBarSheet({ r, onClose }: { r: Restaurant; onClose: () => voi
               productCount={marketProducts.length}
               connected={exchange.connected}
               menuCount={regularProducts.length}
-              menuImage={regularProducts.find((p) => p.imageUrl)?.imageUrl ?? r.gallery[1]}
+              menuImage={regularProducts.find((p) => p.imageUrl)?.imageUrl}
             />
           ) : (
             <>

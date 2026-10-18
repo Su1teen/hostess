@@ -618,7 +618,7 @@ export function MapScreen({
                         value={selectedItem.occupancy}
                         size={18}
                         stroke={2.2}
-                        estimated={selectedItem.signal.source !== "verified"}
+                        estimated={selectedItem.occupancy < 0}
                       />
                       <span className="truncate text-[13px] font-medium">
                         {selectedItem.status}
@@ -725,7 +725,7 @@ export function MapScreen({
                         subtitle={item.subtitle}
                         occupancy={item.occupancy}
                         status={item.status}
-                        estimated={item.signal.source !== "verified"}
+                        estimated={item.occupancy < 0}
                         rating={item.rating}
                         onClick={() => openPoint(p)}
                       />
@@ -746,7 +746,7 @@ export function MapScreen({
                           subtitle={item.subtitle}
                           occupancy={item.occupancy}
                           status={item.status}
-                          estimated={item.signal.source !== "verified"}
+                          estimated={item.occupancy < 0}
                           rating={item.rating}
                           meta="Астана"
                           onClick={() => openPoint(p)}

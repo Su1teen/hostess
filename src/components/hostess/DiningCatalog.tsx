@@ -22,6 +22,7 @@ import {
 import { kzt, type Cart } from "@/lib/dine-in-api";
 import { type PriceHistory } from "@/hooks/useDiningCatalog";
 import "./dining.css";
+import { productImage, productFallbackImage, safeImageSource } from "@/lib/product-images";
 
 export type DiningSection = "home" | "market" | "menu";
 export type CatalogProduct = {
@@ -75,14 +76,16 @@ export function DiningGateways({
         </span>
       </button>
       <button className="dining-gateway dining-gateway-menu" onClick={() => onSelect("menu")}>
-        {menuImage && /^https:\/\//.test(menuImage) && (
-          <img src={menuImage} alt="" loading="lazy" />
-        )}
+        <img
+          src={safeImageSource(menuImage) ?? "/image/xoxo-exchange/bar-sharing.webp"}
+          alt="Барные закуски XOXO"
+          loading="lazy"
+        />
         <span className="dining-eyebrow">
           <ChefHat size={15} /> КУХНЯ & БАР
         </span>
         <span className="dining-gateway-title">Меню XOXO</span>
-        <span className="dining-gateway-description">Кухня, закуски, напитки и другое</span>
+        <span className="dining-gateway-description">Закуски к матчу, кухня и барная классика</span>
         <span className="dining-gateway-footer">
           <span>
             {menuCount ? `${menuCount} позиций · выбирайте по вкусу` : "Открыть основное меню"}
@@ -127,18 +130,24 @@ export function ProductQuantity({
 }
 
 function ProductImage({ product, market }: { product: CatalogProduct; market: boolean }) {
-  return product.imageUrl && /^https:\/\//.test(product.imageUrl) ? (
-    <img
-      src={product.imageUrl}
-      alt=""
-      loading="lazy"
-      decoding="async"
-      referrerPolicy="no-referrer"
-    />
-  ) : (
+  const source = productImage(product, market);
+  const fallback = productFallbackImage(product, market);
+  const [failed, setFailed] = useState<string[]>([]);
+  const current = failed.includes(source) ? fallback : source;
+  return failed.includes(current) ? (
     <div className="dining-photo-placeholder" aria-label="Фотография пока не добавлена">
       {market ? <Wine size={36} strokeWidth={1} /> : <ChefHat size={36} strokeWidth={1} />}
     </div>
+  ) : (
+    <img
+      src={current}
+      alt={product.name}
+      className={market ? "dining-drink-image" : undefined}
+      loading="lazy"
+      decoding="async"
+      referrerPolicy="no-referrer"
+      onError={() => setFailed((previous) => [...previous, current])}
+    />
   );
 }
 
@@ -315,6 +324,9 @@ export function DiningCatalog({
           <div className="dining-offer-track">
             {offers.map((p) => (
               <button key={p.key} onClick={() => setSelected(p)} className="dining-offer">
+                <span className="dining-offer-photo">
+                  <ProductImage product={p} market />
+                </span>
                 <span className="dining-offer-discount">
                   −{Math.round((1 - p.price / p.originalPrice!) * 100)}%
                 </span>

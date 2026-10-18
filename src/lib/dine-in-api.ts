@@ -1,9 +1,14 @@
 import { z } from "zod";
 import { guestApi, GuestApiError } from "./guest-api";
+import { safeImageSource } from "./product-images";
 
 const id = z.string().min(1).max(200);
 const amount = z.number().finite().nonnegative();
 const date = z.string().datetime({ offset: true });
+const imageSource = z
+  .string()
+  .max(2000)
+  .refine((value) => Boolean(safeImageSource(value)));
 export const tableSchema = z.object({
   venue: z.object({ id, slug: z.string(), name: z.string(), currency: z.literal("KZT") }),
   table: z.object({
@@ -29,7 +34,7 @@ export const menuSchema = z.object({
       changePercent: z.number().finite().optional(),
       isAvailable: z.boolean(),
       category: z.string().nullable().optional(),
-      imageUrl: z.string().url().nullable().optional(),
+      imageUrl: imageSource.nullable().optional(),
     }),
   ),
 });
@@ -43,7 +48,7 @@ export const regularMenuSchema = z.object({
       name: z.string(),
       description: z.string(),
       category: z.string(),
-      imageUrl: z.string().url().nullable(),
+      imageUrl: imageSource.nullable(),
       portion: z.string(),
       allergens: z.array(z.string()),
       price: amount,

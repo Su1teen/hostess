@@ -132,11 +132,51 @@
 .discovery-marker__count[hidden] {
   display: none;
 }
+/* Separate venue photographs make a group read as several places at a glance. */
+.discovery-marker__preview {
+  position: absolute;
+  width: calc(var(--photo-size) * 0.85);
+  height: calc(var(--photo-size) * 0.85);
+  top: 0;
+  object-fit: cover;
+  border: 3px solid #fffdf8;
+  border-radius: 14px;
+  box-shadow: 0 3px 8px #24382b30;
+  pointer-events: none;
+}
+.discovery-marker__preview[hidden] {
+  display: none;
+}
+.discovery-marker__preview--0 {
+  left: -19px;
+  transform: rotate(-16deg) translateY(-6px);
+}
+.discovery-marker__preview--1 {
+  right: -19px;
+  transform: rotate(16deg) translateY(-6px);
+}
 .discovery-marker.is-cluster .discovery-marker__photo {
-  box-shadow:
-    3px 3px 0 -1px #fefdf9,
-    5px 5px 0 -1px #d7d8cc,
-    0 4px 12px #0002;
+  transform: translateY(3px);
+  box-shadow: 0 5px 12px #24382b30;
+}
+.discovery-marker.is-cluster .discovery-marker__count {
+  z-index: 2;
+  top: auto;
+  right: auto;
+  bottom: -14px;
+  left: 50%;
+  height: 27px;
+  width: max-content;
+  padding: 0 9px;
+  transform: translateX(-50%);
+  border-radius: 20px;
+  font-size: 10px;
+}
+.discovery-marker.is-cluster .discovery-marker__label {
+  top: calc(var(--photo-size) + 18px);
+  max-width: 170px;
+  font-size: 9px;
+  font-weight: 500;
 }
 .discovery-marker.is-selected .discovery-marker__photo {
   box-shadow:

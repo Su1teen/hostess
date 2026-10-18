@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { EMPTY_OCCUPANCY, occupancyResponseSchema, type OccupancySignals } from "@/lib/occupancy";
+import { CATALOG_OCCUPANCY, occupancyResponseSchema, type OccupancySignals } from "@/lib/occupancy";
 
 // A single cached, batched read is shared by the map, catalogue and venue sheets.
 export function useOccupancy() {
@@ -20,5 +20,5 @@ export function useOccupancy() {
     refetchOnWindowFocus: "always",
     retry: 1,
   });
-  return { ...query, signals: query.data ?? EMPTY_OCCUPANCY };
+  return { ...query, signals: { ...CATALOG_OCCUPANCY, ...query.data } };
 }

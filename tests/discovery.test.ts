@@ -16,10 +16,19 @@ const signal = {
   occupiedUnits: 6,
 };
 describe("trustworthy occupancy", () => {
-  test("static restaurants and demo resources never become verified observations", () => {
-    for (const id of ["xoxo", "sadu", "unknown", "wash1"]) {
+  test("XOXO and unknown venues never receive catalogue occupancy", () => {
+    for (const id of ["xoxo", "unknown"]) {
       expect(liveSignal(id, now).source).toBe("unknown");
       expect(liveSignal(id, now).occupancy).toBe(-1);
+    }
+  });
+  test("catalogue atmosphere is consistent and never impersonates staff confirmation", () => {
+    for (const venue of restaurants.filter((item) => item.id !== "xoxo")) {
+      const result = liveSignal(venue.id, now);
+      expect(result.source).toBe("catalog");
+      expect(result.occupancy).toBe(venue.occupancy);
+      expect(isFreshOccupancy(result.observation, now)).toBe(false);
+      expect(freshness(result)).not.toContain("персоналом");
     }
   });
   test("occupancy and a calendar day never fabricate bookable restaurant tables", () => {

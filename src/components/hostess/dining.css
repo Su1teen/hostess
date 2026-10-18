@@ -671,3 +671,35 @@
     transform: none;
   }
 }
+
+/* Full bottle silhouettes remain visible in both the list and product sheet. */
+.dining-product-photo {
+  background: #fff;
+}
+.dining-product-photo .dining-drink-image,
+.dining-detail-photo .dining-drink-image {
+  object-fit: contain;
+  background: #fff;
+  padding: 5px;
+}
+.dining-offer {
+  position: relative;
+  padding-right: 68px;
+  min-height: 146px;
+  flex-basis: 225px;
+}
+.dining-offer-photo {
+  position: absolute;
+  right: 8px;
+  top: 12px;
+  width: 58px;
+  height: 95px;
+  overflow: hidden;
+  border-radius: 10px;
+  background: white;
+}
+.dining-offer-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}

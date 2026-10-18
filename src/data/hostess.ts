@@ -1176,7 +1176,7 @@ export const restaurants: Restaurant[] = [
             weight: 0,
             kcal: 0,
             tags: ["ром"],
-            image: "/image/xoxo-exchange/bacardi.jpeg",
+            image: "/image/xoxo-exchange/bacardi-black.webp",
           },
           {
             id: "xo3",

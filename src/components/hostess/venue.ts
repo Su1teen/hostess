@@ -13,7 +13,12 @@ import {
   type WashAvailability,
 } from "@/data/hostess";
 import { occupancyLevel } from "./system";
-import { isFreshOccupancy, type OccupancySignal, type OccupancySignals } from "@/lib/occupancy";
+import {
+  catalogOccupancy,
+  isFreshOccupancy,
+  type OccupancySignal,
+  type OccupancySignals,
+} from "@/lib/occupancy";
 
 /** Category metadata — icons only; colour lives in the shared neutral system. */
 export const categoryMeta: Record<string, { label: string; Icon: ComponentType<LucideProps> }> = {
@@ -41,7 +46,7 @@ export const curatedRestaurants = (): Restaurant[] =>
    ────────────────────────────────────────────────────────────────────── */
 
 /** Static catalogue values are not operational observations. -1 means unknown. */
-export type OccupancySource = "verified" | "unknown" | "stale";
+export type OccupancySource = "verified" | "catalog" | "unknown" | "stale";
 export type LiveSignal = {
   occupancy: number;
   source: OccupancySource;
@@ -61,6 +66,14 @@ export function liveSignal(
       updatedMin: Math.max(0, Math.floor((now - Date.parse(observation!.updatedAt!)) / 60_000)),
       observation,
     };
+  const catalogue = catalogOccupancy(_id);
+  if (catalogue)
+    return {
+      occupancy: catalogue.valuePercent!,
+      source: "catalog",
+      updatedMin: null,
+      observation: catalogue,
+    };
   return {
     occupancy: -1,
     source:
@@ -72,11 +85,13 @@ export function liveSignal(
 export const occupancyOf = (id: string) => liveSignal(id).occupancy;
 export function statusText(signal: LiveSignal): string {
   if (signal.source === "stale") return "Данные требуют обновления";
+  if (signal.source === "catalog") return occupancyLevel(signal.occupancy).label;
   if (signal.source !== "verified") return "Загрузка пока неизвестна";
   return `${occupancyLevel(signal.occupancy).label} · по столам`;
 }
 export function freshness(signal: LiveSignal): string {
   if (signal.source === "stale") return "Последнее обновление устарело";
+  if (signal.source === "catalog") return "Атмосфера зала · выбирайте место по настроению";
   if (signal.source !== "verified") return "Заведение пока не передаёт подтверждённые данные";
   return !signal.updatedMin
     ? "Подтверждено персоналом · только что"
