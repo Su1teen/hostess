@@ -12,6 +12,7 @@ import { usePriceHistory, useRegularMenu } from "@/hooks/useDiningCatalog";
 import { cartKey, changeQuantity, diningApi, type DiningTable } from "@/lib/dine-in-api";
 import { guestApi } from "@/lib/guest-api";
 import { DiningPage } from "./DiningPage";
+import { WebTablePicker } from "./WebTablePicker";
 
 export function XoxoBarSheet({ r, onClose }: { r: Restaurant; onClose: () => void }) {
   const scrollRef = useRef<HTMLDivElement>(null),
@@ -119,58 +120,68 @@ export function XoxoBarSheet({ r, onClose }: { r: Restaurant; onClose: () => voi
         </div>
         <div className="px-5 py-6">
           {tab === "order" ? (
-            <form
-              className="space-y-4 rounded-3xl border border-line p-5"
-              onSubmit={async (e) => {
-                e.preventDefault();
-                if (claimLock.current) return;
-                claimLock.current = true;
-                setClaiming(true);
-                setCodeError("");
-                try {
-                  const result = await guestApi<{ accessToken: string }>("/dine-in/access/claim", {
-                    code: code.replace(/\s/g, "").toUpperCase(),
-                  });
-                  const context = await diningApi.table(result.accessToken);
-                  setDining({ token: result.accessToken, context });
-                } catch (error) {
-                  setCodeError((error as Error).message);
-                } finally {
-                  claimLock.current = false;
-                  setClaiming(false);
-                }
-              }}
-            >
-              <h2 className="t-title">Заказать за своим столом</h2>
-              <p className="text-sm leading-relaxed text-ink-2">
-                Попросите сотрудника подтвердить посадку и выдать код. Он действует 10 минут и
-                только для вашего телефона. Также можно отсканировать QR на столе.
-              </p>
-              <label className="block text-sm">
-                Код от сотрудника
-                <input
-                  autoComplete="off"
-                  autoCapitalize="characters"
-                  required
-                  minLength={10}
-                  maxLength={10}
-                  value={code}
-                  onChange={(e) => setCode(e.target.value)}
-                  className="mt-2 min-h-12 w-full rounded-xl border border-line bg-white px-4 font-mono tracking-widest"
-                />
-              </label>
-              {codeError && (
-                <p role="alert" className="text-sm text-red-700">
-                  {codeError}
-                </p>
-              )}
-              <Button type="submit" block size="lg" disabled={claiming}>
-                {claiming ? "Проверяем стол…" : "Подтвердить стол и открыть заказ"}
-              </Button>
-              <p className="text-xs text-ink-3">
-                Выбранные позиции сохранятся. До отправки вы проверите актуальную сумму.
-              </p>
-            </form>
+            <div className="space-y-4">
+              <WebTablePicker onSelect={setDining} />
+              <details className="rounded-2xl border border-line p-4">
+                <summary className="cursor-pointer text-sm font-medium">
+                  У меня есть код сотрудника
+                </summary>
+                <form
+                  className="space-y-4 rounded-3xl border border-line p-5"
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    if (claimLock.current) return;
+                    claimLock.current = true;
+                    setClaiming(true);
+                    setCodeError("");
+                    try {
+                      const result = await guestApi<{ accessToken: string }>(
+                        "/dine-in/access/claim",
+                        {
+                          code: code.replace(/\s/g, "").toUpperCase(),
+                        },
+                      );
+                      const context = await diningApi.table(result.accessToken);
+                      setDining({ token: result.accessToken, context });
+                    } catch (error) {
+                      setCodeError((error as Error).message);
+                    } finally {
+                      claimLock.current = false;
+                      setClaiming(false);
+                    }
+                  }}
+                >
+                  <h2 className="t-title">Войти по коду стола</h2>
+                  <p className="text-sm leading-relaxed text-ink-2">
+                    Дополнительный способ открыть подтверждённый визит. Код действует 10 минут.
+                  </p>
+                  <label className="block text-sm">
+                    Код от сотрудника
+                    <input
+                      autoComplete="off"
+                      autoCapitalize="characters"
+                      required
+                      minLength={10}
+                      maxLength={10}
+                      value={code}
+                      onChange={(e) => setCode(e.target.value)}
+                      className="mt-2 min-h-12 w-full rounded-xl border border-line bg-white px-4 font-mono tracking-widest"
+                    />
+                  </label>
+                  {codeError && (
+                    <p role="alert" className="text-sm text-red-700">
+                      {codeError}
+                    </p>
+                  )}
+                  <Button type="submit" block size="lg" disabled={claiming}>
+                    {claiming ? "Проверяем стол…" : "Подтвердить стол и открыть заказ"}
+                  </Button>
+                  <p className="text-xs text-ink-3">
+                    Выбранные позиции сохранятся. До отправки вы проверите актуальную сумму.
+                  </p>
+                </form>
+              </details>
+            </div>
           ) : tab === "book" ? (
             <GuestBooking items={items} />
           ) : tab === "home" ? (
@@ -199,8 +210,8 @@ export function XoxoBarSheet({ r, onClose }: { r: Restaurant; onClose: () => voi
               />
               {tab === "market" && (
                 <p className="mt-3 text-xs leading-relaxed text-ink-3">
-                  Выбранные напитки можно добавить к брони. Уже в XOXO? Введите код от сотрудника
-                  или отсканируйте QR стола.
+                  Выбранные напитки можно добавить к брони. Для заказа сейчас выберите свой стол в
+                  «Я уже в XOXO» или отсканируйте QR.
                 </p>
               )}
             </>
@@ -211,6 +222,7 @@ export function XoxoBarSheet({ r, onClose }: { r: Restaurant; onClose: () => voi
         {dining && (
           <BottomSheet onClose={() => setDining(null)} z="z-[160]" maxHeight="100%">
             <DiningPage
+              key={dining.token}
               venue={dining.context.venue.slug}
               table={dining.context.table.code}
               token={dining.token}

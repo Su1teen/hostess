@@ -18,6 +18,18 @@ export const tableSchema = z.object({
     zoneName: z.string().nullable().optional(),
   }),
 });
+const tablesSchema = z.object({
+  venue: tableSchema.shape.venue,
+  tables: z.array(
+    z.object({
+      resourceId: z.string().uuid(),
+      code: z.string(),
+      name: z.string(),
+      zoneName: z.string(),
+      zoneId: z.string().uuid(),
+    }),
+  ),
+});
 export const menuSchema = z.object({
   generatedAt: date,
   status: z.enum(["ok", "no_published_round"]),
@@ -146,6 +158,8 @@ async function read<S extends z.ZodTypeAny>(
   return result.data;
 }
 export const diningApi = {
+  tables: (signal?: AbortSignal) =>
+    read(tablesSchema, "/dine-in/tables?venue=xoxo", undefined, signal),
   table: (token: string, signal?: AbortSignal) =>
     read(tableSchema, `/dine-in/tables/${encodeURIComponent(token)}`, undefined, signal),
   menu: (venue: string, signal?: AbortSignal) =>

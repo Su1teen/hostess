@@ -65,6 +65,8 @@ try {
   );
   const accessToken = "visit_" + "c".repeat(43);
   tokens.set(accessToken, "01");
+  const webResourceId = "00000000-0000-4000-8000-000000000008";
+  tokens.set(`web_${webResourceId}`, "08");
   const urlFor = (c) => origin + "/v/xoxo/t/" + c + "/test-token-" + c + "-" + "a".repeat(32);
   const productId = "11111111-1111-4111-8111-111111111111";
   let profile = null,
@@ -103,6 +105,19 @@ try {
       p = u.pathname.replace("/api/guest/v1", "");
     const send = (body, status = 200) =>
       route.fulfill({ status, contentType: "application/json", body: JSON.stringify(body) });
+    if (p === "/dine-in/tables")
+      return send({
+        venue: { id: "venue-1", slug: "xoxo", name: "XOXO", currency: "KZT" },
+        tables: [
+          {
+            resourceId: webResourceId,
+            code: "08",
+            name: "Стол 08",
+            zoneName: "Первый зал",
+            zoneId: "00000000-0000-4000-8000-000000000001",
+          },
+        ],
+      });
     if (p === "/dine-in/access/claim") {
       assert.equal(req.postDataJSON().code, "AABBCCDDEE");
       return send({ accessToken });
@@ -418,10 +433,17 @@ try {
   }
   await page.goto(origin + "/xoxo");
   await page.getByRole("button", { name: "Я уже в XOXO", exact: true }).click();
+  await page.getByText("У меня есть код сотрудника", { exact: true }).click();
   await page.getByLabel("Код от сотрудника").fill("AABBCCDDEE");
   await page.getByRole("button", { name: "Подтвердить стол и открыть заказ", exact: true }).click();
   await page.getByText("Стол №01", { exact: true }).waitFor();
   await shot("no-qr-confirmed");
+  await page.goto(origin + "/xoxo");
+  await page.getByRole("button", { name: "Я уже в XOXO", exact: true }).click();
+  await page.getByRole("button", { name: "Стол 08 Первый зал", exact: true }).click();
+  await page.getByRole("button", { name: "Продолжить как гость", exact: true }).click();
+  await page.getByText("Стол №08", { exact: true }).waitFor();
+  await shot("web-table-selection");
   await page.goto(origin + "/v/xoxo/t/03/" + "z".repeat(43));
   await page.getByRole("alert").filter({ hasText: "QR недействителен" }).waitFor();
   assert.equal(await page.getByRole("button", { name: /^Заказать ·/ }).count(), 0);
