@@ -57,6 +57,14 @@ try {
   page.setDefaultNavigationTimeout(60000);
   page.setDefaultTimeout(30000);
   page.on("pageerror", (e) => failures.push(e.message));
+  // Settle fixture fetches before replacing the document. WebKit reports a
+  // fulfilled route aborted by navigation as a misleading access-control error.
+  const navigate = async (url) => {
+    await page.waitForLoadState("networkidle");
+    if (url) await page.goto(url);
+    else await page.reload();
+    await page.waitForLoadState("networkidle");
+  };
   const tokens = new Map(
     Array.from({ length: 17 }, (_, i) => {
       const c = String(i + 1).padStart(2, "0");
@@ -285,7 +293,7 @@ try {
   for (let n = 1; n <= 17; n++) {
     const c = String(n).padStart(2, "0");
     console.log(`Checking QR ${c}`);
-    await page.goto(urlFor(c));
+    await navigate(urlFor(c));
     await page.waitForLoadState("networkidle");
     await page.getByText("Стол №" + c, { exact: true }).waitFor();
     await page.getByText("Авторское имя стола " + c, { exact: true }).waitFor();
@@ -294,25 +302,25 @@ try {
     await page.getByRole("button", { name: "Меню и биржа", exact: true }).click();
     await openMarket();
     await page.getByRole("button", { name: "Добавить Напиток XOXO", exact: true }).waitFor();
-    await page.reload();
+    await navigate();
     await page.getByText("Стол №" + c, { exact: true }).waitFor();
     assert(
       await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
       "horizontal overflow " + c,
     );
   }
-  await page.goto(urlFor("03"));
+  await navigate(urlFor("03"));
   await page.getByRole("button", { name: /КУХНЯ & БАР Меню XOXO/ }).waitFor();
   await shot("qr-landing");
   await openMarket();
   await page.getByRole("button", { name: "Добавить Напиток XOXO", exact: true }).waitFor();
   await shot("market");
   await page.getByRole("button", { name: "Добавить Напиток XOXO", exact: true }).click();
-  await page.reload();
+  await navigate();
   await page.getByRole("button", { name: /Корзина · 1/ }).waitFor();
-  await page.goto(urlFor("04"));
+  await navigate(urlFor("04"));
   assert(await page.getByRole("button", { name: /Корзина · 0/ }).isDisabled());
-  await page.goto(urlFor("03"));
+  await navigate(urlFor("03"));
   await openMarket();
   assert(
     await page.getByRole("button", { name: "Добавить Нет в наличии", exact: true }).isDisabled(),
@@ -322,7 +330,7 @@ try {
   loseResponse = true;
   await page.getByRole("button", { name: /^Заказать ·/ }).click();
   await page.getByRole("button", { name: "Проверить заказ", exact: true }).waitFor();
-  await page.reload();
+  await navigate();
   await page.getByRole("button", { name: "Проверить заказ", exact: true }).click();
   await page.getByRole("heading", { name: "Заказ #1" }).waitFor();
   assert.equal(ordersN, 1);
@@ -380,7 +388,7 @@ try {
     ),
     "logout removes receipt capabilities and pending attempts for every table",
   );
-  await page.reload();
+  await navigate();
   assert(await page.getByRole("button", { name: /Корзина · 0/ }).isDisabled());
   await openMarket();
   menuOffline = true;
@@ -432,14 +440,14 @@ try {
     await page.keyboard.press("Tab");
     assert(await page.evaluate(() => document.activeElement?.tagName === "BUTTON"));
   }
-  await page.goto(origin + "/xoxo");
+  await navigate(origin + "/xoxo");
   await page.getByRole("button", { name: "Я уже в XOXO", exact: true }).click();
   await page.getByText("У меня есть код сотрудника", { exact: true }).click();
   await page.getByLabel("Код от сотрудника").fill("AABBCCDDEE");
   await page.getByRole("button", { name: "Подтвердить стол и открыть заказ", exact: true }).click();
   await page.getByText("Стол №01", { exact: true }).waitFor();
   await shot("no-qr-confirmed");
-  await page.goto(origin + "/xoxo");
+  await navigate(origin + "/xoxo");
   await page.getByRole("button", { name: "Я уже в XOXO", exact: true }).click();
   await page.getByRole("button", { name: "Стол 08 Первый зал", exact: true }).click();
   await page.getByRole("button", { name: "Продолжить как гость", exact: true }).click();
@@ -462,7 +470,7 @@ try {
       ? { id: "guest-1", name: "Тестовый гость", phone: "+77015558899", provisional: true }
       : null;
     await page.waitForLoadState("networkidle");
-    await page.goto(origin + "/xoxo");
+    await navigate(origin + "/xoxo");
     await page.getByRole("button", { name: "Я уже в XOXO", exact: true }).click();
     await page.getByRole("button", { name: "Стол 08 Первый зал", exact: true }).click();
     await page.getByRole("button", { name: "Продолжить как гость", exact: true }).click();
@@ -494,7 +502,7 @@ try {
     await embeddedCart.getByRole("button", { name: "Close", exact: true }).click();
     await page.waitForLoadState("networkidle");
   }
-  await page.goto(origin + "/v/xoxo/t/03/" + "z".repeat(43));
+  await navigate(origin + "/v/xoxo/t/03/" + "z".repeat(43));
   await page.getByRole("alert").filter({ hasText: "QR недействителен" }).waitFor();
   assert.equal(await page.getByRole("button", { name: /^Заказать ·/ }).count(), 0);
   assert.deepEqual(failures, []);
