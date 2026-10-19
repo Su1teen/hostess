@@ -87,6 +87,8 @@ export const orderSchema = totalsSchema.extend({
   createdAt: date,
   venueCode: z.string(),
   tableCode: z.string(),
+  zoneName: z.string().nullable().optional(),
+  manualPaymentAt: date.nullable().optional(),
   status: z.string(),
   paymentStatus: z.literal("assumed_paid"),
   lines: z.array(lineSchema).min(1),
@@ -259,4 +261,5 @@ export const needsRequote = (error: unknown) =>
     "GUEST_CHANGED",
     "OWNER_CHANGED",
     "SESSION_CHANGED",
+    "ACCESS_INVALID",
   ].includes(error.code);

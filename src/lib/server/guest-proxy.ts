@@ -49,7 +49,7 @@ function recordBffDiagnostic(
   const entry: BffDiagnosticLog = {
     event: "hostess.bff.proxy",
     method: request.method,
-    pathname: url.pathname,
+    pathname: url.pathname.replace(/(\/dine-in\/tables\/)[A-Za-z0-9_-]+$/, "$1[redacted]"),
     bookingOriginAvailable: resolved.diagnostics.bookingOriginAvailable,
     exchangeOriginAvailable: resolved.diagnostics.exchangeOriginAvailable,
     serviceKeyAvailable: resolved.diagnostics.serviceKeyAvailable,
@@ -81,6 +81,8 @@ const guestRoutes: [RegExp, string][] = [
   [/^reservations\/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/, "PATCH"],
 ];
 const dineInRoutes: [RegExp, string][] = [
+  [/^dine-in\/access\/claim$/, "POST"],
+  [/^dine-in\/booking-requests$/, "GET POST"],
   [/^dine-in\/tables\/[A-Za-z0-9_-]{20,128}$/, "GET"],
   [/^dine-in\/menu$/, "GET"],
   [/^dine-in\/regular-menu$/, "GET"],

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { guestApi, statusLabel, venueDate, type GuestProfile } from "@/lib/guest-api";
 import { GuestBooking } from "./GuestBooking";
 import { DiningAccount } from "./DiningAccount";
+import { BookingRequestHistory } from "./BookingRequestHistory";
 import { restaurants } from "@/data/hostess";
 import { clearDiningSession } from "@/lib/dining-session";
 const venue = restaurants.find((r) => r.id === "xoxo")!;
@@ -129,6 +130,7 @@ export function GuestPortal() {
         showIdentity={false}
         onSessionChanged={() => void load()}
       />
+      <BookingRequestHistory key={`requests:${data.guest.id}`} />
       {reschedule ? (
         <GuestBooking
           rescheduleId={reschedule}

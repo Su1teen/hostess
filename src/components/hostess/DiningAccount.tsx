@@ -12,12 +12,58 @@ import { guestApi, GuestApiError, venueDate } from "@/lib/guest-api";
 import { clearDiningSession } from "@/lib/dining-session";
 
 export function DiningReceipt({ order }: { order: DiningOrder }) {
+  const [current, setCurrent] = useState(order),
+    [statusError, setStatusError] = useState(false);
+  useEffect(() => {
+    setCurrent(order);
+    let active = true;
+    const refresh = async () => {
+      if (document.hidden) return;
+      try {
+        const result = await diningApi.receipt(order.id, order.receiptToken);
+        if (active) {
+          setCurrent(result.order);
+          setStatusError(false);
+        }
+      } catch {
+        if (active) setStatusError(true);
+      }
+    };
+    const timer = setInterval(() => void refresh(), 4000);
+    window.addEventListener("focus", refresh);
+    return () => {
+      active = false;
+      clearInterval(timer);
+      window.removeEventListener("focus", refresh);
+    };
+  }, [order]);
+  const labels: Record<string, string> = {
+    new: "Заказ отправлен",
+    accepted: "Принят сотрудником",
+    preparing: "Готовится",
+    delivered: "Подан",
+    closed: "Завершён",
+    cancelled: "Отменён",
+  };
+  const status = labels[current.status] ?? "Проверяем статус";
   return (
     <article className="space-y-4 rounded-[24px] border border-line bg-surface p-5">
       <p className="t-micro">XOXO · Стол №{order.tableCode}</p>
-      <h2 className="t-headline">
-        Заказ #{order.orderNumber} {order.status === "cancelled" ? "отменён" : "принят"}
-      </h2>
+      <h2 className="t-headline">Заказ #{order.orderNumber}</h2>
+      <p role="status" className="text-sm font-medium">
+        {status}
+      </p>
+      {current.zoneName && <p className="text-xs text-ink-2">{current.zoneName}</p>}
+      {current.manualPaymentAt && (
+        <p className="text-xs text-ink-2">
+          Сотрудник отметил получение оплаты · {venueDate(current.manualPaymentAt)}
+        </p>
+      )}
+      {statusError && (
+        <p role="alert" className="text-xs text-busy">
+          Не удалось обновить статус. Показано последнее полученное состояние.
+        </p>
+      )}
       <p className="text-sm text-ink-2">{venueDate(order.createdAt)}</p>
       <ul className="divide-y divide-line">
         {order.lines.map((line) => (

@@ -63,6 +63,8 @@ try {
       return ["test-token-" + c + "-" + "a".repeat(32), c];
     }),
   );
+  const accessToken = "visit_" + "c".repeat(43);
+  tokens.set(accessToken, "01");
   const urlFor = (c) => origin + "/v/xoxo/t/" + c + "/test-token-" + c + "-" + "a".repeat(32);
   const productId = "11111111-1111-4111-8111-111111111111";
   let profile = null,
@@ -101,6 +103,10 @@ try {
       p = u.pathname.replace("/api/guest/v1", "");
     const send = (body, status = 200) =>
       route.fulfill({ status, contentType: "application/json", body: JSON.stringify(body) });
+    if (p === "/dine-in/access/claim") {
+      assert.equal(req.postDataJSON().code, "AABBCCDDEE");
+      return send({ accessToken });
+    }
     if (p === "/profile")
       return profile
         ? send({ guest: profile, reservations: [] })
@@ -302,7 +308,7 @@ try {
   await page.getByRole("button", { name: "Проверить заказ", exact: true }).waitFor();
   await page.reload();
   await page.getByRole("button", { name: "Проверить заказ", exact: true }).click();
-  await page.getByRole("heading", { name: "Заказ #1 принят" }).waitFor();
+  await page.getByRole("heading", { name: "Заказ #1" }).waitFor();
   assert.equal(ordersN, 1);
   assert.deepEqual(submissions[0], submissions[1]);
   await shot("receipt");
@@ -338,7 +344,7 @@ try {
   await page.getByRole("button", { name: "Проверить сумму", exact: true }).click();
   await page.getByRole("button", { name: /^Заказать ·/ }).waitFor();
   await page.getByRole("button", { name: /^Заказать ·/ }).click();
-  await page.getByRole("heading", { name: "Заказ #2 принят" }).waitFor();
+  await page.getByRole("heading", { name: "Заказ #2" }).waitFor();
   const o = [...orders.values()].at(-1);
   assert.equal(o.payable, 3770);
   assert.equal(o.cashback, 113);
@@ -392,7 +398,7 @@ try {
     { productId: regularId, quantity: 1, itemType: "REGULAR_MENU" },
   ]);
   await page.getByRole("button", { name: /^Заказать ·/ }).click();
-  await page.getByRole("heading", { name: "Заказ #3 принят" }).waitFor();
+  await page.getByRole("heading", { name: "Заказ #3" }).waitFor();
   assert.equal([...orders.values()].at(-1).payable, 3990);
   await page.getByRole("button", { name: "Заказать ещё", exact: true }).click();
   menuOffline = true;
@@ -401,7 +407,7 @@ try {
   await page.getByRole("button", { name: /Корзина · 1/ }).click();
   await page.getByRole("button", { name: "Проверить сумму", exact: true }).click();
   await page.getByRole("button", { name: /^Заказать ·/ }).click();
-  await page.getByRole("heading", { name: "Заказ #4 принят" }).waitFor();
+  await page.getByRole("heading", { name: "Заказ #4" }).waitFor();
   assert.equal([...orders.values()].at(-1).roundId, null);
   assert.equal([...orders.values()].at(-1).payable, 2400);
   await page.getByRole("button", { name: "Заказать ещё", exact: true }).click();
@@ -410,6 +416,12 @@ try {
     await page.keyboard.press("Tab");
     assert(await page.evaluate(() => document.activeElement?.tagName === "BUTTON"));
   }
+  await page.goto(origin + "/xoxo");
+  await page.getByRole("button", { name: "Я уже в XOXO", exact: true }).click();
+  await page.getByLabel("Код от сотрудника").fill("AABBCCDDEE");
+  await page.getByRole("button", { name: "Подтвердить стол и открыть заказ", exact: true }).click();
+  await page.getByText("Стол №01", { exact: true }).waitFor();
+  await shot("no-qr-confirmed");
   await page.goto(origin + "/v/xoxo/t/03/" + "z".repeat(43));
   await page.getByRole("alert").filter({ hasText: "QR недействителен" }).waitFor();
   assert.equal(await page.getByRole("button", { name: /^Заказать ·/ }).count(), 0);
