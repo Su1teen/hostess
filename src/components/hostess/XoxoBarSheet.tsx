@@ -9,7 +9,9 @@ import { GuestBooking } from "./GuestBooking";
 import { GuestPortal } from "./GuestPortal";
 import { DiningCatalog, DiningGateways, type CatalogProduct } from "./DiningCatalog";
 import { usePriceHistory, useRegularMenu } from "@/hooks/useDiningCatalog";
-import { cartKey, changeQuantity } from "@/lib/dine-in-api";
+import { cartKey, changeQuantity, diningApi, type DiningTable } from "@/lib/dine-in-api";
+import { guestApi } from "@/lib/guest-api";
+import { DiningPage } from "./DiningPage";
 
 export function XoxoBarSheet({ r, onClose }: { r: Restaurant; onClose: () => void }) {
   const scrollRef = useRef<HTMLDivElement>(null),
@@ -17,11 +19,18 @@ export function XoxoBarSheet({ r, onClose }: { r: Restaurant; onClose: () => voi
   const [tab, setTab] = useState("home"),
     [accountOpen, setAccountOpen] = useState(false);
   const [quantities, setQuantities] = useState<Record<string, number>>({});
+  const [code, setCode] = useState(""),
+    [codeError, setCodeError] = useState(""),
+    [claiming, setClaiming] = useState(false);
+  const [dining, setDining] = useState<{ token: string; context: DiningTable } | null>(null);
+  const claimLock = useRef(false);
   const exchange = useXoxoExchange();
   const regular = useRegularMenu("xoxo");
   const history = usePriceHistory(exchange.roundKey);
   const [now, setNow] = useState(Date.now());
+  const [interactive, setInteractive] = useState(false);
   useEffect(() => {
+    setInteractive(true);
     const tick = window.setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(tick);
   }, []);
@@ -32,7 +41,11 @@ export function XoxoBarSheet({ r, onClose }: { r: Restaurant; onClose: () => voi
   }));
   const items = Object.entries(quantities)
     .filter(([, quantity]) => quantity > 0)
-    .map(([productId, quantity]) => ({ productId, quantity }));
+    .map(([key, quantity]) => ({
+      productId: key.startsWith("menu:") ? key.slice(5) : key,
+      quantity,
+      itemType: key.startsWith("menu:") ? ("REGULAR_MENU" as const) : ("EXCHANGE" as const),
+    }));
   const goTab = (value: string) => {
     setTab(value);
     if (tabsRef.current && scrollRef.current)
@@ -67,9 +80,20 @@ export function XoxoBarSheet({ r, onClose }: { r: Restaurant; onClose: () => voi
         }
         dock={
           tab !== "book" ? (
-            <Button block size="lg" onClick={() => goTab("book")}>
-              {items.length ? `К брони · ${items.length} поз.` : "Выбрать стол"}
-            </Button>
+            <div className="grid grid-cols-2 gap-2">
+              <Button block size="lg" disabled={!interactive} onClick={() => goTab("book")}>
+                Забронировать
+              </Button>
+              <Button
+                block
+                variant="secondary"
+                size="lg"
+                disabled={!interactive}
+                onClick={() => goTab("order")}
+              >
+                Я уже в XOXO
+              </Button>
+            </div>
           ) : (
             <Button block variant="secondary" size="lg" onClick={() => setAccountOpen(true)}>
               Мой кабинет
@@ -94,7 +118,60 @@ export function XoxoBarSheet({ r, onClose }: { r: Restaurant; onClose: () => voi
           />
         </div>
         <div className="px-5 py-6">
-          {tab === "book" ? (
+          {tab === "order" ? (
+            <form
+              className="space-y-4 rounded-3xl border border-line p-5"
+              onSubmit={async (e) => {
+                e.preventDefault();
+                if (claimLock.current) return;
+                claimLock.current = true;
+                setClaiming(true);
+                setCodeError("");
+                try {
+                  const result = await guestApi<{ accessToken: string }>("/dine-in/access/claim", {
+                    code: code.replace(/\s/g, "").toUpperCase(),
+                  });
+                  const context = await diningApi.table(result.accessToken);
+                  setDining({ token: result.accessToken, context });
+                } catch (error) {
+                  setCodeError((error as Error).message);
+                } finally {
+                  claimLock.current = false;
+                  setClaiming(false);
+                }
+              }}
+            >
+              <h2 className="t-title">Заказать за своим столом</h2>
+              <p className="text-sm leading-relaxed text-ink-2">
+                Попросите сотрудника подтвердить посадку и выдать код. Он действует 10 минут и
+                только для вашего телефона. Также можно отсканировать QR на столе.
+              </p>
+              <label className="block text-sm">
+                Код от сотрудника
+                <input
+                  autoComplete="off"
+                  autoCapitalize="characters"
+                  required
+                  minLength={10}
+                  maxLength={10}
+                  value={code}
+                  onChange={(e) => setCode(e.target.value)}
+                  className="mt-2 min-h-12 w-full rounded-xl border border-line bg-white px-4 font-mono tracking-widest"
+                />
+              </label>
+              {codeError && (
+                <p role="alert" className="text-sm text-red-700">
+                  {codeError}
+                </p>
+              )}
+              <Button type="submit" block size="lg" disabled={claiming}>
+                {claiming ? "Проверяем стол…" : "Подтвердить стол и открыть заказ"}
+              </Button>
+              <p className="text-xs text-ink-3">
+                Выбранные позиции сохранятся. До отправки вы проверите актуальную сумму.
+              </p>
+            </form>
+          ) : tab === "book" ? (
             <GuestBooking items={items} />
           ) : tab === "home" ? (
             <DiningGateways
@@ -119,12 +196,11 @@ export function XoxoBarSheet({ r, onClose }: { r: Restaurant; onClose: () => voi
                 roundLabel={exchange.roundKey}
                 history={history}
                 now={now}
-                browseOnly={tab === "menu"}
               />
               {tab === "market" && (
                 <p className="mt-3 text-xs leading-relaxed text-ink-3">
-                  Выбранные напитки добавятся к брони. Если вы уже в XOXO, отсканируйте QR вашего
-                  стола для заказа из меню и биржи.
+                  Выбранные напитки можно добавить к брони. Уже в XOXO? Введите код от сотрудника
+                  или отсканируйте QR стола.
                 </p>
               )}
             </>
@@ -132,6 +208,16 @@ export function XoxoBarSheet({ r, onClose }: { r: Restaurant; onClose: () => voi
         </div>
       </VenueDetailShell>
       <AnimatePresence>
+        {dining && (
+          <BottomSheet onClose={() => setDining(null)} z="z-[160]" maxHeight="100%">
+            <DiningPage
+              venue={dining.context.venue.slug}
+              table={dining.context.table.code}
+              token={dining.token}
+              initialCart={quantities}
+            />
+          </BottomSheet>
+        )}
         {accountOpen && (
           <BottomSheet
             onClose={() => setAccountOpen(false)}

@@ -45,10 +45,12 @@ export function DiningPage({
   venue,
   table,
   token,
+  initialCart,
 }: {
   venue: string;
   table: string;
   token: string;
+  initialCart?: Cart;
 }) {
   const storageKey = `hostess:dining:${venue}:${table}:${token}`;
   const [context, setContext] = useState<DiningTable | null>(null),
@@ -164,7 +166,7 @@ export function DiningPage({
     // A client-side transition to another QR must never carry a previous table's basket.
     identityEpoch.current++;
     setContext(null);
-    setCart({});
+    setCart(initialCart ?? {});
     setQuote(null);
     setOrder(null);
     setMenu(null);
@@ -245,7 +247,7 @@ export function DiningPage({
       active = false;
       controller.abort();
     };
-  }, [storageKey, table, token, venue]);
+  }, [storageKey, table, token, venue, initialCart]);
 
   useEffect(() => {
     if (!context) return;

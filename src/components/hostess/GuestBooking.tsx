@@ -21,7 +21,7 @@ export function GuestBooking({
   onBooked,
   rescheduleId,
 }: {
-  items?: { productId: string; quantity: number }[];
+  items?: { productId: string; quantity: number; itemType?: "REGULAR_MENU" | "EXCHANGE" }[];
   onBooked?: (r: GuestReservation) => void;
   rescheduleId?: string;
 }) {
@@ -37,6 +37,13 @@ export function GuestBooking({
   const [loading, setLoading] = useState(true),
     [pending, setPending] = useState(false),
     [error, setError] = useState("");
+  const [requestSent, setRequestSent] = useState(false);
+  const requestAttempt = useRef<{
+    key: string;
+    startsAt: string;
+    endsAt: string;
+    guests: number;
+  } | null>(null);
   const [quote, setQuote] = useState<Quote | null>(null),
     [result, setResult] = useState<GuestReservation | null>(null),
     [authenticated, setAuthenticated] = useState(false);
@@ -238,6 +245,16 @@ export function GuestBooking({
     );
   const inputClass =
     "mt-2 min-h-12 w-full min-w-0 rounded-xl border border-line bg-surface px-3 text-base";
+  if (requestSent)
+    return (
+      <div role="status" className="rounded-3xl bg-surface p-6">
+        <h2 className="t-title">Ожидает подтверждения</h2>
+        <p className="mt-3 text-sm">
+          Заявка сохранена. Место ещё не забронировано. Сотрудник проверит доступность; результат
+          появится в вашем кабинете.
+        </p>
+      </div>
+    );
   return (
     <form
       className="space-y-5 pb-6"
@@ -416,6 +433,43 @@ export function GuestBooking({
                   ? "Перенести бронь"
                   : "Отправить заявку"}
       </button>
+      {!rescheduleId && !selectedResourceId && !autoSelectionAvailable && (
+        <button
+          type="button"
+          disabled={pending || (!authenticated && (!consent || !name.trim() || !phone.trim()))}
+          className="min-h-12 w-full rounded-2xl border border-line px-4 text-sm"
+          onClick={async () => {
+            if (pending) return;
+            setPending(true);
+            setError("");
+            try {
+              if (!authenticated) {
+                await guestApi("/bootstrap", {
+                  name: name.trim(),
+                  phone: phone.replace(/[\s()-]/g, ""),
+                  consent,
+                });
+                setAuthenticated(true);
+              }
+              requestAttempt.current ??= { key: crypto.randomUUID(), startsAt, endsAt, guests };
+              const current = requestAttempt.current;
+              await guestApi("/dine-in/booking-requests", {
+                startsAt: current.startsAt,
+                endsAt: current.endsAt,
+                guests: current.guests,
+                idempotencyKey: current.key,
+              });
+              setRequestSent(true);
+            } catch (e) {
+              setError((e as Error).message);
+            } finally {
+              setPending(false);
+            }
+          }}
+        >
+          Оставить заявку на бронирование
+        </button>
+      )}
     </form>
   );
 }

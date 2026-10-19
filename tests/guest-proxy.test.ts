@@ -250,7 +250,7 @@ describe("Cloudflare same-origin BFF", () => {
       expect(diag).toEqual({
         event: "hostess.bff.proxy",
         method: "GET",
-        pathname: `/api/guest/v1/dine-in/tables/${token}`,
+        pathname: "/api/guest/v1/dine-in/tables/[redacted]",
         bookingOriginAvailable: true,
         exchangeOriginAvailable: true,
         serviceKeyAvailable: true,
