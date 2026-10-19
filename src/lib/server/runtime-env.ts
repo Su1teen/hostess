@@ -1,8 +1,15 @@
 export type RuntimeBindingKey =
-  "BOOKING_API_ORIGIN" | "EXCHANGE_API_ORIGIN" | "HOSTESS_BFF_KEY" | "HOSTESS_BUILD_SHA";
+  | "BOOKING_API_ORIGIN"
+  | "EXCHANGE_API_ORIGIN"
+  | "HOSTESS_BFF_KEY"
+  | "HOSTESS_BUILD_SHA";
 
 export type BindingSource =
-  "fetch argument" | "Cloudflare module env" | "Nitro context" | "process.env" | "none";
+  | "fetch argument"
+  | "Cloudflare module env"
+  | "Nitro context"
+  | "process.env"
+  | "none";
 
 type SecretStoreBindingLike = {
   get: () => Promise<unknown> | unknown;

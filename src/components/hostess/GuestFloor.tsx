@@ -31,8 +31,7 @@ export function GuestFloor({
           (resource) =>
             resource.bookable &&
             resource.available &&
-            resource.capacity !== null &&
-            resource.capacity >= guests,
+            (resource.capacity === null || resource.capacity >= guests),
         );
         const autoSelected = selectedZoneId === zone.id && selected === null;
         return (
@@ -40,9 +39,6 @@ export function GuestFloor({
             <div className="flex items-start justify-between gap-3">
               <div>
                 <h3 className="font-medium text-ink">{zone.name}</h3>
-                {zone.description && (
-                  <p className="mt-1 text-xs leading-relaxed text-ink-3">{zone.description}</p>
-                )}
               </div>
               {zone.resources.length > 0 && (
                 <span className="shrink-0 rounded-full bg-background px-2.5 py-1 text-[11px] text-ink-3">
@@ -67,7 +63,7 @@ export function GuestFloor({
             {zone.resources.length > 0 ? (
               <div className="mt-3 grid grid-cols-1 gap-2 min-[390px]:grid-cols-2">
                 {zone.resources.map((resource) => {
-                  const fits = resource.capacity !== null && resource.capacity >= guests;
+                  const fits = resource.capacity === null || resource.capacity >= guests;
                   const enabled = resource.bookable && resource.available && fits;
                   const active = selected === resource.id;
                   return (
@@ -88,7 +84,7 @@ export function GuestFloor({
                       <span className="flex items-start justify-between gap-2">
                         <span className="font-medium">{resource.name}</span>
                         <span className={`text-xs ${active ? "text-white/75" : "text-ink-3"}`}>
-                          {resource.capacity} мест
+                          {resource.capacity !== null ? `${resource.capacity} мест` : ""}
                         </span>
                       </span>
                       <span

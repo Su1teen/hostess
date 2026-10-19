@@ -130,11 +130,11 @@ export function ProductQuantity({
 }
 
 function ProductImage({ product, market }: { product: CatalogProduct; market: boolean }) {
-  const source = productImage(product, market);
-  const fallback = productFallbackImage(product, market);
+  const source = market ? productImage(product, true) : (safeImageSource(product.imageUrl) ?? "");
+  const fallback = market ? productFallbackImage(product, true) : "";
   const [failed, setFailed] = useState<string[]>([]);
   const current = failed.includes(source) ? fallback : source;
-  return failed.includes(current) ? (
+  return !current || failed.includes(current) ? (
     <div className="dining-photo-placeholder" aria-label="Фотография пока не добавлена">
       {market ? <Wine size={36} strokeWidth={1} /> : <ChefHat size={36} strokeWidth={1} />}
     </div>

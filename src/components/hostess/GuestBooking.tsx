@@ -110,8 +110,7 @@ export function GuestBooking({
                     (resource) =>
                       resource.bookable &&
                       resource.available &&
-                      resource.capacity !== null &&
-                      resource.capacity >= guests,
+                      (resource.capacity === null || resource.capacity >= guests),
                   ),
               )
               ? prev
@@ -144,11 +143,10 @@ export function GuestBooking({
       (resource) =>
         resource.bookable &&
         resource.available &&
-        resource.capacity !== null &&
-        resource.capacity >= guests,
+        (resource.capacity === null || resource.capacity >= guests),
     ),
   );
-  const capacity = selectedResource?.capacity ?? 0;
+  const capacity = selectedResource?.capacity ?? null;
   async function submit() {
     if (pending) return;
     setPending(true);
@@ -368,7 +366,8 @@ export function GuestBooking({
         )}
         {selectedResource && (
           <p className="text-sm">
-            {selectedResource.name} · до {capacity} гостей
+            {selectedResource.name}
+            {capacity !== null ? ` · до ${capacity} гостей` : ""}
           </p>
         )}
         {selectedZone && autoSelectionAvailable && !selectedResource && (
@@ -416,7 +415,8 @@ export function GuestBooking({
           (!attempt.current &&
             (!hall ||
               (!selectedResourceId && !autoSelectionAvailable) ||
-              (selectedResourceId && (!selectedResource?.available || capacity < guests)) ||
+              (selectedResourceId &&
+                (!selectedResource?.available || (capacity !== null && capacity < guests))) ||
               (!authenticated && !consent)))
         }
         className="min-h-13 w-full rounded-2xl bg-ink px-4 py-4 text-white disabled:opacity-40"
