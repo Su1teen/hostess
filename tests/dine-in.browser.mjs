@@ -57,6 +57,14 @@ try {
   page.setDefaultNavigationTimeout(60000);
   page.setDefaultTimeout(30000);
   page.on("pageerror", (e) => failures.push(e.message));
+  // Settle fixture fetches before replacing the document. WebKit reports a
+  // fulfilled route aborted by navigation as a misleading access-control error.
+  const navigate = async (url) => {
+    await page.waitForLoadState("networkidle");
+    if (url) await page.goto(url);
+    else await page.reload();
+    await page.waitForLoadState("networkidle");
+  };
   const tokens = new Map(
     Array.from({ length: 17 }, (_, i) => {
       const c = String(i + 1).padStart(2, "0");
@@ -230,6 +238,7 @@ try {
       const subtotal = lines.reduce((n, l) => n + l.total, 0),
         discount = profile ? Math.min(1000, b.redeemAmount, subtotal) : 0;
       const q = {
+        tableCode: tokens.get(b.qrToken) ?? "03",
         id: "quote-" + ++quotesN,
         roundId: b.items.every((x) => x.itemType === "REGULAR_MENU") ? null : round,
         expiresAt: new Date(Date.now() + (expireNext ? -1000 : 120000)).toISOString(),
@@ -258,7 +267,7 @@ try {
           id: "00000000-0000-4000-8000-" + String(++ordersN).padStart(12, "0"),
           orderNumber: String(ordersN),
           venueCode: "xoxo",
-          tableCode: "03",
+          tableCode: q.tableCode,
           status: "new",
           paymentStatus: "assumed_paid",
           createdAt: new Date().toISOString(),
@@ -284,7 +293,7 @@ try {
   for (let n = 1; n <= 17; n++) {
     const c = String(n).padStart(2, "0");
     console.log(`Checking QR ${c}`);
-    await page.goto(urlFor(c));
+    await navigate(urlFor(c));
     await page.waitForLoadState("networkidle");
     await page.getByText("Стол №" + c, { exact: true }).waitFor();
     await page.getByText("Авторское имя стола " + c, { exact: true }).waitFor();
@@ -293,25 +302,25 @@ try {
     await page.getByRole("button", { name: "Меню и биржа", exact: true }).click();
     await openMarket();
     await page.getByRole("button", { name: "Добавить Напиток XOXO", exact: true }).waitFor();
-    await page.reload();
+    await navigate();
     await page.getByText("Стол №" + c, { exact: true }).waitFor();
     assert(
       await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
       "horizontal overflow " + c,
     );
   }
-  await page.goto(urlFor("03"));
+  await navigate(urlFor("03"));
   await page.getByRole("button", { name: /КУХНЯ & БАР Меню XOXO/ }).waitFor();
   await shot("qr-landing");
   await openMarket();
   await page.getByRole("button", { name: "Добавить Напиток XOXO", exact: true }).waitFor();
   await shot("market");
   await page.getByRole("button", { name: "Добавить Напиток XOXO", exact: true }).click();
-  await page.reload();
+  await navigate();
   await page.getByRole("button", { name: /Корзина · 1/ }).waitFor();
-  await page.goto(urlFor("04"));
+  await navigate(urlFor("04"));
   assert(await page.getByRole("button", { name: /Корзина · 0/ }).isDisabled());
-  await page.goto(urlFor("03"));
+  await navigate(urlFor("03"));
   await openMarket();
   assert(
     await page.getByRole("button", { name: "Добавить Нет в наличии", exact: true }).isDisabled(),
@@ -321,7 +330,7 @@ try {
   loseResponse = true;
   await page.getByRole("button", { name: /^Заказать ·/ }).click();
   await page.getByRole("button", { name: "Проверить заказ", exact: true }).waitFor();
-  await page.reload();
+  await navigate();
   await page.getByRole("button", { name: "Проверить заказ", exact: true }).click();
   await page.getByRole("heading", { name: "Заказ #1" }).waitFor();
   assert.equal(ordersN, 1);
@@ -379,7 +388,7 @@ try {
     ),
     "logout removes receipt capabilities and pending attempts for every table",
   );
-  await page.reload();
+  await navigate();
   assert(await page.getByRole("button", { name: /Корзина · 0/ }).isDisabled());
   await openMarket();
   menuOffline = true;
@@ -431,20 +440,69 @@ try {
     await page.keyboard.press("Tab");
     assert(await page.evaluate(() => document.activeElement?.tagName === "BUTTON"));
   }
-  await page.goto(origin + "/xoxo");
+  await navigate(origin + "/xoxo");
   await page.getByRole("button", { name: "Я уже в XOXO", exact: true }).click();
   await page.getByText("У меня есть код сотрудника", { exact: true }).click();
   await page.getByLabel("Код от сотрудника").fill("AABBCCDDEE");
   await page.getByRole("button", { name: "Подтвердить стол и открыть заказ", exact: true }).click();
   await page.getByText("Стол №01", { exact: true }).waitFor();
   await shot("no-qr-confirmed");
-  await page.goto(origin + "/xoxo");
+  await navigate(origin + "/xoxo");
   await page.getByRole("button", { name: "Я уже в XOXO", exact: true }).click();
   await page.getByRole("button", { name: "Стол 08 Первый зал", exact: true }).click();
   await page.getByRole("button", { name: "Продолжить как гость", exact: true }).click();
   await page.getByText("Стол №08", { exact: true }).waitFor();
   await shot("web-table-selection");
-  await page.goto(origin + "/v/xoxo/t/03/" + "z".repeat(43));
+  // Real taps after animations settle: DOM visibility alone misses a dialog
+  // painted underneath the enclosing full-screen venue sheet.
+  const reachable = async (dialog) => {
+    await page.waitForTimeout(750);
+    assert(
+      await dialog.evaluate((el) => {
+        const r = el.getBoundingClientRect();
+        return el.contains(document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2));
+      }),
+      "Embedded dialog is covered by its parent sheet",
+    );
+  };
+  for (const signedIn of [false, true]) {
+    profile = signedIn
+      ? { id: "guest-1", name: "Тестовый гость", phone: "+77015558899", provisional: true }
+      : null;
+    await page.waitForLoadState("networkidle");
+    await navigate(origin + "/xoxo");
+    await page.getByRole("button", { name: "Я уже в XOXO", exact: true }).click();
+    await page.getByRole("button", { name: "Стол 08 Первый зал", exact: true }).click();
+    await page.getByRole("button", { name: "Продолжить как гость", exact: true }).click();
+    await page.getByRole("button", { name: /КУХНЯ & БАР Меню XOXO/ }).click();
+    await page.getByRole("button", { name: "Добавить Бургер XOXO", exact: true }).click();
+    await page.getByRole("button", { name: "На главную XOXO", exact: true }).click();
+    await page.locator("main").getByRole("button", { name: "Мой кабинет", exact: true }).click();
+    const account = page
+      .getByRole("dialog")
+      .filter({ has: page.getByRole("heading", { name: "Гостевой аккаунт", exact: true }) });
+    await reachable(account);
+    await account.getByRole("button", { name: "Обновить", exact: true }).click();
+    await account.getByRole("button", { name: "Close", exact: true }).click();
+    await page.getByRole("button", { name: /Корзина ·/ }).click();
+    const embeddedCart = page
+      .getByRole("dialog")
+      .filter({ has: page.getByRole("heading", { name: "Стол №08 · XOXO", exact: true }) });
+    await reachable(embeddedCart);
+    await embeddedCart.getByRole("button", { name: "Проверить сумму", exact: true }).click();
+    await embeddedCart.getByRole("button", { name: /^Заказать ·/ }).click();
+    await embeddedCart.getByRole("button", { name: "Заказать ещё", exact: true }).waitFor();
+    await reachable(embeddedCart);
+    await shot(signedIn ? "embedded-authorized-receipt" : "embedded-anonymous-receipt");
+    await embeddedCart.getByRole("button", { name: "Заказать ещё", exact: true }).click();
+    await page.getByRole("button", { name: /КУХНЯ & БАР Меню XOXO/ }).click();
+    await page.getByRole("button", { name: "Добавить Бургер XOXO", exact: true }).click();
+    await page.getByRole("button", { name: /Корзина ·/ }).click();
+    await reachable(embeddedCart);
+    await embeddedCart.getByRole("button", { name: "Close", exact: true }).click();
+    await page.waitForLoadState("networkidle");
+  }
+  await navigate(origin + "/v/xoxo/t/03/" + "z".repeat(43));
   await page.getByRole("alert").filter({ hasText: "QR недействителен" }).waitFor();
   assert.equal(await page.getByRole("button", { name: /^Заказать ·/ }).count(), 0);
   assert.deepEqual(failures, []);
