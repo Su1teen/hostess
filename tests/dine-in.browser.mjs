@@ -486,7 +486,9 @@ try {
     await page.getByRole("button", { name: /Корзина ·/ }).click();
     const embeddedCart = page
       .getByRole("dialog")
-      .filter({ has: page.getByRole("heading", { name: "Авторское имя стола 08 · XOXO", exact: true }) });
+      .filter({
+        has: page.getByRole("heading", { name: "Авторское имя стола 08 · XOXO", exact: true }),
+      });
     await reachable(embeddedCart);
     await embeddedCart.getByRole("button", { name: "Проверить сумму", exact: true }).click();
     await embeddedCart.getByRole("button", { name: /^Заказать ·/ }).click();
