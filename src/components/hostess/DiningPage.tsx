@@ -430,10 +430,10 @@ export function DiningPage({
               ХОРОШИЙ ВЕЧЕР НАЧИНАЕТСЯ ЗДЕСЬ
             </p>
             <div className="dining-table-chip">
-              <strong>Стол №{context.table.code}</strong>
-              <span>{context.table.zoneName ?? context.table.name}</span>
+              {/* The printed plate shows the hall and the table name; the code is internal. */}
+              <strong>{context.table.name}</strong>
+              {context.table.zoneName && <span>{context.table.zoneName}</span>}
             </div>
-            <p className="mt-2 break-words text-xs text-ink-3">{context.table.name}</p>
             <p className="dining-welcome">
               {profile ? `Рады видеть вас, ${profile.guest.name}.` : "Располагайтесь поудобнее."}{" "}
               Выберите что-нибудь к вашему вечеру — из меню или биржи напитков.
@@ -465,7 +465,7 @@ export function DiningPage({
       ) : (
         <div className="px-5 pt-4">
           <div className="mb-2 flex items-center justify-between text-xs text-ink-3">
-            <span>Стол №{context.table.code}</span>
+            <span>{context.table.name}</span>
             <span>{context.table.zoneName}</span>
           </div>
           <DiningCatalog
@@ -506,7 +506,7 @@ export function DiningPage({
       <Dialog open={cartOpen} onOpenChange={setCartOpen}>
         <DialogContent className="max-h-[92dvh] w-[calc(100%-24px)] max-w-lg overflow-y-auto rounded-[28px] border-line bg-canvas p-5">
           <DialogHeader>
-            <DialogTitle>Стол №{context.table.code} · XOXO</DialogTitle>
+            <DialogTitle>{context.table.name} · XOXO</DialogTitle>
             <DialogDescription>
               {order && !count ? "Ваш заказ" : "Цена фиксируется сервером перед подтверждением"}
             </DialogDescription>

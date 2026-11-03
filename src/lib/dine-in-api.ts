@@ -99,6 +99,7 @@ export const orderSchema = totalsSchema.extend({
   createdAt: date,
   venueCode: z.string(),
   tableCode: z.string(),
+  tableName: z.string().nullable().optional(),
   zoneName: z.string().nullable().optional(),
   manualPaymentAt: date.nullable().optional(),
   status: z.string(),

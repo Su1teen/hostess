@@ -48,7 +48,7 @@ export function DiningReceipt({ order }: { order: DiningOrder }) {
   const status = labels[current.status] ?? "Проверяем статус";
   return (
     <article className="space-y-4 rounded-[24px] border border-line bg-surface p-5">
-      <p className="t-micro">XOXO · Стол №{order.tableCode}</p>
+      <p className="t-micro">XOXO · {order.tableName ?? `Стол №${order.tableCode}`}</p>
       <h2 className="t-headline">Заказ #{order.orderNumber}</h2>
       <p role="status" className="text-sm font-medium">
         {status}
@@ -388,7 +388,8 @@ export function DiningAccount({
                   }
                 >
                   <span className="text-sm">
-                    #{order.orderNumber} · Стол {order.tableCode}
+                    #{order.orderNumber} · {order.tableName ?? `Стол ${order.tableCode}`}
+                    {order.zoneName ? `, ${order.zoneName}` : ""}
                     <span className="mt-1 block text-xs text-ink-2">
                       {venueDate(order.createdAt)}
                     </span>
