@@ -484,11 +484,9 @@ try {
     await account.getByRole("button", { name: "Обновить", exact: true }).click();
     await account.getByRole("button", { name: "Close", exact: true }).click();
     await page.getByRole("button", { name: /Корзина ·/ }).click();
-    const embeddedCart = page
-      .getByRole("dialog")
-      .filter({
-        has: page.getByRole("heading", { name: "Авторское имя стола 08 · XOXO", exact: true }),
-      });
+    const embeddedCart = page.getByRole("dialog").filter({
+      has: page.getByRole("heading", { name: "Авторское имя стола 08 · XOXO", exact: true }),
+    });
     await reachable(embeddedCart);
     await embeddedCart.getByRole("button", { name: "Проверить сумму", exact: true }).click();
     await embeddedCart.getByRole("button", { name: /^Заказать ·/ }).click();
