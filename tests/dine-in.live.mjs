@@ -73,9 +73,9 @@ for (const [engine, browserType, device] of [
         const url = new URL(row.url);
         assert.equal(url.origin, origins[0]);
         await page.goto(url.href);
-        await page.getByText("Стол №" + row.code, { exact: true }).waitFor();
+        await page.getByText(row.name ?? "Стол №" + row.code, { exact: true }).waitFor();
         await page.reload();
-        await page.getByText("Стол №" + row.code, { exact: true }).waitFor();
+        await page.getByText(row.name ?? "Стол №" + row.code, { exact: true }).waitFor();
         evidence.qr.push({
           engine,
           code: row.code,

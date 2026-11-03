@@ -295,7 +295,6 @@ try {
     console.log(`Checking QR ${c}`);
     await navigate(urlFor(c));
     await page.waitForLoadState("networkidle");
-    await page.getByText("Стол №" + c, { exact: true }).waitFor();
     await page.getByText("Авторское имя стола " + c, { exact: true }).waitFor();
     await page.getByRole("button", { name: /КУХНЯ & БАР Меню XOXO/ }).click();
     await page.getByRole("button", { name: "Добавить Бургер XOXO" }).waitFor();
@@ -303,7 +302,7 @@ try {
     await openMarket();
     await page.getByRole("button", { name: "Добавить Напиток XOXO", exact: true }).waitFor();
     await navigate();
-    await page.getByText("Стол №" + c, { exact: true }).waitFor();
+    await page.getByText("Авторское имя стола " + c, { exact: true }).waitFor();
     assert(
       await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
       "horizontal overflow " + c,
@@ -445,13 +444,13 @@ try {
   await page.getByText("У меня есть код сотрудника", { exact: true }).click();
   await page.getByLabel("Код от сотрудника").fill("AABBCCDDEE");
   await page.getByRole("button", { name: "Подтвердить стол и открыть заказ", exact: true }).click();
-  await page.getByText("Стол №01", { exact: true }).waitFor();
+  await page.getByText("Авторское имя стола 01", { exact: true }).waitFor();
   await shot("no-qr-confirmed");
   await navigate(origin + "/xoxo");
   await page.getByRole("button", { name: "Я уже в XOXO", exact: true }).click();
   await page.getByRole("button", { name: "Стол 08 Первый зал", exact: true }).click();
   await page.getByRole("button", { name: "Продолжить как гость", exact: true }).click();
-  await page.getByText("Стол №08", { exact: true }).waitFor();
+  await page.getByText("Авторское имя стола 08", { exact: true }).waitFor();
   await shot("web-table-selection");
   // Real taps after animations settle: DOM visibility alone misses a dialog
   // painted underneath the enclosing full-screen venue sheet.
@@ -487,7 +486,7 @@ try {
     await page.getByRole("button", { name: /Корзина ·/ }).click();
     const embeddedCart = page
       .getByRole("dialog")
-      .filter({ has: page.getByRole("heading", { name: "Стол №08 · XOXO", exact: true }) });
+      .filter({ has: page.getByRole("heading", { name: "Авторское имя стола 08 · XOXO", exact: true }) });
     await reachable(embeddedCart);
     await embeddedCart.getByRole("button", { name: "Проверить сумму", exact: true }).click();
     await embeddedCart.getByRole("button", { name: /^Заказать ·/ }).click();
