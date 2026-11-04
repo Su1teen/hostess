@@ -30,6 +30,18 @@ const tablesSchema = z.object({
     }),
   ),
 });
+export const wifiSchema = z.object({
+  wifi: z
+    .object({
+      ssid: z.string().min(1).max(64),
+      password: z.string().max(63),
+      security: z.enum(["WPA", "WEP", "nopass"]),
+      hidden: z.boolean(),
+      qr: z.string().startsWith("WIFI:"),
+    })
+    .nullable(),
+});
+export type GuestWifi = NonNullable<z.infer<typeof wifiSchema>["wifi"]>;
 export const menuSchema = z.object({
   generatedAt: date,
   status: z.enum(["ok", "no_published_round"]),
@@ -163,6 +175,7 @@ export const diningApi = {
     read(tablesSchema, "/dine-in/tables?venue=xoxo", undefined, signal),
   table: (token: string, signal?: AbortSignal) =>
     read(tableSchema, `/dine-in/tables/${encodeURIComponent(token)}`, undefined, signal),
+  wifi: (signal?: AbortSignal) => read(wifiSchema, "/dine-in/wifi?venue=xoxo", undefined, signal),
   menu: (venue: string, signal?: AbortSignal) =>
     read(menuSchema, `/dine-in/menu?venue=${encodeURIComponent(venue)}`, undefined, signal),
   regularMenu: (venue: string, signal?: AbortSignal) =>

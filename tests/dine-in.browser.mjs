@@ -113,6 +113,16 @@ try {
       p = u.pathname.replace("/api/guest/v1", "");
     const send = (body, status = 200) =>
       route.fulfill({ status, contentType: "application/json", body: JSON.stringify(body) });
+    if (p === "/dine-in/wifi")
+      return send({
+        wifi: {
+          ssid: "A. B.  Demo guest",
+          password: "Guest-pass-77",
+          security: "WPA",
+          hidden: false,
+          qr: "WIFI:T:WPA;S:A. B.  Demo guest;P:Guest-pass-77;;",
+        },
+      });
     if (p === "/dine-in/tables")
       return send({
         venue: { id: "venue-1", slug: "xoxo", name: "XOXO", currency: "KZT" },
@@ -296,6 +306,21 @@ try {
     await navigate(urlFor(c));
     await page.waitForLoadState("networkidle");
     await page.getByText("Авторское имя стола " + c, { exact: true }).waitFor();
+    if (c === "01") {
+      // Wi-Fi block: exact network name (double space kept) and password are readable.
+      await page.getByRole("region", { name: "Wi-Fi" }).waitFor();
+      await page.getByText("Guest-pass-77", { exact: true }).waitFor();
+      assert.equal(
+        await page
+          .getByRole("region", { name: "Wi-Fi" })
+          .getByText(/Demo guest/)
+          .textContent(),
+        "A. B.  Demo guest",
+      );
+      await page.getByRole("button", { name: "QR для другого телефона" }).click();
+      await page.getByRole("img", { name: "QR-код Wi-Fi" }).waitFor();
+      await shot("wifi-block");
+    }
     await page.getByRole("button", { name: /КУХНЯ & БАР Меню XOXO/ }).click();
     await page.getByRole("button", { name: "Добавить Бургер XOXO" }).waitFor();
     await page.getByRole("button", { name: "Меню и биржа", exact: true }).click();

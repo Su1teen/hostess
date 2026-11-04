@@ -1,5 +1,6 @@
 import "./lib/error-capture";
 import { proxyHostessApi } from "./lib/server/guest-proxy";
+import { wifiProfileResponse } from "./lib/server/wifi-profile";
 import { claimPage } from "./lib/server/guest-claim";
 import { resolveHostessRuntimeEnv } from "./lib/server/runtime-env";
 
@@ -51,6 +52,8 @@ export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     const claim = claimPage(request);
     if (claim) return claim;
+    const wifiProfile = await wifiProfileResponse(request, env);
+    if (wifiProfile) return wifiProfile;
     const proxy = await proxyHostessApi(request, env);
     if (proxy) {
       if (!proxy.headers.has("x-hostess-build")) {

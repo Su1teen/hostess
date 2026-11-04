@@ -83,6 +83,7 @@ const guestRoutes: [RegExp, string][] = [
 const dineInRoutes: [RegExp, string][] = [
   [/^dine-in\/access\/claim$/, "POST"],
   [/^dine-in\/tables$/, "GET"],
+  [/^dine-in\/wifi$/, "GET"],
   [/^dine-in\/booking-requests$/, "GET POST"],
   [/^dine-in\/tables\/[A-Za-z0-9_-]{20,128}$/, "GET"],
   [/^dine-in\/menu$/, "GET"],

@@ -27,6 +27,7 @@ import {
   type Wallet,
 } from "@/lib/dine-in-api";
 import { GuestApiError } from "@/lib/guest-api";
+import { DiningWifi } from "./DiningWifi";
 import { clearDiningSession, diningSessionChanged } from "@/lib/dining-session";
 import { DiningAccount, DiningReceipt, GuestIdentity } from "./DiningAccount";
 import {
@@ -439,6 +440,7 @@ export function DiningPage({
               Выберите что-нибудь к вашему вечеру — из меню или биржи напитков.
             </p>
           </section>
+          <DiningWifi />
           <div className="px-5">
             <DiningGateways
               onSelect={setSection}
