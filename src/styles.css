@@ -709,3 +709,12 @@
     transition-duration: 0.001ms !important;
   }
 }
+
+/* Clinic slot grid: taken cell — quiet diagonal hatch */
+.slot-taken {
+  background: repeating-linear-gradient(
+    135deg,
+    var(--hs-stone) 0 5px,
+    color-mix(in oklab, var(--hs-stone) 45%, transparent) 5px 10px
+  );
+}
