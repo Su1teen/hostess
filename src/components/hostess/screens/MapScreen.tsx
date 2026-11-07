@@ -27,6 +27,8 @@ import {
 import { geocode, type GeoResult } from "@/lib/geo";
 import { hapticSelect } from "@/lib/haptics";
 import { CarWashSheet } from "../CarWashSheet";
+import { clinicById } from "@/data/clinics";
+import { useClinicHost } from "../clinic/ClinicHub";
 import { VenueBookingModal } from "@/components/hostess/VenueBookingModal";
 import { EventTicketModal } from "@/components/hostess/EventTicketModal";
 import { CatalogSections, CategoryRail } from "@/components/hostess/screens/CatalogScreen";
@@ -132,14 +134,16 @@ export function MapScreen({
   const [event, setEvent] = useState<CityEvent | null>(null);
   const [carWash, setCarWash] = useState<CarWash | null>(null);
   const now = useNow(30_000);
+  const clinicHost = useClinicHost();
 
   useEffect(() => {
-    onOverlayChange?.(Boolean(venue || event || carWash));
-  }, [venue, event, carWash, onOverlayChange]);
+    onOverlayChange?.(Boolean(venue || event || carWash || clinicHost.open));
+  }, [venue, event, carWash, clinicHost.open, onOverlayChange]);
 
   const openVenue = (v: Venue) => {
     const wash = carWashById(v.id);
     if (v.category === "auto" && wash) setCarWash(wash);
+    else if (clinicById(v.id)) clinicHost.api.openClinic(v.id);
     else setVenue(v);
   };
 
@@ -151,6 +155,7 @@ export function MapScreen({
     if (cityEvent) return setEvent(cityEvent);
     const wash = carWashById(p.id);
     if (wash) return setCarWash(wash);
+    if (clinicById(p.id)) return clinicHost.api.openClinic(p.id);
     const item = venues.find((venueItem) => venueItem.id === p.id);
     setVenue(item ?? mapPointToVenue(p));
   };
@@ -428,7 +433,7 @@ export function MapScreen({
   const activeLabels = activeCategories.map((c) => categoryMeta[c]?.label ?? c).join(", ");
   const nearMode = sheet !== "full";
 
-  return (
+  return clinicHost.wrap(
     <div
       ref={containerRef}
       className="discovery-map relative h-full w-full overflow-hidden bg-[#f7f3ec]"
@@ -806,6 +811,6 @@ export function MapScreen({
         {event && <EventTicketModal key="event" event={event} onClose={() => setEvent(null)} />}
         {carWash && <CarWashSheet key="carwash" wash={carWash} onClose={() => setCarWash(null)} />}
       </AnimatePresence>
-    </div>
+    </div>,
   );
 }

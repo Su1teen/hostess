@@ -11,6 +11,9 @@ import {
   type Restaurant,
   type Venue,
 } from "@/data/hostess";
+import { clinicPriceFrom, clinics, doctorsOf, doctorsText } from "@/data/clinics";
+import { ClinicSections } from "@/components/hostess/clinic/ClinicSections";
+import { useClinicHost, useClinicHub } from "@/components/hostess/clinic/ClinicHub";
 import { EventTicketModal } from "@/components/hostess/EventTicketModal";
 import { VenueBookingModal } from "@/components/hostess/VenueBookingModal";
 import { StackedCoverFlow, type StackedCoverFlowItem } from "@/components/hostess/StackedCoverFlow";
@@ -95,8 +98,22 @@ export function CatalogSections({
     .sort((a, b) => b.rating - a.rating);
 
   const { signals } = useOccupancy();
+  const clinicHub = useClinicHub();
   let stackItems: StackedCoverFlowItem[];
-  if (category === "food") {
+  if (category === "medicine") {
+    stackItems = [...clinics]
+      .sort((a, b) => b.rating - a.rating)
+      .map((c) => ({
+        id: c.id,
+        image: c.cover,
+        eyebrow: c.kind === "Стоматология" ? "Стоматология" : "Клиника",
+        title: c.name,
+        subtitle: `${c.district} · ${c.distanceKm} км`,
+        meta: `${doctorsText(doctorsOf(c.id).length)} · от ${money(clinicPriceFrom(c.id))}`,
+        rating: c.rating,
+        onClick: () => clinicHub.openClinic(c.id),
+      }));
+  } else if (category === "food") {
     stackItems = curatedRestaurants().map((r, index) => ({
       id: r.id,
       image: r.cover,
@@ -203,29 +220,34 @@ export function CatalogSections({
         </>
       )}
 
-      {category !== "food" && category !== "concerts" && categoryVenues.length > 0 && (
-        <Section>
-          <SectionHeader title="Все места" />
-          <div className="space-y-5">
-            {categoryVenues.map((v) => {
-              const signal = liveSignal(v.id, Date.now(), signals[v.id]);
-              return (
-                <VenueRow
-                  key={v.id}
-                  image={v.cover}
-                  title={v.name}
-                  subtitle={v.kind}
-                  occupancy={signal.occupancy}
-                  status={signal.capacity ? statusText(signal) : undefined}
-                  rating={v.rating}
-                  meta={`от ${money(v.priceFrom)}`}
-                  onClick={() => onOpenVenue(v)}
-                />
-              );
-            })}
-          </div>
-        </Section>
-      )}
+      {category === "medicine" && <ClinicSections />}
+
+      {category !== "food" &&
+        category !== "concerts" &&
+        category !== "medicine" &&
+        categoryVenues.length > 0 && (
+          <Section>
+            <SectionHeader title="Все места" />
+            <div className="space-y-5">
+              {categoryVenues.map((v) => {
+                const signal = liveSignal(v.id, Date.now(), signals[v.id]);
+                return (
+                  <VenueRow
+                    key={v.id}
+                    image={v.cover}
+                    title={v.name}
+                    subtitle={v.kind}
+                    occupancy={signal.occupancy}
+                    status={signal.capacity ? statusText(signal) : undefined}
+                    rating={v.rating}
+                    meta={`от ${money(v.priceFrom)}`}
+                    onClick={() => onOpenVenue(v)}
+                  />
+                );
+              })}
+            </div>
+          </Section>
+        )}
 
       {(category === "food" || category === "concerts") && (
         <Section>
@@ -258,8 +280,9 @@ export function CatalogScreen({
   const [category, setCategory] = useState("food");
   const [venue, setVenue] = useState<Venue | null>(null);
   const [event, setEvent] = useState<CityEvent | null>(null);
+  const clinicHost = useClinicHost();
 
-  return (
+  return clinicHost.wrap(
     <div className="catalog-scroll no-scrollbar h-full overflow-y-auto bg-canvas pb-nav">
       <div className="pt-safe sticky top-0 z-10 bg-[color-mix(in_oklab,var(--hs-canvas)_90%,transparent)] pb-2 backdrop-blur-xl">
         <h1 className="t-title px-5 pb-3 pt-2">Места</h1>
@@ -275,6 +298,6 @@ export function CatalogScreen({
         {venue && <VenueBookingModal key="venue" venue={venue} onClose={() => setVenue(null)} />}
         {event && <EventTicketModal key="event" event={event} onClose={() => setEvent(null)} />}
       </AnimatePresence>
-    </div>
+    </div>,
   );
 }
