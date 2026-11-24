@@ -472,9 +472,13 @@
   padding: 1px 6px;
   border-radius: 999px;
   font-size: 10px;
-  font-weight: 600;
-  color: #5b3fa8;
-  background: #efe9fb;
+  font-weight: 700;
+  color: #2f7a3f;
+  background: #e3f3e6;
+}
+.dining-price-level.is-up {
+  color: #9a5b1f;
+  background: #f8ebdc;
 }
 .dining-note {
   color: #9b9183;

@@ -1,9 +1,7 @@
 import { useMemo, useState } from "react";
 import {
-  ArrowDownRight,
   ArrowLeft,
   ArrowRight,
-  ArrowUpRight,
   ChefHat,
   Clock3,
   Minus,
@@ -157,21 +155,9 @@ function PriceLevel({ product }: { product: CatalogProduct }) {
   const level = product.priceLevelPercent;
   if (level == null) return null;
   return (
-    <span className="dining-price-level">
-      Уровень {level > 0 ? "+" : level < 0 ? "−" : ""}
-      {Math.abs(level)}%
-    </span>
-  );
-}
-
-function PriceChange({ product }: { product: CatalogProduct }) {
-  if (product.changePercent == null || product.previousPrice == null) return null;
-  const change = product.changePercent;
-  return (
-    <span className={`dining-price-change ${change < 0 ? "is-down" : change > 0 ? "is-up" : ""}`}>
-      {change < 0 ? <ArrowDownRight size={14} /> : change > 0 ? <ArrowUpRight size={14} /> : null}
-      {change > 0 ? "+" : ""}
-      {change.toFixed(1)}%
+    <span className={`dining-price-level ${level > 0 ? "is-up" : "is-down"}`}>
+      Уровень {level > 0 ? "+" : ""}
+      {level}%
     </span>
   );
 }
@@ -340,9 +326,12 @@ export function DiningCatalog({
                 <span className="dining-offer-photo">
                   <ProductImage product={p} market />
                 </span>
-                <span className="dining-offer-discount">
-                  −{Math.round((1 - p.price / p.originalPrice!) * 100)}%
-                </span>
+                {p.priceLevelPercent != null && (
+                  <span className="dining-offer-discount">
+                    Уровень {p.priceLevelPercent > 0 ? "+" : ""}
+                    {p.priceLevelPercent}%
+                  </span>
+                )}
                 <strong>{p.name}</strong>
                 <span>
                   {kzt(p.price)} <s>{kzt(p.originalPrice!)}</s>
@@ -429,7 +418,6 @@ export function DiningCatalog({
                       {kzt(p.price)}
                     </strong>
                     {market && <PriceLevel product={p} />}
-                    {market && <PriceChange product={p} />}
                   </div>
                   {market && p.previousPrice != null && (
                     <span className="dining-note">Предыдущий раунд · {kzt(p.previousPrice)}</span>
@@ -484,7 +472,6 @@ export function DiningCatalog({
               <div className="dining-detail-price">
                 <strong>{kzt(currentSelected.price)}</strong>
                 {market && <PriceLevel product={currentSelected} />}
-                {market && <PriceChange product={currentSelected} />}
               </div>
               {currentSelected.portion && <p className="dining-note">{currentSelected.portion}</p>}
               {Boolean(currentSelected.allergens?.length) && (
