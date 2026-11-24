@@ -465,6 +465,17 @@
 .dining-price-change.is-up {
   color: #ab7551;
 }
+.dining-price-level {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 6px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #5b3fa8;
+  background: #efe9fb;
+}
 .dining-note {
   color: #9b9183;
   font-size: 10px;

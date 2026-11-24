@@ -40,6 +40,7 @@ export type CatalogProduct = {
   previousPrice?: number | null;
   minPrice?: number;
   changePercent?: number;
+  priceLevelPercent?: number | null;
   volumeMl?: number | null;
 };
 
@@ -148,6 +149,18 @@ function ProductImage({ product, market }: { product: CatalogProduct; market: bo
       referrerPolicy="no-referrer"
       onError={() => setFailed((previous) => [...previous, current])}
     />
+  );
+}
+
+/** Same price index the bar board shows: «Уровень −10%» (−30…+70, step 10). */
+function PriceLevel({ product }: { product: CatalogProduct }) {
+  const level = product.priceLevelPercent;
+  if (level == null) return null;
+  return (
+    <span className="dining-price-level">
+      Уровень {level > 0 ? "+" : level < 0 ? "−" : ""}
+      {Math.abs(level)}%
+    </span>
   );
 }
 
@@ -415,6 +428,7 @@ export function DiningCatalog({
                     <strong key={p.price} className="dining-price-updated">
                       {kzt(p.price)}
                     </strong>
+                    {market && <PriceLevel product={p} />}
                     {market && <PriceChange product={p} />}
                   </div>
                   {market && p.previousPrice != null && (
@@ -469,6 +483,7 @@ export function DiningCatalog({
               </DialogHeader>
               <div className="dining-detail-price">
                 <strong>{kzt(currentSelected.price)}</strong>
+                {market && <PriceLevel product={currentSelected} />}
                 {market && <PriceChange product={currentSelected} />}
               </div>
               {currentSelected.portion && <p className="dining-note">{currentSelected.portion}</p>}

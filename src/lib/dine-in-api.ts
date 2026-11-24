@@ -56,6 +56,7 @@ export const menuSchema = z.object({
       minPrice: amount.optional(),
       volumeMl: z.number().positive().nullable().optional(),
       changePercent: z.number().finite().optional(),
+      priceLevelPercent: z.number().finite().optional(),
       isAvailable: z.boolean(),
       category: z.string().nullable().optional(),
       imageUrl: imageSource.nullable().optional(),

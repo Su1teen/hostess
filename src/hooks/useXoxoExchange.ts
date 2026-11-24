@@ -8,6 +8,7 @@ export type XoxoExchangeProduct = {
   minPrice: number;
   previousPrice: number | null;
   changePercent: number;
+  priceLevelPercent?: number | null;
   isAvailable: boolean;
   imageUrl?: string | null;
   category?: string | null;
